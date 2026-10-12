@@ -1,0 +1,13 @@
+environment          = "production"
+domain_name          = "app.praxis.example.com"
+acm_certificate_arn  = "arn:aws:acm:ap-southeast-2:000000000000:certificate/replace-me"
+api_image            = "000000000000.dkr.ecr.ap-southeast-2.amazonaws.com/praxis-api:latest"
+web_image            = "000000000000.dkr.ecr.ap-southeast-2.amazonaws.com/praxis-web:latest"
+db_instance_class    = "db.r7g.large"
+db_multi_az          = true
+redis_node_type      = "cache.r7g.large"
+api_desired_count    = 3
+worker_desired_count = 3
+web_desired_count    = 3
+api_cpu              = 1024
+api_memory           = 2048

@@ -1,0 +1,113 @@
+# Local development stack: docker compose up --build
+# Web: http://localhost:3000   API docs: http://localhost:8000/api/docs   MailHog: http://localhost:8025
+name: praxis
+
+x-api-env: &api-env
+  ENVIRONMENT: development
+  DATABASE_URL: postgresql+asyncpg://praxis:praxis@postgres:5432/praxis
+  REDIS_URL: redis://redis:6379/0
+  AUTH_SECRET: ${AUTH_SECRET:-dev-only-insecure-secret-change-me-0123456789}
+  PUBLIC_WEB_URL: http://localhost:3000
+  CORS_ORIGINS: http://localhost:3000
+  STORAGE_BACKEND: s3
+  AWS_S3_ENDPOINT_URL: http://minio:9000
+  AWS_ACCESS_KEY: minio
+  AWS_SECRET_KEY: minio12345
+  AWS_BUCKET: praxis-dev
+  EMAIL_PROVIDER: smtp
+  SMTP_HOST: mailhog
+  SMTP_PORT: "1025"
+  SMTP_USE_TLS: "false"
+  CLAMAV_HOST: clamav
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-offline}
+  STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+  STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: praxis
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d praxis"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio12345
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+
+  minio-setup:
+    image: minio/mc:latest
+    depends_on: [minio]
+    entrypoint: >
+      /bin/sh -c "sleep 3; mc alias set local http://minio:9000 minio minio12345 &&
+      mc mb -p local/praxis-dev && exit 0"
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports: ["1025:1025", "8025:8025"]
+
+  clamav:
+    image: clamav/clamav:stable
+    profiles: ["full"]
+
+  migrate:
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    environment: *api-env
+    depends_on:
+      postgres: { condition: service_healthy }
+    command: ["sh", "-c", "alembic upgrade head && python -m app.seed"]
+
+  api:
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    environment: *api-env
+    ports: ["8000:8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker:
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    environment: *api-env
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "-l", "info", "-Q", "default", "--concurrency", "4"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  beat:
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    environment: *api-env
+    command: ["celery", "-A", "app.workers.celery_app", "beat", "-l", "info"]
+    depends_on: [worker]
+
+  web:
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile }
+    environment:
+      API_URL: http://api:8000
+    ports: ["3000:3000"]
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  miniodata:

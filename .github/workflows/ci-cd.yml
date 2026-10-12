@@ -1,0 +1,256 @@
+# GitHub → Tests → Security scan → Build → Deploy staging → Approval → Deploy production
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-2
+  ECR_API: praxis-api
+  ECR_WEB: praxis-web
+
+jobs:
+  api-tests:
+    name: API tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: praxis_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Prepare database (non-superuser app role so RLS is enforced)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d praxis_test -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+          psql -h localhost -U postgres -c "CREATE ROLE praxis LOGIN PASSWORD 'praxis' NOSUPERUSER NOBYPASSRLS CREATEDB;"
+          psql -h localhost -U postgres -c "ALTER DATABASE praxis_test OWNER TO praxis;"
+          psql -h localhost -U postgres -d praxis_test -c "ALTER SCHEMA public OWNER TO praxis;"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e packages/ai -e packages/simulation-engine -e "apps/api[dev]"
+      - name: Lint
+        working-directory: apps/api
+        run: ruff check app tests
+      - name: Migrations apply cleanly (upgrade → downgrade → upgrade)
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql+asyncpg://praxis:praxis@localhost:5432/praxis_test
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+          alembic check
+          alembic downgrade base
+      - name: Unit + integration tests with coverage
+        working-directory: apps/api
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://praxis:praxis@localhost:5432/praxis_test
+        run: |
+          pytest -q --cov --cov-report=xml --cov-report=term-missing:skip-covered \
+            tests ../../packages/ai/tests ../../packages/simulation-engine/tests --cov-fail-under=80
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage
+          path: apps/api/coverage.xml
+
+  web-checks:
+    name: Web typecheck, lint, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web typecheck
+      - run: pnpm --filter web lint
+      - run: pnpm --filter web build
+
+  e2e:
+    name: End-to-end (Playwright)
+    needs: [api-tests, web-checks]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: praxis
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      DATABASE_URL: postgresql+asyncpg://praxis:praxis@localhost:5432/praxis
+      CELERY_TASK_ALWAYS_EAGER: "true"
+      RATE_LIMIT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - name: Database
+        env: { PGPASSWORD: postgres }
+        run: |
+          psql -h localhost -U postgres -d praxis -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+          psql -h localhost -U postgres -c "CREATE ROLE praxis LOGIN PASSWORD 'praxis' NOSUPERUSER NOBYPASSRLS;"
+          psql -h localhost -U postgres -c "ALTER DATABASE praxis OWNER TO praxis;"
+          psql -h localhost -U postgres -d praxis -c "ALTER SCHEMA public OWNER TO praxis;"
+      - name: Install
+        run: |
+          pip install -e packages/ai -e packages/simulation-engine -e "apps/api[dev]"
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Migrate + seed + start
+        run: |
+          cd apps/api && alembic upgrade head && python -m app.seed
+          nohup uvicorn app.main:app --port 8000 > /tmp/api.log 2>&1 &
+          cd ../.. && pnpm --filter web build && (nohup pnpm --filter web start > /tmp/web.log 2>&1 &)
+          npx wait-on http://localhost:8000/api/v1/health http://localhost:3000 --timeout 120000
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            /tmp/api.log
+            /tmp/web.log
+
+  security:
+    name: Security scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Bandit (Python SAST)
+        run: pip install bandit && bandit -r apps/api/app packages -x "*/tests/*" -ll
+      - name: pip-audit (Python dependencies)
+        run: pip install pip-audit && pip-audit -r <(pip install -q -e packages/ai -e packages/simulation-engine -e apps/api >/dev/null && pip freeze | grep -v -e praxis -e simulation)
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - name: pnpm audit (JS dependencies)
+        run: pnpm install --frozen-lockfile && pnpm audit --prod --audit-level high
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Trivy filesystem + IaC scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+      - name: Terraform validate
+        working-directory: infrastructure/terraform
+        run: |
+          curl -sSfL https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip -o tf.zip && unzip -q tf.zip
+          ./terraform init -backend=false && ./terraform validate && ./terraform fmt -check -recursive
+
+  build:
+    name: Build & push images
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [api-tests, web-checks, e2e, security]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v3
+      - name: API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/api.Dockerfile
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_API }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/web.Dockerfile
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy staging
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy
+        with:
+          environment: staging
+          tag: ${{ needs.build.outputs.tag }}
+          role-arn: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          region: ${{ env.AWS_REGION }}
+
+  deploy-production:
+    name: Deploy production
+    needs: [build, deploy-staging]
+    runs-on: ubuntu-latest
+    # The "production" GitHub environment is configured with required reviewers → manual approval gate.
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy
+        with:
+          environment: production
+          tag: ${{ needs.build.outputs.tag }}
+          role-arn: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          region: ${{ env.AWS_REGION }}
