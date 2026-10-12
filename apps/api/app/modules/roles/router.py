@@ -22,8 +22,10 @@ async def list_roles(ctx: Ctx = Depends(_can_read)):
 
 @router.get("/permissions", response_model=list[PermissionOut])
 async def permission_catalogue(ctx: Ctx = Depends(require_permission("roles.manage"))):
-    return [PermissionOut(code=p.code, description=p.description, category=p.category)
-            for p in await service.catalogue(ctx)]
+    return [
+        PermissionOut(code=p.code, description=p.description, category=p.category)
+        for p in await service.catalogue(ctx)
+    ]
 
 
 @router.post("", response_model=RoleOut, status_code=201)
@@ -37,7 +39,9 @@ async def get_role(role_id: uuid.UUID, ctx: Ctx = Depends(require_permission("ro
 
 
 @router.patch("/{role_id}", response_model=RoleOut)
-async def update_role(role_id: uuid.UUID, body: RoleUpdate, ctx: Ctx = Depends(require_permission("roles.manage"))):
+async def update_role(
+    role_id: uuid.UUID, body: RoleUpdate, ctx: Ctx = Depends(require_permission("roles.manage"))
+):
     return await service.update_role(ctx, role_id, body)
 
 

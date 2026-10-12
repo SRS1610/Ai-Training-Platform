@@ -14,8 +14,9 @@ router = APIRouter(prefix="/departments", tags=["departments"])
 
 
 @router.get("", response_model=list[DepartmentOut])
-async def list_departments(q: str | None = Query(None, max_length=200),
-                           ctx: Ctx = Depends(require_permission("users.view"))):
+async def list_departments(
+    q: str | None = Query(None, max_length=200), ctx: Ctx = Depends(require_permission("users.view"))
+):
     return await service.list_departments(ctx, q)
 
 
@@ -35,8 +36,9 @@ async def get_department(department_id: uuid.UUID, ctx: Ctx = Depends(require_pe
 
 
 @router.patch("/{department_id}", response_model=DepartmentOut)
-async def update_department(department_id: uuid.UUID, body: DepartmentUpdate,
-                            ctx: Ctx = Depends(require_permission("users.edit"))):
+async def update_department(
+    department_id: uuid.UUID, body: DepartmentUpdate, ctx: Ctx = Depends(require_permission("users.edit"))
+):
     return await service.update_department(ctx, department_id, body)
 
 

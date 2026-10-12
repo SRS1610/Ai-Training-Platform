@@ -21,10 +21,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.rbac import ALL_CODES
 from app.core.audit import write_audit
-from app.core.db import bind_tenant, get_db
+from app.core.db import bind_tenant, get_db, tenant_scope
 from app.core.errors import Forbidden, NotFound, Unauthorized
 from app.core.middleware import ACCESS_COOKIE, client_ip
-from app.core.security import decode_access_token, hash_token
+from app.core.security import constant_time_equals, decode_access_token, hash_token
 from app.models.identity import AuthSession, User, UserStatus
 from app.models.tenancy import ApiKey, MembershipStatus, Organisation, OrganisationUser, OrgStatus
 
@@ -122,18 +122,17 @@ async def _principal_from_api_key(db: AsyncSession, raw: str) -> Principal:
     parts = raw.split("_", 2)
     if len(parts) != 3 or parts[0] != "pk":
         raise Unauthorized("Invalid API key")
-    await bind_tenant(db, None, bypass=True)  # key lookup precedes tenant resolution
-    key = await db.scalar(select(ApiKey).where(ApiKey.prefix == parts[1]))
-    await bind_tenant(db, None, bypass=False)
     now = datetime.now(UTC)
-    if (
-        not key
-        or key.revoked_at
-        or (key.expires_at and key.expires_at < now)
-        or key.key_hash != hash_token(raw)
-    ):
-        raise Unauthorized("Invalid API key")
-    await db.execute(update(ApiKey).where(ApiKey.id == key.id).values(last_used_at=now))
+    async with tenant_scope(db, None, bypass=True):  # key lookup precedes tenant resolution
+        key = await db.scalar(select(ApiKey).where(ApiKey.prefix == parts[1]))
+        if (
+            not key
+            or key.revoked_at
+            or (key.expires_at and key.expires_at < now)
+            or not constant_time_equals(key.key_hash, hash_token(raw))
+        ):
+            raise Unauthorized("Invalid API key")
+        await db.execute(update(ApiKey).where(ApiKey.id == key.id).values(last_used_at=now))
     return Principal(user=None, api_key=key, mfa_verified=True)
 
 

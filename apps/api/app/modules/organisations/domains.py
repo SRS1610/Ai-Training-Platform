@@ -45,9 +45,11 @@ def instructions(org_id: uuid.UUID, domain: str) -> dict[str, str]:
         "record_type": "TXT",
         "record_name": record_name(domain),
         "record_value": record_value(org_id, domain),
-        "instructions": (f"Add a DNS TXT record named '{record_name(domain)}' with the value "
-                         f"'{record_value(org_id, domain)}', then click Verify. DNS changes can take up to "
-                         "48 hours to propagate."),
+        "instructions": (
+            f"Add a DNS TXT record named '{record_name(domain)}' with the value "
+            f"'{record_value(org_id, domain)}', then click Verify. DNS changes can take up to "
+            "48 hours to propagate."
+        ),
     }
 
 

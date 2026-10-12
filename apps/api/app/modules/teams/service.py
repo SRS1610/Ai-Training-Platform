@@ -18,8 +18,9 @@ from app.modules.users.service import department_in_org, get_membership
 
 
 async def get_team(ctx: Ctx, team_id: uuid.UUID) -> Team:
-    t = await ctx.db.scalar(select(Team).where(Team.id == team_id, Team.organisation_id == ctx.org_id,
-                                               Team.deleted_at.is_(None)))
+    t = await ctx.db.scalar(
+        select(Team).where(Team.id == team_id, Team.organisation_id == ctx.org_id, Team.deleted_at.is_(None))
+    )
     if t is None:
         raise NotFound("Team not found")
     return t
@@ -28,15 +29,29 @@ async def get_team(ctx: Ctx, team_id: uuid.UUID) -> Team:
 async def _member_counts(ctx: Ctx, team_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
     if not team_ids:
         return {}
-    return dict((await ctx.db.execute(
-        select(TeamMember.team_id, func.count()).where(TeamMember.organisation_id == ctx.org_id,
-                                                       TeamMember.team_id.in_(team_ids))
-        .group_by(TeamMember.team_id))).tuples().all())
+    return dict(
+        (
+            await ctx.db.execute(
+                select(TeamMember.team_id, func.count())
+                .where(TeamMember.organisation_id == ctx.org_id, TeamMember.team_id.in_(team_ids))
+                .group_by(TeamMember.team_id)
+            )
+        )
+        .tuples()
+        .all()
+    )
 
 
 def _out(t: Team, counts: dict[uuid.UUID, int]) -> TeamOut:
-    return TeamOut(id=t.id, name=t.name, description=t.description, department_id=t.department_id,
-                   lead_user_id=t.lead_user_id, member_count=counts.get(t.id, 0), created_at=t.created_at)
+    return TeamOut(
+        id=t.id,
+        name=t.name,
+        description=t.description,
+        department_id=t.department_id,
+        lead_user_id=t.lead_user_id,
+        member_count=counts.get(t.id, 0),
+        created_at=t.created_at,
+    )
 
 
 async def team_out(ctx: Ctx, t: Team) -> TeamOut:
@@ -69,8 +84,11 @@ async def create_team(ctx: Ctx, body: TeamCreate) -> TeamOut:
     await ctx.db.flush()
     await ctx.db.refresh(t)
     if t.lead_user_id:  # the lead is a member of their own team
-        await ctx.db.execute(insert(TeamMember).values(organisation_id=ctx.org_id, team_id=t.id,
-                                                       user_id=t.lead_user_id).on_conflict_do_nothing())
+        await ctx.db.execute(
+            insert(TeamMember)
+            .values(organisation_id=ctx.org_id, team_id=t.id, user_id=t.lead_user_id)
+            .on_conflict_do_nothing()
+        )
     await ctx.audit("team.created", "team", t.id, name=t.name)
     return await team_out(ctx, t)
 
@@ -91,8 +109,9 @@ async def update_team(ctx: Ctx, team_id: uuid.UUID, body: TeamUpdate) -> TeamOut
 
 async def delete_team(ctx: Ctx, team_id: uuid.UUID) -> None:
     t = await get_team(ctx, team_id)
-    await ctx.db.execute(delete(TeamMember).where(TeamMember.organisation_id == ctx.org_id,
-                                                  TeamMember.team_id == t.id))
+    await ctx.db.execute(
+        delete(TeamMember).where(TeamMember.organisation_id == ctx.org_id, TeamMember.team_id == t.id)
+    )
     t.deleted_at = datetime.now(UTC)
     await ctx.db.flush()
     await ctx.audit("team.deleted", "team", t.id, name=t.name)
@@ -102,29 +121,54 @@ async def list_members(ctx: Ctx, team_id: uuid.UUID, params: PageParams) -> tupl
     await get_team(ctx, team_id)
     stmt = (
         select(OrganisationUser)
-        .join(TeamMember, (TeamMember.user_id == OrganisationUser.user_id)
-              & (TeamMember.organisation_id == OrganisationUser.organisation_id))
+        .join(
+            TeamMember,
+            (TeamMember.user_id == OrganisationUser.user_id)
+            & (TeamMember.organisation_id == OrganisationUser.organisation_id),
+        )
         .join(User, User.id == OrganisationUser.user_id)
         .where(TeamMember.team_id == team_id, OrganisationUser.organisation_id == ctx.org_id)
         .order_by(func.lower(User.full_name))
     )
     rows, total = await paginate(ctx.db, stmt, params)
-    return [TeamMemberOut(user_id=m.user_id, email=m.user.email, full_name=m.user.full_name,
-                          avatar_url=m.user.avatar_url, job_title=m.job_title) for m in rows], total
+    return [
+        TeamMemberOut(
+            user_id=m.user_id,
+            email=m.user.email,
+            full_name=m.user.full_name,
+            avatar_url=m.user.avatar_url,
+            job_title=m.job_title,
+        )
+        for m in rows
+    ], total
 
 
 async def add_members(ctx: Ctx, team_id: uuid.UUID, user_ids: list[uuid.UUID]) -> int:
     t = await get_team(ctx, team_id)
     ids = list(dict.fromkeys(user_ids))
-    valid = set((await ctx.db.execute(select(OrganisationUser.user_id).where(
-        OrganisationUser.organisation_id == ctx.org_id, OrganisationUser.user_id.in_(ids)))).scalars().all())
+    valid = set(
+        (
+            await ctx.db.execute(
+                select(OrganisationUser.user_id).where(
+                    OrganisationUser.organisation_id == ctx.org_id, OrganisationUser.user_id.in_(ids)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
     missing = [str(i) for i in ids if i not in valid]
     if missing:
-        raise BadRequest("Some users are not members of this organisation", code="not_member",
-                         details={"user_ids": missing})
+        raise BadRequest(
+            "Some users are not members of this organisation",
+            code="not_member",
+            details={"user_ids": missing},
+        )
     result = await ctx.db.execute(
-        insert(TeamMember).values([{"organisation_id": ctx.org_id, "team_id": t.id, "user_id": u} for u in ids])
-        .on_conflict_do_nothing())
+        insert(TeamMember)
+        .values([{"organisation_id": ctx.org_id, "team_id": t.id, "user_id": u} for u in ids])
+        .on_conflict_do_nothing()
+    )
     added = max(int(result.rowcount or 0), 0)
     await ctx.audit("team.members_added", "team", t.id, user_ids=[str(i) for i in ids], added=added)
     return added
@@ -132,8 +176,13 @@ async def add_members(ctx: Ctx, team_id: uuid.UUID, user_ids: list[uuid.UUID]) -
 
 async def remove_member(ctx: Ctx, team_id: uuid.UUID, user_id: uuid.UUID) -> None:
     t = await get_team(ctx, team_id)
-    result = await ctx.db.execute(delete(TeamMember).where(
-        TeamMember.organisation_id == ctx.org_id, TeamMember.team_id == t.id, TeamMember.user_id == user_id))
+    result = await ctx.db.execute(
+        delete(TeamMember).where(
+            TeamMember.organisation_id == ctx.org_id,
+            TeamMember.team_id == t.id,
+            TeamMember.user_id == user_id,
+        )
+    )
     if not result.rowcount:
         raise NotFound("User is not a member of this team")
     await ctx.audit("team.member_removed", "team", t.id, user_id=str(user_id))

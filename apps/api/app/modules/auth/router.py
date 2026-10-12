@@ -273,6 +273,13 @@ async def oauth_callback(provider: str, request: Request, code: str = Query(...)
         cfg = oauth.builtin_provider(provider)
         identity_provider = provider
     claims = await oauth.exchange_code(cfg, provider, code, st.data["verifier"])
+    if conn is not None:
+        # An organisation's IdP may only assert identities in that organisation's verified domains;
+        # otherwise a tenant could sign in as (and link to) any user on the platform.
+        domain = str(claims["email"]).rsplit("@", 1)[-1].lower()
+        if domain not in {d.lower() for d in (conn.email_domains or [])}:
+            raise Forbidden("This identity provider is not authorised for your email domain",
+                            code="sso_domain_mismatch")
     email_verified = bool(claims.get("email_verified", conn is not None))
     user, created = await service.find_or_create_federated_user(
         db, provider=identity_provider, subject=str(claims["sub"]), email=claims["email"],

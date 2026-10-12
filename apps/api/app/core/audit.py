@@ -65,6 +65,10 @@ async def write_audit(
         "metadata": meta or {},
     }
     prev_hash = prev or GENESIS
+    # Users are identified by id only: the log is immutable, so storing e-mail addresses here would make
+    # personal data impossible to erase. Non-identifying labels (API key prefixes, pseudonyms) are kept.
+    if actor_label and "@" in actor_label:
+        actor_label = None
     entry = AuditLog(
         created_at=created_at,
         organisation_id=organisation_id,

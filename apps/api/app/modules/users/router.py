@@ -33,8 +33,9 @@ async def list_members(
     params: PageParams = Depends(page_params),
     ctx: Ctx = Depends(require_permission("users.view")),
 ) -> Page[MemberOut]:
-    items, total = await service.list_members(ctx, params, q=q, role=role, department_id=department_id,
-                                              team_id=team_id, status=status)
+    items, total = await service.list_members(
+        ctx, params, q=q, role=role, department_id=department_id, team_id=team_id, status=status
+    )
     return Page(items=items, total=total, page=params.page, page_size=params.page_size)
 
 
@@ -59,12 +60,16 @@ async def get_member(user_id: uuid.UUID, ctx: Ctx = Depends(require_permission("
 
 
 @router.patch("/{user_id}", response_model=MemberOut)
-async def update_member(user_id: uuid.UUID, body: MemberUpdate, ctx: Ctx = Depends(require_permission("users.edit"))):
+async def update_member(
+    user_id: uuid.UUID, body: MemberUpdate, ctx: Ctx = Depends(require_permission("users.edit"))
+):
     return await service.update_member(ctx, user_id, body)
 
 
 @router.put("/{user_id}/roles", response_model=MemberOut)
-async def set_roles(user_id: uuid.UUID, body: RolesSet, ctx: Ctx = Depends(require_permission("roles.manage"))):
+async def set_roles(
+    user_id: uuid.UUID, body: RolesSet, ctx: Ctx = Depends(require_permission("roles.manage"))
+):
     return await service.set_roles(ctx, user_id, body.roles)
 
 

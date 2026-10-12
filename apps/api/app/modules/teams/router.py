@@ -15,8 +15,11 @@ router = APIRouter(prefix="/teams", tags=["teams"])
 
 
 @router.get("", response_model=list[TeamOut])
-async def list_teams(department_id: uuid.UUID | None = None, q: str | None = Query(None, max_length=200),
-                     ctx: Ctx = Depends(require_permission("users.view"))):
+async def list_teams(
+    department_id: uuid.UUID | None = None,
+    q: str | None = Query(None, max_length=200),
+    ctx: Ctx = Depends(require_permission("users.view")),
+):
     return await service.list_teams(ctx, department_id, q)
 
 
@@ -31,7 +34,9 @@ async def get_team(team_id: uuid.UUID, ctx: Ctx = Depends(require_permission("us
 
 
 @router.patch("/{team_id}", response_model=TeamOut)
-async def update_team(team_id: uuid.UUID, body: TeamUpdate, ctx: Ctx = Depends(require_permission("users.edit"))):
+async def update_team(
+    team_id: uuid.UUID, body: TeamUpdate, ctx: Ctx = Depends(require_permission("users.edit"))
+):
     return await service.update_team(ctx, team_id, body)
 
 
@@ -42,21 +47,26 @@ async def delete_team(team_id: uuid.UUID, ctx: Ctx = Depends(require_permission(
 
 
 @router.get("/{team_id}/members", response_model=Page[TeamMemberOut])
-async def team_members(team_id: uuid.UUID, params: PageParams = Depends(page_params),
-                       ctx: Ctx = Depends(require_permission("users.view"))):
+async def team_members(
+    team_id: uuid.UUID,
+    params: PageParams = Depends(page_params),
+    ctx: Ctx = Depends(require_permission("users.view")),
+):
     items, total = await service.list_members(ctx, team_id, params)
     return Page(items=items, total=total, page=params.page, page_size=params.page_size)
 
 
 @router.post("/{team_id}/members", response_model=TeamOut)
-async def add_team_members(team_id: uuid.UUID, body: TeamMembersAdd,
-                           ctx: Ctx = Depends(require_permission("users.edit"))):
+async def add_team_members(
+    team_id: uuid.UUID, body: TeamMembersAdd, ctx: Ctx = Depends(require_permission("users.edit"))
+):
     await service.add_members(ctx, team_id, body.user_ids)
     return await service.team_out(ctx, await service.get_team(ctx, team_id))
 
 
 @router.delete("/{team_id}/members/{user_id}", status_code=204)
-async def remove_team_member(team_id: uuid.UUID, user_id: uuid.UUID,
-                             ctx: Ctx = Depends(require_permission("users.edit"))):
+async def remove_team_member(
+    team_id: uuid.UUID, user_id: uuid.UUID, ctx: Ctx = Depends(require_permission("users.edit"))
+):
     await service.remove_member(ctx, team_id, user_id)
     return Response(status_code=204)

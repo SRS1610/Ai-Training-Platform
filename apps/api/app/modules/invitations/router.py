@@ -36,7 +36,9 @@ async def list_invitations(
     ctx: Ctx = Depends(require_permission("users.create")),
 ) -> Page[InvitationOut]:
     rows, total = await service.list_invitations(ctx, params, status, q)
-    return Page(items=[service.to_out(r) for r in rows], total=total, page=params.page, page_size=params.page_size)
+    return Page(
+        items=[service.to_out(r) for r in rows], total=total, page=params.page, page_size=params.page_size
+    )
 
 
 @router.post("", response_model=InvitationOut, status_code=201)
@@ -46,9 +48,12 @@ async def create_invitation(body: InvitationCreate, ctx: Ctx = Depends(require_p
 
 @router.post("/bulk", response_model=BulkResult, status_code=201)
 async def bulk_invite(body: InvitationBulkCreate, ctx: Ctx = Depends(require_permission("users.create"))):
-    created, errors = await service.bulk_create(ctx, [str(e) for e in body.emails], body.roles, body.department_id)
-    return BulkResult(invited=[service.to_out(i) for i in created],
-                      errors=[BulkError(email=e, error=m) for e, m in errors])
+    created, errors = await service.bulk_create(
+        ctx, [str(e) for e in body.emails], body.roles, body.department_id
+    )
+    return BulkResult(
+        invited=[service.to_out(i) for i in created], errors=[BulkError(email=e, error=m) for e, m in errors]
+    )
 
 
 @router.post("/{invitation_id}/resend", response_model=InvitationOut)
@@ -71,19 +76,36 @@ async def lookup(token: str = Query(..., min_length=10, max_length=200), db: Asy
 
 
 @public_router.post("/accept", response_model=AcceptOut)
-async def accept(body: AcceptIn, request: Request, response: Response, db: AsyncSession = Depends(get_db),
-                 principal: Principal | None = Depends(get_optional_principal)) -> AcceptOut:
+async def accept(
+    body: AcceptIn,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    principal: Principal | None = Depends(get_optional_principal),
+) -> AcceptOut:
     from app.modules.auth import service as auth_service
     from app.modules.auth.router import _set_auth_cookies
 
     current = principal.user if principal else None
-    user, org, created = await service.accept(db, body.token, current_user=current, full_name=body.full_name,
-                                              password=body.password, accept_terms=body.accept_terms,
-                                              ip=client_ip(request))
+    user, org, created = await service.accept(
+        db,
+        body.token,
+        current_user=current,
+        full_name=body.full_name,
+        password=body.password,
+        accept_terms=body.accept_terms,
+        ip=client_ip(request),
+    )
     out = AcceptOut(organisation_id=org.id, user_id=user.id, account_created=created)
     if created:
-        issued = await auth_service.issue_session(db, user, mfa_verified=False, auth_method="password",
-                                                  ip=client_ip(request), user_agent=request.headers.get("user-agent"))
+        issued = await auth_service.issue_session(
+            db,
+            user,
+            mfa_verified=False,
+            auth_method="password",
+            ip=client_ip(request),
+            user_agent=request.headers.get("user-agent"),
+        )
         out.csrf_token = _set_auth_cookies(response, issued)
         out.access_token = issued.access_token
         out.expires_at = issued.access_expires

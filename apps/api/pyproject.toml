@@ -32,6 +32,10 @@ dependencies = [
   "python-pptx>=1.0",
   "beautifulsoup4>=4.12",
   "boto3>=1.35",
+  "dnspython>=2.6",
+  # Local path dependency (monorepo): install with `pip install -e ../../packages/ai` before this package.
+  # Provides `praxis_ai` (AI provider abstraction, chunking, extraction, safety, prompts).
+  "praxis-ai>=0.1",
 ]
 
 [project.optional-dependencies]

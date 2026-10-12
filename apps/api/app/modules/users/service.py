@@ -61,8 +61,11 @@ def _now() -> datetime:
 
 async def get_membership(db: AsyncSession, org_id: uuid.UUID, user_id: uuid.UUID) -> OrganisationUser:
     """Load a membership of ``user_id`` in ``org_id`` or 404 (never reveals members of other orgs)."""
-    m = await db.scalar(select(OrganisationUser).where(
-        OrganisationUser.organisation_id == org_id, OrganisationUser.user_id == user_id))
+    m = await db.scalar(
+        select(OrganisationUser).where(
+            OrganisationUser.organisation_id == org_id, OrganisationUser.user_id == user_id
+        )
+    )
     if m is None:
         raise NotFound("Member not found")
     return m
@@ -72,10 +75,16 @@ async def roles_by_keys(db: AsyncSession, org_id: uuid.UUID, keys: list[str]) ->
     keys = sorted({k.strip() for k in keys if k and k.strip()})
     if not keys:
         raise BadRequest("At least one role is required", code="roles_required")
-    roles = (await db.execute(select(Role).where(Role.organisation_id == org_id, Role.key.in_(keys)))).scalars().all()
+    roles = (
+        (await db.execute(select(Role).where(Role.organisation_id == org_id, Role.key.in_(keys))))
+        .scalars()
+        .all()
+    )
     missing = sorted(set(keys) - {r.key for r in roles})
     if missing:
-        raise BadRequest(f"Unknown role(s): {', '.join(missing)}", code="unknown_role", details={"missing": missing})
+        raise BadRequest(
+            f"Unknown role(s): {', '.join(missing)}", code="unknown_role", details={"missing": missing}
+        )
     return list(roles)
 
 
@@ -86,19 +95,28 @@ def ensure_can_grant(ctx: Ctx, roles: list[Role]) -> None:
     granted = {p.code for r in roles for p in r.permissions}
     excess = sorted(granted - ctx.permissions)
     if excess:
-        raise Forbidden("You cannot grant permissions you do not have", code="privilege_escalation",
-                        details={"permissions": excess})
+        raise Forbidden(
+            "You cannot grant permissions you do not have",
+            code="privilege_escalation",
+            details={"permissions": excess},
+        )
 
 
-async def count_active_admins(db: AsyncSession, org_id: uuid.UUID, exclude_user_id: uuid.UUID | None = None) -> int:
+async def count_active_admins(
+    db: AsyncSession, org_id: uuid.UUID, exclude_user_id: uuid.UUID | None = None
+) -> int:
     stmt = (
         select(func.count(distinct(OrganisationUser.id)))
         .select_from(OrganisationUser)
         .join(membership_roles, membership_roles.c.membership_id == OrganisationUser.id)
         .join(Role, Role.id == membership_roles.c.role_id)
         .join(User, User.id == OrganisationUser.user_id)
-        .where(OrganisationUser.organisation_id == org_id, OrganisationUser.status == MembershipStatus.ACTIVE,
-               Role.key == ADMIN_ROLE, User.deleted_at.is_(None))
+        .where(
+            OrganisationUser.organisation_id == org_id,
+            OrganisationUser.status == MembershipStatus.ACTIVE,
+            Role.key == ADMIN_ROLE,
+            User.deleted_at.is_(None),
+        )
     )
     if exclude_user_id:
         stmt = stmt.where(OrganisationUser.user_id != exclude_user_id)
@@ -113,14 +131,21 @@ async def ensure_not_last_admin(db: AsyncSession, m: OrganisationUser) -> None:
     """Raise if ``m`` is an active org_admin and no other active org_admin would remain."""
     if m.status == MembershipStatus.ACTIVE and is_admin(m):
         if await count_active_admins(db, m.organisation_id, exclude_user_id=m.user_id) == 0:
-            raise Conflict("An organisation must keep at least one active organisation admin", code="last_admin")
+            raise Conflict(
+                "An organisation must keep at least one active organisation admin", code="last_admin"
+            )
 
 
 async def department_in_org(db: AsyncSession, org_id: uuid.UUID, department_id: uuid.UUID | None) -> None:
     if department_id is None:
         return
-    found = await db.scalar(select(Department.id).where(
-        Department.id == department_id, Department.organisation_id == org_id, Department.deleted_at.is_(None)))
+    found = await db.scalar(
+        select(Department.id).where(
+            Department.id == department_id,
+            Department.organisation_id == org_id,
+            Department.deleted_at.is_(None),
+        )
+    )
     if not found:
         raise BadRequest("Department not found", code="department_not_found")
 
@@ -131,19 +156,34 @@ async def department_in_org(db: AsyncSession, org_id: uuid.UUID, department_id: 
 async def _department_names(db: AsyncSession, org_id: uuid.UUID, ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:
     if not ids:
         return {}
-    rows = await db.execute(select(Department.id, Department.name).where(
-        Department.organisation_id == org_id, Department.id.in_(ids)))
+    rows = await db.execute(
+        select(Department.id, Department.name).where(
+            Department.organisation_id == org_id, Department.id.in_(ids)
+        )
+    )
     return dict(rows.tuples().all())
 
 
 def _member_out(m: OrganisationUser, dept_names: dict[uuid.UUID, str]) -> MemberOut:
     u: User = m.user
     return MemberOut(
-        user_id=u.id, membership_id=m.id, email=u.email, full_name=u.full_name, avatar_url=u.avatar_url,
-        status=m.status, user_status=u.status, roles=sorted(r.key for r in m.roles),
-        department_id=m.department_id, department_name=dept_names.get(m.department_id) if m.department_id else None,
-        job_title=m.job_title, employee_id=m.employee_id, manager_user_id=m.manager_user_id, joined_at=m.joined_at,
-        last_login_at=u.last_login_at, mfa_enabled=u.mfa_enabled, created_at=m.created_at,
+        user_id=u.id,
+        membership_id=m.id,
+        email=u.email,
+        full_name=u.full_name,
+        avatar_url=u.avatar_url,
+        status=m.status,
+        user_status=u.status,
+        roles=sorted(r.key for r in m.roles),
+        department_id=m.department_id,
+        department_name=dept_names.get(m.department_id) if m.department_id else None,
+        job_title=m.job_title,
+        employee_id=m.employee_id,
+        manager_user_id=m.manager_user_id,
+        joined_at=m.joined_at,
+        last_login_at=u.last_login_at,
+        mfa_enabled=u.mfa_enabled,
+        created_at=m.created_at,
     )
 
 
@@ -156,8 +196,14 @@ async def member_out(db: AsyncSession, m: OrganisationUser) -> MemberOut:
 
 
 async def list_members(
-    ctx: Ctx, params: PageParams, *, q: str | None, role: str | None, department_id: uuid.UUID | None,
-    team_id: uuid.UUID | None, status: str | None,
+    ctx: Ctx,
+    params: PageParams,
+    *,
+    q: str | None,
+    role: str | None,
+    department_id: uuid.UUID | None,
+    team_id: uuid.UUID | None,
+    status: str | None,
 ) -> tuple[list[MemberOut], int]:
     """Paginated, filterable member directory for the active organisation."""
     stmt = (
@@ -167,18 +213,32 @@ async def list_members(
     )
     if q:
         like = f"%{q.strip()}%"
-        stmt = stmt.where(or_(User.email.ilike(like), User.full_name.ilike(like),
-                              OrganisationUser.employee_id.ilike(like), OrganisationUser.job_title.ilike(like)))
+        stmt = stmt.where(
+            or_(
+                User.email.ilike(like),
+                User.full_name.ilike(like),
+                OrganisationUser.employee_id.ilike(like),
+                OrganisationUser.job_title.ilike(like),
+            )
+        )
     if role:
-        stmt = stmt.where(OrganisationUser.id.in_(
-            select(membership_roles.c.membership_id).join(Role, Role.id == membership_roles.c.role_id)
-            .where(Role.organisation_id == ctx.org_id, Role.key == role)))
+        stmt = stmt.where(
+            OrganisationUser.id.in_(
+                select(membership_roles.c.membership_id)
+                .join(Role, Role.id == membership_roles.c.role_id)
+                .where(Role.organisation_id == ctx.org_id, Role.key == role)
+            )
+        )
     if department_id:
         stmt = stmt.where(OrganisationUser.department_id == department_id)
     if team_id:
-        stmt = stmt.where(OrganisationUser.user_id.in_(
-            select(TeamMember.user_id).where(TeamMember.team_id == team_id,
-                                             TeamMember.organisation_id == ctx.org_id)))
+        stmt = stmt.where(
+            OrganisationUser.user_id.in_(
+                select(TeamMember.user_id).where(
+                    TeamMember.team_id == team_id, TeamMember.organisation_id == ctx.org_id
+                )
+            )
+        )
     if status:
         stmt = stmt.where(OrganisationUser.status == status)
     stmt = stmt.order_by(func.lower(User.full_name), User.email)
@@ -195,20 +255,36 @@ async def member_detail(ctx: Ctx, user_id: uuid.UUID) -> MemberDetail:
         mgr = await ctx.db.get(User, m.manager_user_id)
         if mgr:
             manager = Ref(id=mgr.id, name=mgr.full_name)
-    teams = (await ctx.db.execute(
-        select(Team.id, Team.name).join(TeamMember, TeamMember.team_id == Team.id)
-        .where(TeamMember.user_id == user_id, Team.organisation_id == ctx.org_id, Team.deleted_at.is_(None))
-        .order_by(Team.name))).tuples().all()
+    teams = (
+        (
+            await ctx.db.execute(
+                select(Team.id, Team.name)
+                .join(TeamMember, TeamMember.team_id == Team.id)
+                .where(
+                    TeamMember.user_id == user_id,
+                    Team.organisation_id == ctx.org_id,
+                    Team.deleted_at.is_(None),
+                )
+                .order_by(Team.name)
+            )
+        )
+        .tuples()
+        .all()
+    )
     counts = EnrolmentCounts()
-    for status, n in (await ctx.db.execute(
-        select(Enrolment.status, func.count()).where(Enrolment.organisation_id == ctx.org_id,
-                                                     Enrolment.user_id == user_id)
-        .group_by(Enrolment.status))).tuples():
+    for status, n in (
+        await ctx.db.execute(
+            select(Enrolment.status, func.count())
+            .where(Enrolment.organisation_id == ctx.org_id, Enrolment.user_id == user_id)
+            .group_by(Enrolment.status)
+        )
+    ).tuples():
         if hasattr(counts, status):
             setattr(counts, status, int(n))
         counts.total += int(n)
-    return MemberDetail(**base.model_dump(), manager=manager, teams=[Ref(id=i, name=n) for i, n in teams],
-                        enrolments=counts)
+    return MemberDetail(
+        **base.model_dump(), manager=manager, teams=[Ref(id=i, name=n) for i, n in teams], enrolments=counts
+    )
 
 
 # ----------------------------------------------------------------------------- commands
@@ -240,7 +316,7 @@ async def set_roles(ctx: Ctx, user_id: uuid.UUID, role_keys: list[str]) -> Membe
     after = sorted(r.key for r in roles)
     if ADMIN_ROLE in before and ADMIN_ROLE not in after:
         await ensure_not_last_admin(ctx.db, m)
-    # Removing roles that carry permissions the caller lacks is also an escalation vector (e.g. demoting an admin).
+    # Removing roles carrying permissions the caller lacks is also an escalation vector (demoting an admin).
     ensure_can_grant(ctx, [r for r in m.roles if r.key not in after])
     m.roles = roles
     await ctx.db.flush()
@@ -283,9 +359,16 @@ async def remove_member(ctx: Ctx, user_id: uuid.UUID) -> None:
 async def detach_membership(db: AsyncSession, m: OrganisationUser) -> None:
     """Delete a membership and the user's org-local structure links (teams, manager references)."""
     org_id, user_id = m.organisation_id, m.user_id
-    await db.execute(delete(TeamMember).where(TeamMember.organisation_id == org_id, TeamMember.user_id == user_id))
-    for other in (await db.execute(select(OrganisationUser).where(
-            OrganisationUser.organisation_id == org_id, OrganisationUser.manager_user_id == user_id))).scalars():
+    await db.execute(
+        delete(TeamMember).where(TeamMember.organisation_id == org_id, TeamMember.user_id == user_id)
+    )
+    for other in (
+        await db.execute(
+            select(OrganisationUser).where(
+                OrganisationUser.organisation_id == org_id, OrganisationUser.manager_user_id == user_id
+            )
+        )
+    ).scalars():
         other.manager_user_id = None
     user = await db.get(User, user_id)
     if user and user.default_organisation_id == org_id:
@@ -305,8 +388,11 @@ async def create_member(ctx: Ctx, body: MemberCreate) -> MemberCreated:
     user = await get_user_by_email(ctx.db, email)
     if user and user.deleted_at:
         raise Conflict("This email address cannot be used", code="email_unavailable")
-    if user and await ctx.db.scalar(select(OrganisationUser.id).where(
-            OrganisationUser.organisation_id == ctx.org_id, OrganisationUser.user_id == user.id)):
+    if user and await ctx.db.scalar(
+        select(OrganisationUser.id).where(
+            OrganisationUser.organisation_id == ctx.org_id, OrganisationUser.user_id == user.id
+        )
+    ):
         raise Conflict("This user is already a member of the organisation", code="already_member")
     await plans.check_limit(ctx.db, ctx.org, "max_users")
     temp_password: str | None = None
@@ -319,28 +405,56 @@ async def create_member(ctx: Ctx, body: MemberCreate) -> MemberCreated:
             password = body.password
         else:
             temp_password = password = f"{secrets.token_urlsafe(9)}-{secrets.token_hex(2)}"
-        user = User(email=email, full_name=body.full_name.strip(), password_hash=security.hash_password(password),
-                    default_organisation_id=ctx.org_id,
-                    preferences={"must_change_password": True} if temp_password else {})
+        user = User(
+            email=email,
+            full_name=body.full_name.strip(),
+            password_hash=security.hash_password(password),
+            default_organisation_id=ctx.org_id,
+            preferences={"must_change_password": True} if temp_password else {},
+        )
         ctx.db.add(user)
         await ctx.db.flush()
-    m = OrganisationUser(organisation_id=ctx.org_id, user_id=user.id, status=MembershipStatus.ACTIVE,
-                         joined_at=_now(), roles=roles, department_id=body.department_id, job_title=body.job_title,
-                         employee_id=body.employee_id, invited_by=ctx.principal.user_id)
+    m = OrganisationUser(
+        organisation_id=ctx.org_id,
+        user_id=user.id,
+        status=MembershipStatus.ACTIVE,
+        joined_at=_now(),
+        roles=roles,
+        department_id=body.department_id,
+        job_title=body.job_title,
+        employee_id=body.employee_id,
+        invited_by=ctx.principal.user_id,
+    )
     ctx.db.add(m)
     await ctx.db.flush()
     await ctx.db.refresh(m, ["user"])
-    await ctx.audit("member.created", "user", user.id, email=email, roles=sorted(r.key for r in roles),
-                    existing_account=existing)
-    await emit(ctx.db, "member.joined", {"organisation_id": ctx.org_id, "user_id": user.id,
-                                         "membership_id": m.id, "via": "direct"})
+    await ctx.audit(
+        "member.created",
+        "user",
+        user.id,
+        email=email,
+        roles=sorted(r.key for r in roles),
+        existing_account=existing,
+    )
+    await emit(
+        ctx.db,
+        "member.joined",
+        {"organisation_id": ctx.org_id, "user_id": user.id, "membership_id": m.id, "via": "direct"},
+    )
     if body.send_email:
         paragraphs = [f"Hi {user.full_name},", f"You've been added to {ctx.org.name} on {settings.APP_NAME}."]
         if temp_password:
-            paragraphs.append("Your administrator will share a temporary password with you. "
-                              "Please change it after your first sign-in.")
-        await send_email(email, f"You've been added to {ctx.org.name}", paragraphs,
-                         f"{settings.PUBLIC_WEB_URL}/login", "Sign in")
+            paragraphs.append(
+                "Your administrator will share a temporary password with you. "
+                "Please change it after your first sign-in."
+            )
+        await send_email(
+            email,
+            f"You've been added to {ctx.org.name}",
+            paragraphs,
+            f"{settings.PUBLIC_WEB_URL}/login",
+            "Sign in",
+        )
     out = await member_out(ctx.db, m)
     return MemberCreated(**out.model_dump(), temporary_password=temp_password, existing_account=existing)
 
@@ -374,11 +488,20 @@ async def import_csv(ctx: Ctx, data: bytes, default_roles: list[str]) -> ImportR
     from app.modules.invitations import service as invitations
 
     rows = _parse_csv(data)
-    depts = {name.lower(): did for did, name in (await ctx.db.execute(
-        select(Department.id, Department.name).where(Department.organisation_id == ctx.org_id,
-                                                     Department.deleted_at.is_(None)))).tuples()}
-    org_roles = {r.key: r for r in (await ctx.db.execute(
-        select(Role).where(Role.organisation_id == ctx.org_id))).scalars()}
+    depts = {
+        name.lower(): did
+        for did, name in (
+            await ctx.db.execute(
+                select(Department.id, Department.name).where(
+                    Department.organisation_id == ctx.org_id, Department.deleted_at.is_(None)
+                )
+            )
+        ).tuples()
+    }
+    org_roles = {
+        r.key: r
+        for r in (await ctx.db.execute(select(Role).where(Role.organisation_id == ctx.org_id))).scalars()
+    }
     errors: list[ImportRowError] = []
     valid: list[tuple[str, list[str], uuid.UUID | None]] = []
     seen: set[str] = set()

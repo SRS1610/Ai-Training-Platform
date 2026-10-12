@@ -15,29 +15,62 @@ from app.modules.users.service import get_membership
 
 
 async def get_department(ctx: Ctx, department_id: uuid.UUID) -> Department:
-    d = await ctx.db.scalar(select(Department).where(
-        Department.id == department_id, Department.organisation_id == ctx.org_id, Department.deleted_at.is_(None)))
+    d = await ctx.db.scalar(
+        select(Department).where(
+            Department.id == department_id,
+            Department.organisation_id == ctx.org_id,
+            Department.deleted_at.is_(None),
+        )
+    )
     if d is None:
         raise NotFound("Department not found")
     return d
 
 
 async def _counts(ctx: Ctx) -> tuple[dict[uuid.UUID, int], dict[uuid.UUID, int]]:
-    members = dict((await ctx.db.execute(
-        select(OrganisationUser.department_id, func.count())
-        .where(OrganisationUser.organisation_id == ctx.org_id, OrganisationUser.department_id.is_not(None))
-        .group_by(OrganisationUser.department_id))).tuples().all())
-    teams = dict((await ctx.db.execute(
-        select(Team.department_id, func.count())
-        .where(Team.organisation_id == ctx.org_id, Team.deleted_at.is_(None), Team.department_id.is_not(None))
-        .group_by(Team.department_id))).tuples().all())
+    members = dict(
+        (
+            await ctx.db.execute(
+                select(OrganisationUser.department_id, func.count())
+                .where(
+                    OrganisationUser.organisation_id == ctx.org_id,
+                    OrganisationUser.department_id.is_not(None),
+                )
+                .group_by(OrganisationUser.department_id)
+            )
+        )
+        .tuples()
+        .all()
+    )
+    teams = dict(
+        (
+            await ctx.db.execute(
+                select(Team.department_id, func.count())
+                .where(
+                    Team.organisation_id == ctx.org_id,
+                    Team.deleted_at.is_(None),
+                    Team.department_id.is_not(None),
+                )
+                .group_by(Team.department_id)
+            )
+        )
+        .tuples()
+        .all()
+    )
     return members, teams
 
 
 def _out(d: Department, members: dict[uuid.UUID, int], teams: dict[uuid.UUID, int]) -> DepartmentOut:
-    return DepartmentOut(id=d.id, name=d.name, description=d.description, parent_id=d.parent_id,
-                         manager_user_id=d.manager_user_id, member_count=members.get(d.id, 0),
-                         team_count=teams.get(d.id, 0), created_at=d.created_at)
+    return DepartmentOut(
+        id=d.id,
+        name=d.name,
+        description=d.description,
+        parent_id=d.parent_id,
+        manager_user_id=d.manager_user_id,
+        member_count=members.get(d.id, 0),
+        team_count=teams.get(d.id, 0),
+        created_at=d.created_at,
+    )
 
 
 async def department_out(ctx: Ctx, d: Department) -> DepartmentOut:
@@ -104,23 +137,31 @@ async def update_department(ctx: Ctx, department_id: uuid.UUID, body: Department
         setattr(d, k, v)
     await ctx.db.flush()
     await ctx.db.refresh(d)
-    await ctx.audit("department.updated", "department", d.id,
-                    fields=sorted(data.keys()))
+    await ctx.audit("department.updated", "department", d.id, fields=sorted(data.keys()))
     return await department_out(ctx, d)
 
 
 async def delete_department(ctx: Ctx, department_id: uuid.UUID) -> None:
     d = await get_department(ctx, department_id)
     org = ctx.org_id
-    await ctx.db.execute(update(Department).where(Department.organisation_id == org, Department.parent_id == d.id)
-                         .values(parent_id=d.parent_id))
-    await ctx.db.execute(update(OrganisationUser).where(OrganisationUser.organisation_id == org,
-                                                        OrganisationUser.department_id == d.id)
-                         .values(department_id=None))
-    await ctx.db.execute(update(Team).where(Team.organisation_id == org, Team.department_id == d.id)
-                         .values(department_id=None))
-    await ctx.db.execute(update(Invitation).where(Invitation.organisation_id == org, Invitation.department_id == d.id)
-                         .values(department_id=None))
+    await ctx.db.execute(
+        update(Department)
+        .where(Department.organisation_id == org, Department.parent_id == d.id)
+        .values(parent_id=d.parent_id)
+    )
+    await ctx.db.execute(
+        update(OrganisationUser)
+        .where(OrganisationUser.organisation_id == org, OrganisationUser.department_id == d.id)
+        .values(department_id=None)
+    )
+    await ctx.db.execute(
+        update(Team).where(Team.organisation_id == org, Team.department_id == d.id).values(department_id=None)
+    )
+    await ctx.db.execute(
+        update(Invitation)
+        .where(Invitation.organisation_id == org, Invitation.department_id == d.id)
+        .values(department_id=None)
+    )
     d.deleted_at = datetime.now(UTC)
     await ctx.db.flush()
     await ctx.audit("department.deleted", "department", d.id, name=d.name)

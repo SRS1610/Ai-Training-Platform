@@ -84,7 +84,8 @@ async def _current_count(db: AsyncSession, org_id: Any, resource: str) -> int:
         members = await db.scalar(select(func.count()).select_from(OrganisationUser).where(
             OrganisationUser.organisation_id == org_id, OrganisationUser.status != MembershipStatus.SUSPENDED))
         pending = await db.scalar(select(func.count()).select_from(Invitation).where(
-            Invitation.organisation_id == org_id, Invitation.accepted_at.is_(None), Invitation.revoked_at.is_(None)))
+            Invitation.organisation_id == org_id, Invitation.accepted_at.is_(None), Invitation.revoked_at.is_(None),
+            Invitation.expires_at > func.now()))
         return int(members or 0) + int(pending or 0)
     if resource == "max_courses":
         return int(await db.scalar(select(func.count()).select_from(Course).where(
@@ -111,3 +112,42 @@ async def check_limit(db: AsyncSession, org: Any, resource: str, increment: int 
             f"Your {plan.name} plan allows {limit} {resource.removeprefix('max_')}. Upgrade to add more.",
             details={"resource": resource, "limit": limit, "current": current, "plan": plan.code},
         )
+
+
+# ----------------------------------------------------------------------------- Stripe catalogue helpers
+
+TRIAL_DAYS: dict[str, int] = {"professional": 14, "business": 14}
+# Enterprise is sales-led and free needs no checkout.
+SELF_SERVE_PLANS = ("individual", "professional", "business")
+
+
+def stripe_price_id(plan_code: str, interval: str) -> str | None:
+    """Stripe price id for a plan/interval from the environment (e.g. ``STRIPE_PRICE_BUSINESS_MONTHLY``)."""
+    import os
+
+    env = get_plan(plan_code).stripe_price_env.get(interval)
+    return os.environ.get(env) if env else None
+
+
+def plan_for_price_id(price_id: str | None) -> tuple[str, str] | None:
+    """Reverse lookup: Stripe price id -> (plan_code, interval)."""
+    if not price_id:
+        return None
+    for code, plan in PLANS.items():
+        for interval in plan.stripe_price_env:
+            if stripe_price_id(code, interval) == price_id:
+                return code, interval
+    return None
+
+
+def public_catalogue() -> list[dict[str, Any]]:
+    return [
+        {
+            "code": p.code, "name": p.name, "description": p.description,
+            "monthly_price_cents": p.monthly_price_cents, "annual_price_cents": p.annual_price_cents,
+            "seat_based": p.seat_based, "limits": p.limits, "features": p.features,
+            "trial_days": TRIAL_DAYS.get(p.code, 0), "self_serve": p.code in SELF_SERVE_PLANS,
+            "contact_sales": p.code == "enterprise",
+        }
+        for p in PLANS.values()
+    ]

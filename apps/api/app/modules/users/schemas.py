@@ -63,8 +63,9 @@ class MemberCreate(BaseModel):
     department_id: uuid.UUID | None = None
     job_title: str | None = Field(default=None, max_length=200)
     employee_id: str | None = Field(default=None, max_length=100)
-    password: str | None = Field(default=None, max_length=256,
-                                 description="Initial password. Omit to generate a temporary password.")
+    password: str | None = Field(
+        default=None, max_length=256, description="Initial password. Omit to generate a temporary password."
+    )
     send_email: bool = True
 
 
