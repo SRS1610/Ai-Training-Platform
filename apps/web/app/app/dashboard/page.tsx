@@ -89,28 +89,28 @@ function Dashboard() {
       {isNew ? (
         <>
           <WelcomePanel emailVerified={!!user?.email_verified} mfaEnabled={!!user?.mfa_enabled} />
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 xl:grid-cols-3">
             <Recommendations items={data.recommendations} />
-            <HeatmapCard days={data.activity_heatmap} />
+            <div className="xl:col-span-2">
+              <HeatmapCard days={data.activity_heatmap} stats={data.stats} />
+            </div>
           </div>
         </>
       ) : (
         <>
           <div className="grid gap-6 xl:grid-cols-3">
             <ContinueLearning courses={data.current_courses} className="xl:col-span-2" />
-            <DeadlinesTimeline items={data.upcoming_deadlines} />
+            <div className="flex flex-col gap-6">
+              <DeadlinesTimeline items={data.upcoming_deadlines} />
+              <Recommendations items={data.recommendations} className="flex-1" />
+            </div>
           </div>
           <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-            <Recommendations items={data.recommendations} />
             <SkillsPanel skills={data.skills} />
             <SimulationResults results={data.simulation_results} />
-          </div>
-          <div className="grid gap-6 xl:grid-cols-3">
-            <div className="xl:col-span-2">
-              <HeatmapCard days={data.activity_heatmap} />
-            </div>
             <RecentActivity items={data.recent_activity} />
           </div>
+          <HeatmapCard days={data.activity_heatmap} stats={data.stats} />
           <CertificatesStrip certificates={data.certificates} />
         </>
       )}

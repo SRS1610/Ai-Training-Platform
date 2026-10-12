@@ -317,7 +317,7 @@ export function SkillRadarChart({
   const hasBenchmark = data.some((d) => d.benchmark !== undefined);
   return (
     <Frame height={height} className={className} label={label}>
-      <RadarChart data={data} outerRadius="72%">
+      <RadarChart data={data} outerRadius="66%" margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
         <defs>
           <linearGradient id={`r${id}`} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#6366f1" stopOpacity={0.55} />
@@ -325,7 +325,7 @@ export function SkillRadarChart({
           </linearGradient>
         </defs>
         <PolarGrid stroke="#e2e8f0" />
-        <PolarAngleAxis dataKey="subject" tick={{ fill: "#475569", fontSize: 12 }} />
+        <PolarAngleAxis dataKey="subject" tick={{ fill: "#475569", fontSize: 11 }} />
         <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
         <Tooltip content={<ChartTooltip formatter={(v) => `${v}%`} />} />
         {hasBenchmark && <Radar name="Target" dataKey="benchmark" stroke="#f59e0b" strokeDasharray="4 4" fill="none" strokeWidth={2} />}
@@ -401,14 +401,14 @@ export function ActivityHeatmap({
   return (
     <figure className={cn("w-full", className)}>
       <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-        <div className="grid grid-rows-7 gap-1 pt-0 text-2xs text-slate-500" aria-hidden>
+        <div className="grid shrink-0 grid-rows-7 gap-1 text-2xs text-slate-500" aria-hidden>
           {dayLabels.map((l, i) => (
-            <span key={i} className="flex h-3.5 items-center sm:h-4">
+            <span key={i} className="flex h-4 items-center sm:h-5">
               {l}
             </span>
           ))}
         </div>
-        <div className="flex flex-1 justify-between gap-1" role="grid" aria-label={`Learning activity over the last ${weeks} weeks`}>
+        <div className="flex gap-1" role="grid" aria-label={`Learning activity over the last ${weeks} weeks`}>
           {cols.map((col, ci) => (
             <div key={ci} className="grid grid-rows-7 gap-1" role="row">
               {col.map((c) => (
@@ -417,7 +417,10 @@ export function ActivityHeatmap({
                   role="gridcell"
                   title={c.future ? undefined : `${c.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}: ${Math.round(c.seconds / 60)} min`}
                   aria-label={c.future ? undefined : `${c.key}: ${Math.round(c.seconds / 60)} minutes`}
-                  className={cn("size-3.5 rounded-[4px] sm:size-4", c.future ? "bg-transparent" : HEAT[level(c.seconds)])}
+                  className={cn(
+                    "size-4 rounded-[5px] transition-transform hover:scale-110 sm:size-5",
+                    c.future ? "bg-transparent" : HEAT[level(c.seconds)],
+                  )}
                 />
               ))}
             </div>

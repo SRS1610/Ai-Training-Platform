@@ -30,9 +30,9 @@ test.describe("authentication", () => {
     // Register (individual account)
     await page.goto("/register");
     await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
-    await page.getByLabel("Full name").fill("Avery Quinn");
-    await page.getByLabel("Email", { exact: true }).fill(email);
-    await page.getByLabel("Password", { exact: true }).fill(password);
+    await page.getByRole("textbox", { name: "Full name" }).fill("Avery Quinn");
+    await page.getByRole("textbox", { name: "Email", exact: true }).fill(email);
+    await page.getByRole("textbox", { name: "Password", exact: true }).fill(password);
     await expect(page.getByText(/Strength:/)).toBeVisible();
     await page.getByRole("checkbox", { name: /I agree to the/ }).check();
     await page.getByRole("button", { name: "Create account" }).click();
@@ -52,8 +52,8 @@ test.describe("authentication", () => {
     await expect(page).toHaveURL(/\/login\?next=/);
 
     // Sign in with the same credentials → back to where we were going
-    await page.getByLabel("Work email").fill(email);
-    await page.getByLabel("Password", { exact: true }).fill(password);
+    await page.getByRole("textbox", { name: "Work email" }).fill(email);
+    await page.getByRole("textbox", { name: "Password", exact: true }).fill(password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/app\/dashboard/);
     await expect(page.getByRole("heading", { level: 1, name: /Avery/ })).toBeVisible();
@@ -61,8 +61,8 @@ test.describe("authentication", () => {
 
   test("wrong password shows an inline error", async ({ page }) => {
     await page.goto("/login");
-    await page.getByLabel("Work email").fill("nobody@example.com");
-    await page.getByLabel("Password", { exact: true }).fill("definitely-wrong-pass");
+    await page.getByRole("textbox", { name: "Work email" }).fill("nobody@example.com");
+    await page.getByRole("textbox", { name: "Password", exact: true }).fill("definitely-wrong-pass");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page.getByRole("alert").filter({ hasText: /don't match|invalid|incorrect/i })).toBeVisible();
   });

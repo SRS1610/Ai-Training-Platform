@@ -131,7 +131,9 @@ async def send_message(ctx: Ctx, session: AISession, body: MessageIn) -> Exchang
     lesson_id = body.lesson_id or session.lesson_id
     mod = moderate(question)
     injection = detect_injection(question)
+    # Explicit wall-clock timestamps: both messages share one transaction, where now() is constant.
     user_msg = AIMessage(
+        created_at=datetime.now(UTC),
         organisation_id=ctx.org_id,
         session_id=session.id,
         role="user",
@@ -229,6 +231,7 @@ async def send_message(ctx: Ctx, session: AISession, body: MessageIn) -> Exchang
                 text = "I'm not sure how to answer that — could you rephrase your question?"
             citations = _cited(text, citations) if citations else []
     assistant = AIMessage(
+        created_at=datetime.now(UTC),
         organisation_id=ctx.org_id,
         session_id=session.id,
         role="assistant",

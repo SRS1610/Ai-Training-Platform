@@ -38,63 +38,125 @@ async def make_skill(org_id: uuid.UUID, name: str) -> uuid.UUID:
         return sk.id
 
 
-async def make_course(org_id: uuid.UUID, author_id: uuid.UUID, *, title: str = "Helpdesk Fundamentals",
-                      lessons: Sequence[dict[str, Any]] = (), publish: bool = True,
-                      skill_ids: Sequence[uuid.UUID] = ()) -> dict[str, Any]:
+async def make_course(
+    org_id: uuid.UUID,
+    author_id: uuid.UUID,
+    *,
+    title: str = "Helpdesk Fundamentals",
+    lessons: Sequence[dict[str, Any]] = (),
+    publish: bool = True,
+    skill_ids: Sequence[uuid.UUID] = (),
+) -> dict[str, Any]:
     """Create a course with one module and the given lessons ({title, body, skill_ids}); optionally publish a
     schema-v1 snapshot. Returns ids."""
     async with bypass_session() as s:
-        course = Course(organisation_id=org_id, slug=f"c-{uuid.uuid4().hex[:8]}", title=title,
-                        description=f"{title} description", status="published" if publish else "draft",
-                        created_by=author_id)
+        course = Course(
+            organisation_id=org_id,
+            slug=f"c-{uuid.uuid4().hex[:8]}",
+            title=title,
+            description=f"{title} description",
+            status="published" if publish else "draft",
+            created_by=author_id,
+        )
         s.add(course)
         await s.flush()
         if skill_ids:
             from app.models.content import course_skills
 
-            await s.execute(course_skills.insert(), [{"course_id": course.id, "skill_id": sid} for sid in skill_ids])
+            await s.execute(
+                course_skills.insert(), [{"course_id": course.id, "skill_id": sid} for sid in skill_ids]
+            )
         module = CourseModule(organisation_id=org_id, course_id=course.id, title="Module 1", position=0)
         s.add(module)
         await s.flush()
         snap_lessons = []
         lesson_ids = []
         for i, spec in enumerate(lessons):
-            lsn = Lesson(organisation_id=org_id, course_id=course.id, module_id=module.id, title=spec["title"],
-                         lesson_type="text", content={"body_markdown": spec.get("body", "")}, position=i,
-                         skill_ids=[str(x) for x in spec.get("skill_ids", [])])
+            lsn = Lesson(
+                organisation_id=org_id,
+                course_id=course.id,
+                module_id=module.id,
+                title=spec["title"],
+                lesson_type="text",
+                content={"body_markdown": spec.get("body", "")},
+                position=i,
+                skill_ids=[str(x) for x in spec.get("skill_ids", [])],
+            )
             s.add(lsn)
             await s.flush()
             lesson_ids.append(lsn.id)
-            snap_lessons.append({"id": str(lsn.id), "module_id": str(module.id), "title": lsn.title, "summary": None,
-                                 "lesson_type": "text", "content": lsn.content, "position": i, "is_required": True,
-                                 "skill_ids": lsn.skill_ids, "activities": []})
+            snap_lessons.append(
+                {
+                    "id": str(lsn.id),
+                    "module_id": str(module.id),
+                    "title": lsn.title,
+                    "summary": None,
+                    "lesson_type": "text",
+                    "content": lsn.content,
+                    "position": i,
+                    "is_required": True,
+                    "skill_ids": lsn.skill_ids,
+                    "activities": [],
+                }
+            )
         version_id = None
         if publish:
-            snapshot = {"schema_version": 1,
-                        "course": {"id": str(course.id), "title": title, "description": course.description,
-                                   "learning_objectives": [], "skills": [{"id": str(x)} for x in skill_ids]},
-                        "modules": [{"id": str(module.id), "title": module.title, "position": 0,
-                                     "lessons": snap_lessons}]}
-            v = CourseVersion(organisation_id=org_id, course_id=course.id, version_number=1, snapshot=snapshot,
-                              published_at=datetime.now(UTC))
+            snapshot = {
+                "schema_version": 1,
+                "course": {
+                    "id": str(course.id),
+                    "title": title,
+                    "description": course.description,
+                    "learning_objectives": [],
+                    "skills": [{"id": str(x)} for x in skill_ids],
+                },
+                "modules": [
+                    {"id": str(module.id), "title": module.title, "position": 0, "lessons": snap_lessons}
+                ],
+            }
+            v = CourseVersion(
+                organisation_id=org_id,
+                course_id=course.id,
+                version_number=1,
+                snapshot=snapshot,
+                published_at=datetime.now(UTC),
+            )
             s.add(v)
             await s.flush()
             course.current_version_id = v.id
             version_id = v.id
-        return {"course_id": course.id, "module_id": module.id, "lesson_ids": lesson_ids, "version_id": version_id}
+        return {
+            "course_id": course.id,
+            "module_id": module.id,
+            "lesson_ids": lesson_ids,
+            "version_id": version_id,
+        }
 
 
 async def enrol(org_id: uuid.UUID, user_id: uuid.UUID, course: dict[str, Any]) -> uuid.UUID:
     async with bypass_session() as s:
-        e = Enrolment(organisation_id=org_id, user_id=user_id, course_id=course["course_id"],
-                      course_version_id=course["version_id"], status="in_progress", progress_pct=20.0)
+        e = Enrolment(
+            organisation_id=org_id,
+            user_id=user_id,
+            course_id=course["course_id"],
+            course_version_id=course["version_id"],
+            status="in_progress",
+            progress_pct=20.0,
+        )
         s.add(e)
         await s.flush()
         return e.id
 
 
-async def add_kb_text(client: AsyncClient, headers: dict[str, str], title: str, text: str, *,
-                      course_id: uuid.UUID | None = None, approve: bool = True) -> dict[str, Any]:
+async def add_kb_text(
+    client: AsyncClient,
+    headers: dict[str, str],
+    title: str,
+    text: str,
+    *,
+    course_id: uuid.UUID | None = None,
+    approve: bool = True,
+) -> dict[str, Any]:
     body: dict[str, Any] = {"title": title, "text": text}
     if course_id:
         body["course_id"] = str(course_id)
@@ -115,8 +177,13 @@ class FakeProvider(AIProvider):
 
     name = "openai"
 
-    def __init__(self, *replies: str, fail: bool = False, tokens: tuple[int, int] = (100, 50),
-                 model: str = "gpt-4o-mini") -> None:
+    def __init__(
+        self,
+        *replies: str,
+        fail: bool = False,
+        tokens: tuple[int, int] = (100, 50),
+        model: str = "gpt-4o-mini",
+    ) -> None:
         from app.core.config import settings
 
         super().__init__(embedding_dim=settings.AI_EMBEDDING_DIM)
@@ -127,13 +194,25 @@ class FakeProvider(AIProvider):
         self.model = model
 
     async def chat(self, messages, *, model=None, temperature=0.3, max_tokens=1024, json_mode=False):  # noqa: ANN001
-        self.calls.append([{"role": getattr(m, "role", None) or m["role"],
-                            "content": getattr(m, "content", None) or m["content"]} for m in messages])
+        self.calls.append(
+            [
+                {
+                    "role": getattr(m, "role", None) or m["role"],
+                    "content": getattr(m, "content", None) or m["content"],
+                }
+                for m in messages
+            ]
+        )
         if self.fail:
             raise ProviderError("boom", provider="openai", status=503, retryable=True)
         text = self.replies.pop(0) if len(self.replies) > 1 else self.replies[0]
-        return ChatResult(text=text, tokens_in=self.tokens[0], tokens_out=self.tokens[1], model=self.model,
-                          provider="openai")
+        return ChatResult(
+            text=text,
+            tokens_in=self.tokens[0],
+            tokens_out=self.tokens[1],
+            model=self.model,
+            provider="openai",
+        )
 
     async def embed(self, texts, *, model=None):  # noqa: ANN001
         from praxis_ai.providers import OfflineProvider

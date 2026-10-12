@@ -946,10 +946,13 @@ async def retrieve(
 
 
 async def semantic_search(
-    db: AsyncSession, *, organisation_id: uuid.UUID, query: str, k: int = 10
+    db: AsyncSession, *, organisation_id: uuid.UUID, query: str, k: int = 10, approved_only: bool = True
 ) -> list[dict]:
-    """Knowledge-base search for global search: best chunk per document."""
-    chunks = await retrieve(db, organisation_id=organisation_id, query=query, k=k * 3, approved_only=False)
+    """Knowledge-base search for global search: best chunk per document. Only approved documents by
+    default, because global search is visible to learners (pass ``approved_only=False`` for staff views)."""
+    chunks = await retrieve(
+        db, organisation_id=organisation_id, query=query, k=k * 3, approved_only=approved_only
+    )
     out: list[dict] = []
     seen: set[uuid.UUID] = set()
     for c in chunks:

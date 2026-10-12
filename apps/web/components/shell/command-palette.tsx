@@ -103,6 +103,12 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     onOpenChange(false);
     router.push(href);
   };
+  const account = [
+    { id: "profile", label: "Profile", keywords: "profile name avatar language timezone goal", icon: UserRound, run: () => go("/app/profile") },
+    { id: "security", label: "Security & sign-in", keywords: "security password mfa two-step sessions devices", icon: ShieldCheck, run: () => go("/app/profile/security") },
+    { id: "logout", label: "Sign out", keywords: "sign out logout log out", icon: LogOut, run: () => logout() },
+  ];
+  const accountMatches = needle ? account.filter((a) => `${a.label} ${a.keywords}`.toLowerCase().includes(needle)) : account;
 
   return (
     <CommandDialog
@@ -187,19 +193,18 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             })}
           </CommandGroup>
         )}
-        {!needle && (
+        {accountMatches.length > 0 && (
           <>
-            <CommandSeparator />
+            {navMatches.length > 0 && <CommandSeparator />}
             <CommandGroup heading="Account">
-              <CommandItem value="profile" onSelect={() => go("/app/profile")}>
-                <UserRound className="size-4 text-slate-500" aria-hidden /> Profile
-              </CommandItem>
-              <CommandItem value="security" onSelect={() => go("/app/profile/security")}>
-                <ShieldCheck className="size-4 text-slate-500" aria-hidden /> Security & sign-in
-              </CommandItem>
-              <CommandItem value="logout" onSelect={() => logout()}>
-                <LogOut className="size-4 text-slate-500" aria-hidden /> Sign out
-              </CommandItem>
+              {accountMatches.map((a) => {
+                const Icon = a.icon;
+                return (
+                  <CommandItem key={a.id} value={a.id} onSelect={a.run}>
+                    <Icon className="size-4 text-slate-500" aria-hidden /> {a.label}
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
           </>
         )}

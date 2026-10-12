@@ -77,14 +77,14 @@ export function LoopVisual() {
       })}
 
       {/* Floating proof cards */}
-      <div className="absolute -right-2 top-[6%] hidden rotate-2 rounded-2xl border border-slate-100 bg-white p-3 shadow-lift motion-safe:animate-float lg:block" aria-hidden>
+      <div className="absolute -left-6 top-[3%] hidden -rotate-2 rounded-2xl border border-slate-100 bg-white p-3 shadow-lift motion-safe:animate-float lg:block" aria-hidden>
         <p className="text-2xs font-semibold uppercase tracking-wider text-slate-500">SOC triage simulation</p>
         <div className="mt-1 flex items-center gap-2">
           <span className="font-display text-xl font-bold text-slate-900">94</span>
           <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-2xs font-semibold text-emerald-700 ring-1 ring-emerald-200">Expert</span>
         </div>
       </div>
-      <div className="absolute -left-4 bottom-[8%] hidden -rotate-2 items-center gap-2 rounded-2xl border border-slate-100 bg-white p-3 shadow-lift motion-safe:animate-float lg:flex" style={{ animationDelay: "1.5s" }} aria-hidden>
+      <div className="absolute -left-[8%] bottom-0 hidden rotate-2 items-center gap-2 rounded-2xl border border-slate-100 bg-white p-3 shadow-lift motion-safe:animate-float lg:flex" style={{ animationDelay: "1.5s" }} aria-hidden>
         <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-amber-400 to-rose-500 text-white">
           <Trophy className="size-4" />
         </span>

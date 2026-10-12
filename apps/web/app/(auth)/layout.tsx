@@ -1,5 +1,5 @@
 import { colorClasses, type CategoryColor } from "@praxis/ui";
-import { Award, Bot, MonitorPlay, Quote } from "lucide-react";
+import { Award, Bot, MonitorPlay } from "lucide-react";
 import { Logo } from "@/components/common/logo";
 
 const HIGHLIGHTS: { icon: typeof Bot; color: CategoryColor; title: string; body: string }[] = [
@@ -54,21 +54,31 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               })}
             </ul>
           </div>
-          <figure className="max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-            <Quote className="size-6 text-violet-500" />
-            <blockquote className="mt-3 text-slate-700">
-              “Our service desk went from guessing to knowing. Simulation bands show exactly who is ready for tier 2.”
-            </blockquote>
-            <figcaption className="mt-4 flex items-center gap-3">
-              <span className="grid size-10 place-items-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-sm font-bold text-white">
-                SL
-              </span>
-              <span className="text-sm">
-                <span className="block font-semibold text-slate-900">Service Lead</span>
-                <span className="block text-slate-500">IT operations team (pilot customer)</span>
-              </span>
-            </figcaption>
-          </figure>
+          <div className="max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Simulation result</p>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">Expert</span>
+            </div>
+            <p className="mt-2 font-display text-lg font-semibold text-slate-900">SOC alert triage</p>
+            <ul className="mt-4 space-y-3 text-sm">
+              {[
+                ["Investigation", 96, "from-sky-400 to-blue-500"],
+                ["Diagnosis", 91, "from-violet-500 to-fuchsia-500"],
+                ["Communication", 88, "from-emerald-400 to-teal-500"],
+                ["Time management", 79, "from-amber-400 to-orange-500"],
+              ].map(([label, v, g]) => (
+                <li key={label as string}>
+                  <div className="mb-1 flex justify-between text-slate-600">
+                    <span>{label}</span>
+                    <span className="font-semibold text-slate-900">{v}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div className={`h-full rounded-full bg-gradient-to-r ${g}`} style={{ width: `${v}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </aside>
     </div>

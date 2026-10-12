@@ -256,17 +256,19 @@ function CourseCard({ course }: { course: CurrentCourse }) {
   const started = course.progress_pct > 0;
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift">
-      <div className={cn("relative h-28 overflow-hidden bg-gradient-to-br", c.gradient)}>
-        {course.thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={course.thumbnail_url} alt="" className="size-full object-cover transition duration-500 group-hover:scale-105" />
-        ) : (
-          <>
-            <div className="absolute -right-6 -top-8 size-32 rounded-full bg-white/20" aria-hidden />
-            <div className="absolute -bottom-10 left-6 size-24 rounded-full bg-white/10" aria-hidden />
-            <BookOpen className="absolute left-5 top-5 size-8 text-white/90" aria-hidden />
-          </>
-        )}
+      <div className="relative">
+        <div className={cn("relative h-28 overflow-hidden bg-gradient-to-br", c.gradient)}>
+          {course.thumbnail_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={course.thumbnail_url} alt="" className="size-full object-cover transition duration-500 group-hover:scale-105" />
+          ) : (
+            <>
+              <div className="absolute -right-6 -top-8 size-32 rounded-full bg-white/20 transition duration-500 group-hover:scale-110" aria-hidden />
+              <div className="absolute -bottom-10 left-6 size-24 rounded-full bg-white/10" aria-hidden />
+              <BookOpen className="absolute left-5 top-5 size-8 text-white/90" aria-hidden />
+            </>
+          )}
+        </div>
         <div className="absolute bottom-0 right-4 translate-y-1/2 rounded-full bg-white p-1 shadow-soft">
           <ProgressRing value={course.progress_pct} size={56} stroke={6} color={course.category ? colorFor(course.category) : "brand"} aria-label={`${course.title} progress`} />
         </div>
@@ -350,9 +352,29 @@ export function ContinueLearning({ courses, className }: { courses: CurrentCours
 
 /* ------------------------------------------------------------------ deadlines */
 
-export function DeadlinesTimeline({ items }: { items: UpcomingDeadline[] }) {
+export function DeadlinesTimeline({ items, className }: { items: UpcomingDeadline[]; className?: string }) {
+  const overdue = items.filter((d) => (daysUntil(d.due_at) ?? 0) < 0 || d.status === "overdue").length;
+  const week = items.filter((d) => {
+    const n = daysUntil(d.due_at) ?? 99;
+    return n >= 0 && n <= 7 && d.status !== "overdue";
+  }).length;
   return (
-    <SectionCard title="Upcoming deadlines" icon={CalendarClock} color="rose" description="Next 30 days">
+    <SectionCard className={className} title="Upcoming deadlines" icon={CalendarClock} color="rose" description="Next 30 days">
+      {items.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {overdue > 0 && (
+            <Badge tone="danger" dot>
+              {overdue} overdue
+            </Badge>
+          )}
+          <Badge tone="warning" dot>
+            {week} this week
+          </Badge>
+          <Badge tone="info" dot>
+            {items.length - overdue - week} later
+          </Badge>
+        </div>
+      )}
       {items.length === 0 ? (
         <EmptyState size="sm" illustration="inbox" title="Nothing due" description="You're all clear. Enjoy the breathing room!" />
       ) : (
@@ -411,7 +433,7 @@ export function SkillsPanel({ skills }: { skills: SkillProficiency[] }) {
           {top.length >= 3 && (
             <SkillRadarChart
               height={220}
-              data={top.slice(0, 6).map((s) => ({ subject: s.name.length > 14 ? `${s.name.slice(0, 13)}…` : s.name, value: Math.round(s.proficiency) }))}
+              data={top.slice(0, 6).map((s) => ({ subject: s.name.length > 12 ? `${s.name.slice(0, 11)}…` : s.name, value: Math.round(s.proficiency) }))}
               aria-label="Skill proficiency radar chart"
             />
           )}
@@ -478,9 +500,11 @@ export function SimulationResults({ results }: { results: SimulationResult[] }) 
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-slate-900">{r.title}</span>
-                    <span className="block text-xs text-slate-500">{formatRelative(r.completed_at)}</span>
+                    <span className="mt-1 flex flex-wrap items-center gap-2">
+                      <BandChip band={r.band} size="sm" />
+                      <span className="text-xs text-slate-500">{formatRelative(r.completed_at)}</span>
+                    </span>
                   </span>
-                  <BandChip band={r.band} size="sm" />
                 </Link>
               </li>
             );
@@ -493,7 +517,7 @@ export function SimulationResults({ results }: { results: SimulationResult[] }) 
 
 /* ------------------------------------------------------------------ recommendations */
 
-export function Recommendations({ items }: { items: Recommendation[] }) {
+export function Recommendations({ items, className }: { items: Recommendation[]; className?: string }) {
   const href = (r: Recommendation) =>
     r.target_type === "simulation" && r.target_id
       ? `/app/simulations/${r.target_id}`
@@ -506,7 +530,7 @@ export function Recommendations({ items }: { items: Recommendation[] }) {
             : "/app/catalog";
   const colors = ["fuchsia", "sky", "emerald", "amber"] as const;
   return (
-    <section aria-labelledby="recs-title" className="rounded-2xl bg-gradient-to-br from-brand-500 via-violet-500 to-fuchsia-500 p-px shadow-soft">
+    <section aria-labelledby="recs-title" className={cn("rounded-2xl bg-gradient-to-br from-brand-500 via-violet-500 to-fuchsia-500 p-px shadow-soft", className)}>
       <div className="flex h-full flex-col rounded-[calc(1.125rem-1px)] bg-white p-5 sm:p-6">
         <div className="flex items-center gap-3">
           <span className="grid size-9 place-items-center rounded-xl bg-brand-gradient text-white shadow-glow">
@@ -604,10 +628,32 @@ export function RecentActivity({ items }: { items: ActivityItem[] }) {
   );
 }
 
-export function HeatmapCard({ days }: { days: LearnerDashboard["activity_heatmap"] }) {
+export function HeatmapCard({ days, stats }: { days: LearnerDashboard["activity_heatmap"]; stats: LearnerDashboard["stats"] }) {
+  const active = days.filter((d) => d.seconds > 0);
+  const best = active.reduce<{ day: string; seconds: number } | null>((b, d) => (!b || d.seconds > b.seconds ? d : b), null);
+  const avg = active.length ? Math.round(active.reduce((a, d) => a + d.seconds, 0) / active.length / 60) : 0;
+  const tiles: { label: string; value: string; color: Parameters<typeof colorClasses>[0] }[] = [
+    { label: "Current streak", value: `${stats.streak_days} days`, color: "orange" },
+    { label: "Longest streak", value: `${stats.longest_streak} days`, color: "rose" },
+    { label: "Avg. per active day", value: formatMinutes(avg), color: "violet" },
+    { label: "Best day", value: best ? `${formatMinutes(Math.round(best.seconds / 60))} · ${formatDate(best.day, { day: "numeric", month: "short" })}` : "—", color: "sky" },
+  ];
   return (
     <SectionCard title="Learning activity" icon={TrendingUp} color="fuchsia" description="Last 12 weeks">
-      <ActivityHeatmap days={days} weeks={12} />
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <ActivityHeatmap days={days} weeks={12} className="lg:w-auto lg:shrink-0" />
+        <ul className="grid flex-1 grid-cols-2 gap-3">
+          {tiles.map((t) => {
+            const c = colorClasses(t.color);
+            return (
+              <li key={t.label} className={cn("rounded-xl border bg-gradient-to-br p-3", c.border, c.tint)}>
+                <p className="text-2xs font-semibold uppercase tracking-wider text-slate-500">{t.label}</p>
+                <p className={cn("mt-1 font-display text-lg font-bold", c.text)}>{t.value}</p>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </SectionCard>
   );
 }

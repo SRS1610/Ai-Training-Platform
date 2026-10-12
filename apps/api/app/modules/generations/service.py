@@ -240,8 +240,8 @@ async def apply(ctx: Ctx, gen: AIGeneration, body: ApplyIn) -> ApplyOut:
         "ai.generation.applied",
         "ai_generation",
         gen.id,
-        entity_type=entity_type,
-        entity_id=str(entity_id),
+        applied_entity_type=entity_type,
+        applied_entity_id=str(entity_id),
         created=created,
     )
     return ApplyOut(
