@@ -1,0 +1,38 @@
+[project]
+name = "praxis-ai"
+version = "0.1.0"
+description = "Praxis AI domain package: provider abstraction (OpenAI, Anthropic, Azure OpenAI, Google, local, offline), pricing, chunking, extraction, safety and prompt templates."
+requires-python = ">=3.12"
+dependencies = [
+  "httpx>=0.27",
+  "pydantic>=2.9",
+  "pypdf>=5.0",
+  "python-docx>=1.1",
+  "python-pptx>=1.0",
+  "beautifulsoup4>=4.12",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "reportlab>=4.2", "ruff>=0.7"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "ASYNC"]
+ignore = ["S101", "B008", "S311", "UP040"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]

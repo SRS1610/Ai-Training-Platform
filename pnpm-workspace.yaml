@@ -1,0 +1,6 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "!apps/api"
+  - "!packages/ai"
+  - "!packages/simulation-engine"

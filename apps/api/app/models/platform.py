@@ -70,6 +70,8 @@ class NotificationType(StrEnum):
     BADGE_EARNED = "badge_earned"
     REVIEW_REQUESTED = "review_requested"
     GENERATION_READY = "generation_ready"
+    SIMULATION_COMPLETED = "simulation_completed"
+    BILLING_ALERT = "billing_alert"
     SYSTEM = "system"
 
 

@@ -94,6 +94,8 @@ class Course(UUIDPk, Timestamps, SoftDelete, TenantScoped, Base):
     pass_threshold: Mapped[float] = mapped_column(Float, default=70.0)  # % required to earn certificate
     ai_tutor_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     ai_generated: Mapped[bool] = mapped_column(Boolean, default=False)
+    # When true, lessons unlock in order (each requires the previous required lessons to be completed).
+    sequential: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     modules: Mapped[list[CourseModule]] = relationship(
         back_populates="course", order_by="CourseModule.position", cascade="all, delete-orphan"

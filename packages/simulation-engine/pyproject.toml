@@ -1,0 +1,30 @@
+[project]
+name = "praxis-simulation-engine"
+version = "1.0.0"
+description = "Deterministic, data-driven simulation engine for Praxis (pure Python, no web/DB dependencies)."
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.9"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.7"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["simulation_engine*"]
+
+[tool.setuptools.package-data]
+simulation_engine = ["templates/*.json", "py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101", "S311"]

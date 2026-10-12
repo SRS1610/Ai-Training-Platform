@@ -1,0 +1,24 @@
+{
+  "name": "praxis",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Praxis - AI-powered Training Management System (web workspace)",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
+    "lint": "pnpm -r --parallel lint",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "gen:types": "pnpm --filter @praxis/types gen:types",
+    "test:e2e": "playwright test -c tests/e2e/playwright.config.ts",
+    "test:e2e:install-deps": "echo 'Browsers are expected at $PLAYWRIGHT_BROWSERS_PATH'"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "typescript": "5.9.3"
+  }
+}

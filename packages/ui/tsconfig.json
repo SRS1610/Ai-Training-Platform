@@ -1,0 +1,4 @@
+{
+  "extends": "@praxis/config/tsconfig.library.json",
+  "include": ["src"]
+}
