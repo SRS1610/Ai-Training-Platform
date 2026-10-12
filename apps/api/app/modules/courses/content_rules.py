@@ -22,11 +22,27 @@ LINKED_TYPES: dict[str, str] = {
 LINK_FIELDS = ("assessment_id", "assignment_id", "simulation_id")
 
 # Keys that must never reach learners through a published snapshot.
-SECRET_KEYS = frozenset({
-    "answer_key", "answer", "answers", "answer_ids", "correct", "correct_answer", "correct_answers",
-    "correct_option", "correct_option_ids", "is_correct", "expected_output", "expected_outputs", "solution",
-    "solution_code", "model_answer", "hidden_tests", "grading_notes",
-})
+SECRET_KEYS = frozenset(
+    {
+        "answer_key",
+        "answer",
+        "answers",
+        "answer_ids",
+        "correct",
+        "correct_answer",
+        "correct_answers",
+        "correct_option",
+        "correct_option_ids",
+        "is_correct",
+        "expected_output",
+        "expected_outputs",
+        "solution",
+        "solution_code",
+        "model_answer",
+        "hidden_tests",
+        "grading_notes",
+    }
+)
 
 _URL_RE = re.compile(r"^(https?://[^\s]+|/[^\s]*)$", re.IGNORECASE)
 MAX_TEXT = 200_000
@@ -218,8 +234,11 @@ def validate_lesson_content(lesson_type: str, content: dict[str, Any] | None) ->
 
 def validate_activity_content(activity_type: str, content: dict[str, Any] | None) -> dict[str, Any]:
     if activity_type not in ACTIVITY_VALIDATORS:
-        raise BadRequest(f"Unknown activity type '{activity_type}'", code="invalid_activity_type",
-                         details={"allowed": sorted(ACTIVITY_VALIDATORS)})
+        raise BadRequest(
+            f"Unknown activity type '{activity_type}'",
+            code="invalid_activity_type",
+            details={"allowed": sorted(ACTIVITY_VALIDATORS)},
+        )
     content = dict(content or {})
     ACTIVITY_VALIDATORS[activity_type](content)
     return content

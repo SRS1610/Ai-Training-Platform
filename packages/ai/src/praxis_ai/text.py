@@ -28,10 +28,25 @@ def stem(word: str) -> str:
     w = word.strip("'-_")
     if len(w) <= 3:
         return w
-    for suffix, repl in (("ational", "ate"), ("ization", "ize"), ("fulness", "ful"), ("iveness", "ive"),
-                         ("ments", "ment"), ("ingly", ""), ("edly", ""), ("ies", "y"), ("ied", "y"),
-                         ("sses", "ss"), ("ness", ""), ("ing", ""), ("ers", "er"), ("ed", ""), ("ly", ""),
-                         ("es", ""), ("s", "")):
+    for suffix, repl in (
+        ("ational", "ate"),
+        ("ization", "ize"),
+        ("fulness", "ful"),
+        ("iveness", "ive"),
+        ("ments", "ment"),
+        ("ingly", ""),
+        ("edly", ""),
+        ("ies", "y"),
+        ("ied", "y"),
+        ("sses", "ss"),
+        ("ness", ""),
+        ("ing", ""),
+        ("ers", "er"),
+        ("ed", ""),
+        ("ly", ""),
+        ("es", ""),
+        ("s", ""),
+    ):
         if w.endswith(suffix) and len(w) - len(suffix) >= 3:
             if suffix == "s" and w.endswith(("ss", "us", "is")):
                 continue

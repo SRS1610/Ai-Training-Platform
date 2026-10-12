@@ -85,8 +85,9 @@ def parse_json(text: str) -> Any:
             except (json.JSONDecodeError, ValueError):
                 pass
             try:
-                value = ast.literal_eval(variant.replace("true", "True").replace("false", "False")
-                                         .replace("null", "None"))
+                value = ast.literal_eval(
+                    variant.replace("true", "True").replace("false", "False").replace("null", "None")
+                )
                 if isinstance(value, dict | list):
                     return value
             except (ValueError, SyntaxError, MemoryError, RecursionError):

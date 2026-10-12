@@ -93,13 +93,34 @@ def linked_ids(snapshot: dict[str, Any]) -> dict[str, set[str]]:
 
 
 _DIFF_FIELDS = (
-    "title", "summary", "lesson_type", "content", "duration_minutes", "is_required", "is_preview",
-    "assessment_id", "assignment_id", "simulation_id", "activities",
+    "title",
+    "summary",
+    "lesson_type",
+    "content",
+    "duration_minutes",
+    "is_required",
+    "is_preview",
+    "assessment_id",
+    "assignment_id",
+    "simulation_id",
+    "activities",
 )
 _COURSE_DIFF_FIELDS = (
-    "title", "subtitle", "description", "category", "difficulty", "duration_minutes", "learning_objectives",
-    "prerequisites", "target_audience", "tags", "thumbnail_url", "sequential", "pass_threshold",
-    "certificate_enabled", "skills",
+    "title",
+    "subtitle",
+    "description",
+    "category",
+    "difficulty",
+    "duration_minutes",
+    "learning_objectives",
+    "prerequisites",
+    "target_audience",
+    "tags",
+    "thumbnail_url",
+    "sequential",
+    "pass_threshold",
+    "certificate_enabled",
+    "skills",
 )
 
 
@@ -116,8 +137,13 @@ def diff_snapshots(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
 
     def _brief(pair: tuple[dict[str, Any], dict[str, Any]]) -> dict[str, Any]:
         m, lsn = pair
-        return {"id": lsn["id"], "title": lsn["title"], "lesson_type": lsn.get("lesson_type"),
-                "module_id": m["id"], "module_title": m["title"]}
+        return {
+            "id": lsn["id"],
+            "title": lsn["title"],
+            "lesson_type": lsn.get("lesson_type"),
+            "module_id": m["id"],
+            "module_title": m["title"],
+        }
 
     added = [_brief(new_lessons[i]) for i in new_lessons if i not in old_lessons]
     removed = [_brief(old_lessons[i]) for i in old_lessons if i not in new_lessons]
@@ -152,8 +178,14 @@ def diff_snapshots(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
         "modules_removed": [{"id": i, "title": m["title"]} for i, m in old_mods.items() if i not in new_mods],
         "modules_renamed": [
             {"id": i, "from": old_mods[i]["title"], "to": m["title"]}
-            for i, m in new_mods.items() if i in old_mods and old_mods[i]["title"] != m["title"]
+            for i, m in new_mods.items()
+            if i in old_mods and old_mods[i]["title"] != m["title"]
         ],
         "course_fields_changed": [f for f in _COURSE_DIFF_FIELDS if oc.get(f) != nc.get(f)],
-        "summary": {"added": len(added), "removed": len(removed), "changed": len(changed), "moved": len(moved)},
+        "summary": {
+            "added": len(added),
+            "removed": len(removed),
+            "changed": len(changed),
+            "moved": len(moved),
+        },
     }

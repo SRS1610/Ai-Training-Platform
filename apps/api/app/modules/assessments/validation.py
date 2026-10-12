@@ -15,7 +15,11 @@ def _id_list(items: Any, label: str, errors: list[str], *, min_len: int = 1) -> 
         return []
     ids: list[str] = []
     for i, item in enumerate(items):
-        if not isinstance(item, Mapping) or item.get("id") in (None, "") or not str(item.get("text", "")).strip():
+        if (
+            not isinstance(item, Mapping)
+            or item.get("id") in (None, "")
+            or not str(item.get("text", "")).strip()
+        ):
             errors.append(f"options.{label}[{i}] needs a non-empty 'id' and 'text'")
             continue
         ids.append(str(item["id"]))
@@ -45,8 +49,14 @@ def _text_spec(spec: Any, where: str, errors: list[str]) -> None:
         errors.append(f"{where} needs at least one accepted answer or a regex")
 
 
-def validate_question(qtype: str, options: Mapping[str, Any] | None, answer_key: Mapping[str, Any] | None,
-                      *, points: float = 1.0, negative_points: float = 0.0) -> list[str]:
+def validate_question(
+    qtype: str,
+    options: Mapping[str, Any] | None,
+    answer_key: Mapping[str, Any] | None,
+    *,
+    points: float = 1.0,
+    negative_points: float = 0.0,
+) -> list[str]:
     """Return a list of human-readable problems (empty when valid)."""
     errors: list[str] = []
     opts = options or {}

@@ -144,7 +144,9 @@ def extract_pptx(data: bytes) -> ExtractedDocument:
                 for row in shape.table.rows:
                     lines.append(" | ".join(c.text.strip() for c in row.cells))
         if slide.has_notes_slide:
-            notes = slide.notes_slide.notes_text_frame.text.strip() if slide.notes_slide.notes_text_frame else ""
+            notes = (
+                slide.notes_slide.notes_text_frame.text.strip() if slide.notes_slide.notes_text_frame else ""
+            )
             if notes:
                 lines.append(f"Speaker notes: {notes}")
         lines.append("")
@@ -156,13 +158,16 @@ def extract_html(data: bytes | str) -> ExtractedDocument:
 
     html = data if isinstance(data, str) else _decode(data)
     soup = BeautifulSoup(html, "html.parser")
-    for tag in soup(["script", "style", "noscript", "nav", "footer", "header", "aside", "form", "iframe", "svg"]):
+    for tag in soup(
+        ["script", "style", "noscript", "nav", "footer", "header", "aside", "form", "iframe", "svg"]
+    ):
         tag.decompose()
     title = soup.title.get_text(strip=True) if soup.title else None
     root = soup.find("main") or soup.find("article") or soup.body or soup
     lines: list[str] = []
-    for el in root.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "pre", "td", "th", "blockquote",
-                             "dt", "dd"]):
+    for el in root.find_all(
+        ["h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "pre", "td", "th", "blockquote", "dt", "dd"]
+    ):
         if el.find_parent(["li", "td", "th"]) is not None and el.name in ("p",):
             continue
         text = el.get_text(" ", strip=True)

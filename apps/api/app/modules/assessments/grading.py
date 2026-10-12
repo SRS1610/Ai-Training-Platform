@@ -5,31 +5,24 @@ Question shape (a ``questions`` row or an attempt ``questions_snapshot`` entry):
     {"id", "question_type", "options": {...}, "answer_key": {...}, "points": 1.0,
      "negative_points": 0.0, "weight": 1.0}
 
-Per-type ``options`` / ``answer_key`` / learner ``response`` formats:
+Per-type formats — ``options`` (shown to learners) / ``answer_key`` (server side only) / ``response``:
 
-=================  ==========================================  ==========================================  ==========================
-type               options (shown to learners)                 answer_key (server side only)               response
-=================  ==========================================  ==========================================  ==========================
-multiple_choice    {"choices": [{"id","text"}]}                {"choice_id": "a"}                          {"choice_id": "a"}
-multiple_select    {"choices": [...]}                          {"choice_ids": [..], "partial_credit": b}   {"choice_ids": [..]}
-true_false         {}                                          {"value": true}                             {"value": true}
-short_answer       {}                                          {"accepted": [..], "regex": "...",          {"text": "..."}
-                                                                "case_sensitive": false}
-matching           {"left": [{"id","text"}], "right": [...]}   {"pairs": {"l1": "r2"},                     {"pairs": {"l1": "r2"}}
-                                                                "partial_credit": true}
-ordering           {"items": [{"id","text"}]}                  {"order": [ids], "scoring":                 {"order": [ids]}
-                                                                positions|kendall|all_or_nothing}
-fill_blank         {"text": "A {{b1}} b", "blanks": [{"id"}]}  {"blanks": {"b1": {"accepted": [..],        {"blanks": {"b1": "..."}}
-                                                                "regex", "case_sensitive"}},
-                                                                "partial_credit": true}
-decision_tree      {"start": "n1", "nodes": {"n1": {"prompt",  {"points": {"n1": {"c1": 2}},               {"path": [{"node_id",
-                    "choices": [{"id","text","next"}]}}}        "max_points": optional}                     "choice_id"}]}
-code               {"language": "python"}                      {"test_cases": [{"id","pattern",            {"code": "..."}
-                                                                "match": contains|regex|not_contains|
-                                                                exact, "weight"}], "auto_grade": false}
-simulation         {"simulation_id": "..."}                    {}                                          {"session_id": "..."}
-long_answer, file_upload, scenario, practical_task             (rubric / reference answer)                 free-form
-=================  ==========================================  ==========================================  ==========================
+* multiple_choice: ``{"choices": [{"id","text"}]}`` / ``{"choice_id"}`` / ``{"choice_id"}``
+* multiple_select: ``{"choices"}`` / ``{"choice_ids", "partial_credit": bool}`` / ``{"choice_ids"}``
+* true_false: ``{}`` / ``{"value": bool}`` / ``{"value": bool}``
+* short_answer: ``{}`` / ``{"accepted": [...], "regex", "case_sensitive"}`` / ``{"text"}``
+* matching: ``{"left": [{"id","text"}], "right": [...]}`` / ``{"pairs": {left: right}, "partial_credit"}``
+  / ``{"pairs"}``
+* ordering: ``{"items": [{"id","text"}]}`` / ``{"order": [ids], "scoring": positions|kendall|all_or_nothing}``
+  / ``{"order"}``
+* fill_blank: ``{"text": "A {{b1}}", "blanks": [{"id"}]}`` / ``{"blanks": {id: {"accepted", "regex",
+  "case_sensitive"}}, "partial_credit"}`` / ``{"blanks": {id: text}}``
+* decision_tree: ``{"start", "nodes": {id: {"prompt", "choices": [{"id","text","next"}]}}}``
+  / ``{"points": {node: {choice: pts}}, "max_points"?}`` / ``{"path": [{"node_id","choice_id"}]}``
+* code: ``{"language"}`` / ``{"test_cases": [{"id","pattern","match": contains|regex|not_contains|exact,
+  "weight"}], "auto_grade": bool}`` / ``{"code"}`` — static string checks only, code is never executed
+* simulation: ``{"simulation_id"}`` / ``{}`` / ``{"session_id"}`` — scored from the session's total_score
+* long_answer, file_upload, scenario, practical_task: free-form → human / AI grading
 
 Scoring: each question yields a *ratio* in ``[0, 1]``; the score is ``ratio * points * weight``.
 With negative marking enabled, an answered-but-wrong objective question (ratio 0) scores
@@ -47,7 +40,13 @@ from typing import Any
 
 MANUAL_TYPES = {"long_answer", "file_upload", "scenario", "practical_task"}
 AUTO_TYPES = {
-    "multiple_choice", "multiple_select", "true_false", "short_answer", "matching", "ordering", "fill_blank",
+    "multiple_choice",
+    "multiple_select",
+    "true_false",
+    "short_answer",
+    "matching",
+    "ordering",
+    "fill_blank",
     "decision_tree",
 }
 ALL_TYPES = AUTO_TYPES | MANUAL_TYPES | {"code", "simulation"}
@@ -247,8 +246,10 @@ def _grade_fill_blank(q: Mapping[str, Any], r: Mapping[str, Any]) -> tuple[float
         return 0.0, False, {}
     if not specs:
         return 0.0, True, {}
-    results = {str(bid): _text_matches(got.get(bid) if bid in got else got.get(str(bid)), spec or {})
-               for bid, spec in specs.items()}
+    results = {
+        str(bid): _text_matches(got.get(bid) if bid in got else got.get(str(bid)), spec or {})
+        for bid, spec in specs.items()
+    }
     correct = sum(results.values())
     partial = bool(key.get("partial_credit", True))
     ratio = correct / len(specs) if partial else (1.0 if correct == len(specs) else 0.0)
@@ -295,8 +296,14 @@ def _grade_decision_tree(q: Mapping[str, Any], r: Mapping[str, Any]) -> tuple[fl
         if node_id != expected_node or node_id in visited or node_id not in nodes:
             break  # path left the tree: stop scoring
         visited.add(node_id)
-        choice = next((c for c in nodes[node_id].get("choices") or [] if str(c.get("id")) == str(step.get("choice_id"))),
-                      None)
+        choice = next(
+            (
+                c
+                for c in nodes[node_id].get("choices") or []
+                if str(c.get("id")) == str(step.get("choice_id"))
+            ),
+            None,
+        )
         if choice is None:
             break
         earned += float((points.get(node_id) or {}).get(str(choice.get("id")), 0) or 0)
@@ -330,8 +337,14 @@ def run_code_checks(code: str, test_cases: Sequence[Mapping[str, Any]]) -> list[
                 passed = needle in hay
         except re.error:
             passed = False
-        results.append({"id": str(tc.get("id", i)), "description": tc.get("description"), "passed": passed,
-                        "weight": float(tc.get("weight", 1) or 0)})
+        results.append(
+            {
+                "id": str(tc.get("id", i)),
+                "description": tc.get("description"),
+                "passed": passed,
+                "weight": float(tc.get("weight", 1) or 0),
+            }
+        )
     return results
 
 
@@ -384,20 +397,34 @@ def grade_question(
         if cases and key.get("auto_grade"):
             total_w = sum(c["weight"] for c in checks) or 1.0
             ratio = sum(c["weight"] for c in checks if c["passed"]) / total_w
-            return GradeResult(round(ratio * max_score, 4), max_score, ratio >= 1 - EPS, ratio=ratio,
-                               details=details)
+            return GradeResult(
+                round(ratio * max_score, 4), max_score, ratio >= 1 - EPS, ratio=ratio, details=details
+            )
         return GradeResult(None, max_score, None, needs_manual=True, details=details)
 
     if qtype == "simulation":
-        if simulation_result and simulation_result.get("status") == "completed" and \
-                simulation_result.get("total_score") is not None:
+        if (
+            simulation_result
+            and simulation_result.get("status") == "completed"
+            and simulation_result.get("total_score") is not None
+        ):
             ratio = max(0.0, min(1.0, float(simulation_result["total_score"]) / 100.0))
-            return GradeResult(round(ratio * max_score, 4), max_score, bool(simulation_result.get("passed")),
-                               ratio=ratio, details={"simulation": dict(simulation_result)})
+            return GradeResult(
+                round(ratio * max_score, 4),
+                max_score,
+                bool(simulation_result.get("passed")),
+                ratio=ratio,
+                details={"simulation": dict(simulation_result)},
+            )
         if _is_blank(r.get("session_id")):
             return GradeResult(0.0, max_score, False, answered=False, ratio=0.0, details={"unanswered": True})
-        return GradeResult(None, max_score, None, needs_manual=True,
-                           details={"note": "Simulation result unavailable; manual grading required."})
+        return GradeResult(
+            None,
+            max_score,
+            None,
+            needs_manual=True,
+            details={"note": "Simulation result unavailable; manual grading required."},
+        )
 
     # long_answer, file_upload, scenario, practical_task (and unknown types): human / AI grading.
     if _is_blank(dict(r)) or all(_is_blank(v) for v in r.values()):
@@ -442,7 +469,16 @@ def correct_answer(question: Mapping[str, Any]) -> dict[str, Any] | None:
     return None
 
 
-SECRET_OPTION_KEYS = {"correct", "is_correct", "points", "score", "feedback", "answer", "answers", "weight_hint"}
+SECRET_OPTION_KEYS = {
+    "correct",
+    "is_correct",
+    "points",
+    "score",
+    "feedback",
+    "answer",
+    "answers",
+    "weight_hint",
+}
 
 
 def learner_options(question: Mapping[str, Any]) -> dict[str, Any]:
@@ -515,8 +551,10 @@ def draw_questions(
                 used.add(str(q["id"]))
                 chosen.append({**q, "weight": weight})
             continue
-        candidates = sorted((q for q in pools.get(str(item.get("id")), []) if str(q["id"]) not in used),
-                            key=lambda q: str(q["id"]))
+        candidates = sorted(
+            (q for q in pools.get(str(item.get("id")), []) if str(q["id"]) not in used),
+            key=lambda q: str(q["id"]),
+        )
         count = min(int(item.get("draw_count", 1) or 1), len(candidates))
         for q in rng.sample(candidates, count):
             used.add(str(q["id"]))

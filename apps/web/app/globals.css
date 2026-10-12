@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light theme only (product decision): tokens come from @praxis/config/tailwind-preset. */
+
+@layer base {
+  html {
+    scroll-padding-top: 5rem;
+  }
+  ::selection {
+    background: rgb(var(--brand-200));
+    color: rgb(var(--brand-950));
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  /* Skip link: first focusable element on every page. */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-brand-700 focus:shadow-lift focus:outline-none focus:ring-2 focus:ring-brand-500;
+  }
+  /* Stagger children entrance (respects reduced motion via the preset). */
+  .stagger > * {
+    @apply motion-safe:animate-fade-up;
+  }
+  .stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger > *:nth-child(6) { animation-delay: 200ms; }
+  .stagger > *:nth-child(7) { animation-delay: 240ms; }
+  .stagger > *:nth-child(8) { animation-delay: 280ms; }
+}

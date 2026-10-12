@@ -66,8 +66,9 @@ def escape_like(q: str) -> str:
 
 
 async def get_course(ctx: Ctx, course_id: uuid.UUID, *, for_update: bool = False) -> Course:
-    stmt = select(Course).where(Course.id == course_id, Course.organisation_id == ctx.org_id,
-                                Course.deleted_at.is_(None))
+    stmt = select(Course).where(
+        Course.id == course_id, Course.organisation_id == ctx.org_id, Course.deleted_at.is_(None)
+    )
     if for_update:
         stmt = stmt.with_for_update()
     course = await ctx.db.scalar(stmt)
@@ -85,18 +86,28 @@ async def get_visible_course(ctx: Ctx, course_id: uuid.UUID) -> Course:
 
 
 async def _get_module(ctx: Ctx, course: Course, module_id: uuid.UUID) -> CourseModule:
-    m = await ctx.db.scalar(select(CourseModule).where(
-        CourseModule.id == module_id, CourseModule.course_id == course.id,
-        CourseModule.organisation_id == ctx.org_id, CourseModule.deleted_at.is_(None)))
+    m = await ctx.db.scalar(
+        select(CourseModule).where(
+            CourseModule.id == module_id,
+            CourseModule.course_id == course.id,
+            CourseModule.organisation_id == ctx.org_id,
+            CourseModule.deleted_at.is_(None),
+        )
+    )
     if m is None:
         raise NotFound("Module not found")
     return m
 
 
 async def _get_lesson(ctx: Ctx, course: Course, lesson_id: uuid.UUID) -> Lesson:
-    lsn = await ctx.db.scalar(select(Lesson).where(
-        Lesson.id == lesson_id, Lesson.course_id == course.id, Lesson.organisation_id == ctx.org_id,
-        Lesson.deleted_at.is_(None)))
+    lsn = await ctx.db.scalar(
+        select(Lesson).where(
+            Lesson.id == lesson_id,
+            Lesson.course_id == course.id,
+            Lesson.organisation_id == ctx.org_id,
+            Lesson.deleted_at.is_(None),
+        )
+    )
     if lsn is None:
         raise NotFound("Lesson not found")
     return lsn
@@ -104,9 +115,15 @@ async def _get_lesson(ctx: Ctx, course: Course, lesson_id: uuid.UUID) -> Lesson:
 
 async def _get_activity(ctx: Ctx, course: Course, activity_id: uuid.UUID) -> Activity:
     act = await ctx.db.scalar(
-        select(Activity).join(Lesson, Lesson.id == Activity.lesson_id).where(
-            Activity.id == activity_id, Activity.organisation_id == ctx.org_id, Lesson.course_id == course.id,
-            Lesson.deleted_at.is_(None)))
+        select(Activity)
+        .join(Lesson, Lesson.id == Activity.lesson_id)
+        .where(
+            Activity.id == activity_id,
+            Activity.organisation_id == ctx.org_id,
+            Lesson.course_id == course.id,
+            Lesson.deleted_at.is_(None),
+        )
+    )
     if act is None:
         raise NotFound("Activity not found")
     return act
@@ -123,36 +140,77 @@ async def _touch(db: AsyncSession, course: Course) -> None:
 async def _counts(db: AsyncSession, course_ids: list[uuid.UUID]) -> dict[uuid.UUID, tuple[int, int, int]]:
     if not course_ids:
         return {}
-    mods = dict((await db.execute(
-        select(CourseModule.course_id, func.count()).where(
-            CourseModule.course_id.in_(course_ids), CourseModule.deleted_at.is_(None))
-        .group_by(CourseModule.course_id))).all())
-    lessons = dict((await db.execute(
-        select(Lesson.course_id, func.count()).where(Lesson.course_id.in_(course_ids), Lesson.deleted_at.is_(None))
-        .group_by(Lesson.course_id))).all())
-    enrols = dict((await db.execute(
-        select(Enrolment.course_id, func.count()).where(
-            Enrolment.course_id.in_(course_ids), Enrolment.status != EnrolmentStatus.WITHDRAWN)
-        .group_by(Enrolment.course_id))).all())
+    mods = dict(
+        (
+            await db.execute(
+                select(CourseModule.course_id, func.count())
+                .where(CourseModule.course_id.in_(course_ids), CourseModule.deleted_at.is_(None))
+                .group_by(CourseModule.course_id)
+            )
+        ).all()
+    )
+    lessons = dict(
+        (
+            await db.execute(
+                select(Lesson.course_id, func.count())
+                .where(Lesson.course_id.in_(course_ids), Lesson.deleted_at.is_(None))
+                .group_by(Lesson.course_id)
+            )
+        ).all()
+    )
+    enrols = dict(
+        (
+            await db.execute(
+                select(Enrolment.course_id, func.count())
+                .where(Enrolment.course_id.in_(course_ids), Enrolment.status != EnrolmentStatus.WITHDRAWN)
+                .group_by(Enrolment.course_id)
+            )
+        ).all()
+    )
     return {cid: (mods.get(cid, 0), lessons.get(cid, 0), enrols.get(cid, 0)) for cid in course_ids}
 
 
 async def _version_numbers(db: AsyncSession, version_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
     if not version_ids:
         return {}
-    return dict((await db.execute(
-        select(CourseVersion.id, CourseVersion.version_number).where(CourseVersion.id.in_(version_ids)))).all())
+    return dict(
+        (
+            await db.execute(
+                select(CourseVersion.id, CourseVersion.version_number).where(
+                    CourseVersion.id.in_(version_ids)
+                )
+            )
+        ).all()
+    )
 
 
-def _course_out(course: Course, counts: tuple[int, int, int] = (0, 0, 0), version_number: int | None = None,
-                overlay: dict[str, Any] | None = None) -> s.CourseOut:
+def _course_out(
+    course: Course,
+    counts: tuple[int, int, int] = (0, 0, 0),
+    version_number: int | None = None,
+    overlay: dict[str, Any] | None = None,
+) -> s.CourseOut:
     out = s.CourseOut.model_validate(course)
     out.module_count, out.lesson_count, out.enrolment_count = counts
     out.current_version_number = version_number
     if overlay:  # learners see the published metadata, never unpublished draft edits
-        for key in ("title", "subtitle", "description", "category", "difficulty", "duration_minutes",
-                    "learning_objectives", "prerequisites", "target_audience", "tags", "thumbnail_url",
-                    "certificate_enabled", "pass_threshold", "ai_tutor_enabled", "sequential"):
+        for key in (
+            "title",
+            "subtitle",
+            "description",
+            "category",
+            "difficulty",
+            "duration_minutes",
+            "learning_objectives",
+            "prerequisites",
+            "target_audience",
+            "tags",
+            "thumbnail_url",
+            "certificate_enabled",
+            "pass_threshold",
+            "ai_tutor_enabled",
+            "sequential",
+        ):
             if key in overlay:
                 setattr(out, key, overlay[key] if overlay[key] is not None else getattr(out, key))
         out.skills = [s.SkillRef(id=sk["id"], name=sk["name"]) for sk in overlay.get("skills", [])]
@@ -174,13 +232,69 @@ async def course_out(ctx: Ctx, course: Course) -> s.CourseOut:
     return _course_out(course, counts, vnum, overlay)
 
 
-async def list_courses(ctx: Ctx, params: PageParams, *, search: str | None, status: str | None,
-                       category: str | None, difficulty: str | None, mine: bool) -> tuple[list[s.CourseOut], int]:
+async def published_course_outs(ctx: Ctx, course_ids: list[uuid.UUID]) -> list[s.CourseOut]:
+    """Learner-facing CourseOut list (published metadata overlay), batched."""
+    if not course_ids:
+        return []
+    rows = {
+        c.id: c for c in (await ctx.db.execute(select(Course).where(Course.id.in_(course_ids)))).scalars()
+    }
+    versions = {
+        r.id: r
+        for r in (
+            await ctx.db.execute(
+                select(
+                    CourseVersion.id,
+                    CourseVersion.version_number,
+                    CourseVersion.snapshot["course"].label("meta"),
+                    CourseVersion.snapshot["stats"].label("stats"),
+                ).where(
+                    CourseVersion.id.in_(
+                        [c.current_version_id for c in rows.values() if c.current_version_id]
+                    )
+                )
+            )
+        ).all()
+    }
+    counts = await _counts(ctx.db, list(rows))
+    out = []
+    for cid in course_ids:
+        c = rows.get(cid)
+        if c is None:
+            continue
+        v = versions.get(c.current_version_id)
+        stats = (v.stats if v else None) or {}
+        out.append(
+            _course_out(
+                c,
+                (stats.get("module_count", 0), stats.get("lesson_count", 0), counts[cid][2]),
+                v.version_number if v else None,
+                (v.meta if v else None) or {},
+            )
+        )
+    return out
+
+
+async def list_courses(
+    ctx: Ctx,
+    params: PageParams,
+    *,
+    search: str | None,
+    status: str | None,
+    category: str | None,
+    difficulty: str | None,
+    mine: bool,
+) -> tuple[list[s.CourseOut], int]:
     stmt = select(Course).where(Course.organisation_id == ctx.org_id, Course.deleted_at.is_(None))
     if search:
         like = f"%{escape_like(search)}%"
-        stmt = stmt.where(or_(Course.title.ilike(like, escape="\\"), Course.description.ilike(like, escape="\\"),
-                              Course.slug.ilike(like, escape="\\")))
+        stmt = stmt.where(
+            or_(
+                Course.title.ilike(like, escape="\\"),
+                Course.description.ilike(like, escape="\\"),
+                Course.slug.ilike(like, escape="\\"),
+            )
+        )
     if status:
         stmt = stmt.where(Course.status == status)
     if category:
@@ -190,18 +304,38 @@ async def list_courses(ctx: Ctx, params: PageParams, *, search: str | None, stat
     if mine:
         stmt = stmt.where(or_(Course.created_by == ctx.user_id, Course.instructor_id == ctx.user_id))
     total = int(await ctx.db.scalar(select(func.count()).select_from(stmt.subquery())) or 0)
-    rows = list((await ctx.db.execute(
-        stmt.order_by(Course.updated_at.desc(), Course.id).limit(params.page_size).offset(params.offset)
-    )).scalars().all())
+    rows = list(
+        (
+            await ctx.db.execute(
+                stmt.order_by(Course.updated_at.desc(), Course.id)
+                .limit(params.page_size)
+                .offset(params.offset)
+            )
+        )
+        .scalars()
+        .all()
+    )
     counts = await _counts(ctx.db, [c.id for c in rows])
     vnums = await _version_numbers(ctx.db, [c.current_version_id for c in rows if c.current_version_id])
     return [_course_out(c, counts[c.id], vnums.get(c.current_version_id)) for c in rows], total
 
 
-async def _unique_slug(db: AsyncSession, org_id: uuid.UUID, base: str, *, exclude: uuid.UUID | None = None) -> str:
-    existing = set((await db.execute(select(Course.slug).where(
-        Course.organisation_id == org_id, Course.slug.like(f"{escape_like(base)}%", escape="\\"),
-        Course.id != exclude if exclude else True))).scalars().all())
+async def _unique_slug(
+    db: AsyncSession, org_id: uuid.UUID, base: str, *, exclude: uuid.UUID | None = None
+) -> str:
+    existing = set(
+        (
+            await db.execute(
+                select(Course.slug).where(
+                    Course.organisation_id == org_id,
+                    Course.slug.like(f"{escape_like(base)}%", escape="\\"),
+                    Course.id != exclude if exclude else True,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
     if base not in existing:
         return base
     n = 2
@@ -210,7 +344,9 @@ async def _unique_slug(db: AsyncSession, org_id: uuid.UUID, base: str, *, exclud
     return f"{base}-{n}"
 
 
-async def _slug_taken(db: AsyncSession, org_id: uuid.UUID, slug: str, exclude: uuid.UUID | None = None) -> bool:
+async def _slug_taken(
+    db: AsyncSession, org_id: uuid.UUID, slug: str, exclude: uuid.UUID | None = None
+) -> bool:
     stmt = select(Course.id).where(Course.organisation_id == org_id, Course.slug == slug)
     if exclude:
         stmt = stmt.where(Course.id != exclude)
@@ -221,8 +357,11 @@ async def _load_skills(ctx: Ctx, skill_ids: list[uuid.UUID]) -> list[Skill]:
     if not skill_ids:
         return []
     ids = list(dict.fromkeys(skill_ids))
-    skills = list((await ctx.db.execute(
-        select(Skill).where(Skill.id.in_(ids), Skill.organisation_id == ctx.org_id))).scalars().all())
+    skills = list(
+        (await ctx.db.execute(select(Skill).where(Skill.id.in_(ids), Skill.organisation_id == ctx.org_id)))
+        .scalars()
+        .all()
+    )
     if len(skills) != len(ids):
         raise BadRequest("One or more skills were not found", code="invalid_skill")
     return skills
@@ -233,8 +372,11 @@ async def _check_instructor(ctx: Ctx, user_id: uuid.UUID | None) -> None:
         return
     from app.models.tenancy import OrganisationUser
 
-    ok = await ctx.db.scalar(select(OrganisationUser.id).where(
-        OrganisationUser.organisation_id == ctx.org_id, OrganisationUser.user_id == user_id))
+    ok = await ctx.db.scalar(
+        select(OrganisationUser.id).where(
+            OrganisationUser.organisation_id == ctx.org_id, OrganisationUser.user_id == user_id
+        )
+    )
     if not ok:
         raise BadRequest("Instructor must be a member of this organisation", code="invalid_instructor")
 
@@ -252,9 +394,15 @@ async def create_course(ctx: Ctx, body: s.CourseCreate) -> Course:
     await _check_instructor(ctx, body.instructor_id)
     skills = await _load_skills(ctx, body.skill_ids or [])
     data = {k: v for k, v in data.items() if v is not None}
-    course = Course(organisation_id=ctx.org_id, slug=slug, created_by=ctx.user_id,
-                    instructor_id=data.pop("instructor_id", None) or ctx.user_id,
-                    status=CourseStatus.DRAFT, skills=skills, **data)
+    course = Course(
+        organisation_id=ctx.org_id,
+        slug=slug,
+        created_by=ctx.user_id,
+        instructor_id=data.pop("instructor_id", None) or ctx.user_id,
+        status=CourseStatus.DRAFT,
+        skills=skills,
+        **data,
+    )
     course.description = course.description or ""
     ctx.db.add(course)
     await ctx.db.flush()
@@ -274,16 +422,30 @@ async def update_course(ctx: Ctx, course_id: uuid.UUID, body: s.CourseUpdate) ->
         if new is not None and new != course.status:
             allowed = {CourseStatus.DRAFT, CourseStatus.IN_REVIEW}
             if new not in allowed or course.status not in allowed:
-                raise BadRequest("Use publish / archive / restore to change this status", code="invalid_status")
+                raise BadRequest(
+                    "Use publish / archive / restore to change this status", code="invalid_status"
+                )
             course.status = new
     if "skill_ids" in data:
         ids = data.pop("skill_ids")
         course.skills = await _load_skills(ctx, ids or [])
     if "instructor_id" in data:
         await _check_instructor(ctx, data["instructor_id"])
-    non_nullable = {"title", "slug", "description", "difficulty", "duration_minutes", "learning_objectives",
-                    "prerequisites", "tags", "visibility", "certificate_enabled", "pass_threshold",
-                    "ai_tutor_enabled", "sequential"}
+    non_nullable = {
+        "title",
+        "slug",
+        "description",
+        "difficulty",
+        "duration_minutes",
+        "learning_objectives",
+        "prerequisites",
+        "tags",
+        "visibility",
+        "certificate_enabled",
+        "pass_threshold",
+        "ai_tutor_enabled",
+        "sequential",
+    }
     for key, value in data.items():
         if value is None and key in non_nullable:
             continue
@@ -340,36 +502,75 @@ async def duplicate_course(ctx: Ctx, course_id: uuid.UUID, title: str | None) ->
     await check_limit(ctx.db, ctx.org, "max_courses")
     new_title = title or f"Copy of {src.title}"[:255]
     copy = Course(
-        organisation_id=ctx.org_id, slug=await _unique_slug(ctx.db, ctx.org_id, slugify(new_title)),
-        title=new_title, subtitle=src.subtitle, description=src.description, category=src.category,
-        difficulty=src.difficulty, duration_minutes=src.duration_minutes,
-        learning_objectives=list(src.learning_objectives or []), prerequisites=list(src.prerequisites or []),
-        target_audience=src.target_audience, tags=list(src.tags or []), thumbnail_url=src.thumbnail_url,
-        status=CourseStatus.DRAFT, visibility=src.visibility, instructor_id=ctx.user_id, created_by=ctx.user_id,
-        certificate_enabled=src.certificate_enabled, pass_threshold=src.pass_threshold,
-        ai_tutor_enabled=src.ai_tutor_enabled, ai_generated=src.ai_generated, sequential=src.sequential,
+        organisation_id=ctx.org_id,
+        slug=await _unique_slug(ctx.db, ctx.org_id, slugify(new_title)),
+        title=new_title,
+        subtitle=src.subtitle,
+        description=src.description,
+        category=src.category,
+        difficulty=src.difficulty,
+        duration_minutes=src.duration_minutes,
+        learning_objectives=list(src.learning_objectives or []),
+        prerequisites=list(src.prerequisites or []),
+        target_audience=src.target_audience,
+        tags=list(src.tags or []),
+        thumbnail_url=src.thumbnail_url,
+        status=CourseStatus.DRAFT,
+        visibility=src.visibility,
+        instructor_id=ctx.user_id,
+        created_by=ctx.user_id,
+        certificate_enabled=src.certificate_enabled,
+        pass_threshold=src.pass_threshold,
+        ai_tutor_enabled=src.ai_tutor_enabled,
+        ai_generated=src.ai_generated,
+        sequential=src.sequential,
         skills=list(src.skills),
     )
     ctx.db.add(copy)
     await ctx.db.flush()
     tree = await load_tree(ctx.db, ctx.org_id, src)
     for m in tree.modules:
-        nm = CourseModule(organisation_id=ctx.org_id, course_id=copy.id, title=m.title, description=m.description,
-                          position=m.position)
+        nm = CourseModule(
+            organisation_id=ctx.org_id,
+            course_id=copy.id,
+            title=m.title,
+            description=m.description,
+            position=m.position,
+        )
         ctx.db.add(nm)
         await ctx.db.flush()
         for lsn in tree.lessons.get(m.id, []):
-            nl = Lesson(organisation_id=ctx.org_id, course_id=copy.id, module_id=nm.id, title=lsn.title,
-                        summary=lsn.summary, lesson_type=lsn.lesson_type, content=dict(lsn.content or {}),
-                        duration_minutes=lsn.duration_minutes, position=lsn.position, is_required=lsn.is_required,
-                        is_preview=lsn.is_preview, assessment_id=lsn.assessment_id,
-                        assignment_id=lsn.assignment_id, simulation_id=lsn.simulation_id,
-                        skill_ids=list(lsn.skill_ids or []), ai_generated=lsn.ai_generated)
+            nl = Lesson(
+                organisation_id=ctx.org_id,
+                course_id=copy.id,
+                module_id=nm.id,
+                title=lsn.title,
+                summary=lsn.summary,
+                lesson_type=lsn.lesson_type,
+                content=dict(lsn.content or {}),
+                duration_minutes=lsn.duration_minutes,
+                position=lsn.position,
+                is_required=lsn.is_required,
+                is_preview=lsn.is_preview,
+                assessment_id=lsn.assessment_id,
+                assignment_id=lsn.assignment_id,
+                simulation_id=lsn.simulation_id,
+                skill_ids=list(lsn.skill_ids or []),
+                ai_generated=lsn.ai_generated,
+            )
             ctx.db.add(nl)
             await ctx.db.flush()
             for a in tree.activities.get(lsn.id, []):
-                ctx.db.add(Activity(organisation_id=ctx.org_id, lesson_id=nl.id, activity_type=a.activity_type,
-                                    title=a.title, content=dict(a.content or {}), position=a.position))
+                ctx.db.add(
+                    Activity(
+                        organisation_id=ctx.org_id,
+                        lesson_id=nl.id,
+                        activity_type=a.activity_type,
+                        title=a.title,
+                        content=dict(a.content or {}),
+                        position=a.position,
+                    )
+                )
     await ctx.db.flush()
     await ctx.db.refresh(copy)
     await ctx.audit("course.duplicated", "course", copy.id, source_course_id=str(src.id))
@@ -387,8 +588,9 @@ class Tree:
     linked: dict[tuple[str, uuid.UUID], dict[str, Any]] = field(default_factory=dict)
 
 
-async def _linked_items(db: AsyncSession, org_id: uuid.UUID, lessons: list[Lesson]) -> dict[tuple[str, uuid.UUID],
-                                                                                          dict[str, Any]]:
+async def _linked_items(
+    db: AsyncSession, org_id: uuid.UUID, lessons: list[Lesson]
+) -> dict[tuple[str, uuid.UUID], dict[str, Any]]:
     """Fetch titles / learner-safe settings of referenced assessments, assignments and simulations."""
     ids: dict[str, set[uuid.UUID]] = defaultdict(set)
     for lsn in lessons:
@@ -397,43 +599,108 @@ async def _linked_items(db: AsyncSession, org_id: uuid.UUID, lessons: list[Lesso
                 ids[f].add(getattr(lsn, f))
     out: dict[tuple[str, uuid.UUID], dict[str, Any]] = {}
     if ids["assessment_id"]:
-        for r in (await db.execute(select(
-                Assessment.id, Assessment.title, Assessment.status, Assessment.kind, Assessment.pass_percentage,
-                Assessment.time_limit_minutes, Assessment.max_attempts, Assessment.deleted_at).where(
-                Assessment.id.in_(ids["assessment_id"]), Assessment.organisation_id == org_id))).all():
+        for r in (
+            await db.execute(
+                select(
+                    Assessment.id,
+                    Assessment.title,
+                    Assessment.status,
+                    Assessment.kind,
+                    Assessment.pass_percentage,
+                    Assessment.time_limit_minutes,
+                    Assessment.max_attempts,
+                    Assessment.deleted_at,
+                ).where(Assessment.id.in_(ids["assessment_id"]), Assessment.organisation_id == org_id)
+            )
+        ).all():
             out[("assessment_id", r.id)] = {
-                "type": "assessment", "id": str(r.id), "title": r.title, "status": r.status, "kind": r.kind,
-                "pass_percentage": r.pass_percentage, "time_limit_minutes": r.time_limit_minutes,
-                "max_attempts": r.max_attempts, "deleted": r.deleted_at is not None}
+                "type": "assessment",
+                "id": str(r.id),
+                "title": r.title,
+                "status": r.status,
+                "kind": r.kind,
+                "pass_percentage": r.pass_percentage,
+                "time_limit_minutes": r.time_limit_minutes,
+                "max_attempts": r.max_attempts,
+                "deleted": r.deleted_at is not None,
+            }
     if ids["assignment_id"]:
-        for r in (await db.execute(select(
-                Assignment.id, Assignment.title, Assignment.status, Assignment.passing_score,
-                Assignment.time_limit_minutes, Assignment.due_days_after_enrolment, Assignment.deleted_at).where(
-                Assignment.id.in_(ids["assignment_id"]), Assignment.organisation_id == org_id))).all():
+        for r in (
+            await db.execute(
+                select(
+                    Assignment.id,
+                    Assignment.title,
+                    Assignment.status,
+                    Assignment.passing_score,
+                    Assignment.time_limit_minutes,
+                    Assignment.due_days_after_enrolment,
+                    Assignment.deleted_at,
+                ).where(Assignment.id.in_(ids["assignment_id"]), Assignment.organisation_id == org_id)
+            )
+        ).all():
             out[("assignment_id", r.id)] = {
-                "type": "assignment", "id": str(r.id), "title": r.title, "status": r.status,
-                "passing_score": r.passing_score, "time_limit_minutes": r.time_limit_minutes,
-                "due_days_after_enrolment": r.due_days_after_enrolment, "deleted": r.deleted_at is not None}
+                "type": "assignment",
+                "id": str(r.id),
+                "title": r.title,
+                "status": r.status,
+                "passing_score": r.passing_score,
+                "time_limit_minutes": r.time_limit_minutes,
+                "due_days_after_enrolment": r.due_days_after_enrolment,
+                "deleted": r.deleted_at is not None,
+            }
     if ids["simulation_id"]:
-        for r in (await db.execute(select(
-                Simulation.id, Simulation.title, Simulation.status, Simulation.difficulty,
-                Simulation.estimated_minutes, Simulation.deleted_at).where(
-                Simulation.id.in_(ids["simulation_id"]), Simulation.organisation_id == org_id))).all():
+        for r in (
+            await db.execute(
+                select(
+                    Simulation.id,
+                    Simulation.title,
+                    Simulation.status,
+                    Simulation.difficulty,
+                    Simulation.estimated_minutes,
+                    Simulation.deleted_at,
+                ).where(Simulation.id.in_(ids["simulation_id"]), Simulation.organisation_id == org_id)
+            )
+        ).all():
             out[("simulation_id", r.id)] = {
-                "type": "simulation", "id": str(r.id), "title": r.title, "status": r.status,
-                "difficulty": r.difficulty, "estimated_minutes": r.estimated_minutes,
-                "deleted": r.deleted_at is not None}
+                "type": "simulation",
+                "id": str(r.id),
+                "title": r.title,
+                "status": r.status,
+                "difficulty": r.difficulty,
+                "estimated_minutes": r.estimated_minutes,
+                "deleted": r.deleted_at is not None,
+            }
     return out
 
 
 async def load_tree(db: AsyncSession, org_id: uuid.UUID, course: Course) -> Tree:
-    modules = list((await db.execute(select(CourseModule).where(
-        CourseModule.course_id == course.id, CourseModule.organisation_id == org_id,
-        CourseModule.deleted_at.is_(None)).order_by(CourseModule.position, CourseModule.created_at))).scalars())
+    modules = list(
+        (
+            await db.execute(
+                select(CourseModule)
+                .where(
+                    CourseModule.course_id == course.id,
+                    CourseModule.organisation_id == org_id,
+                    CourseModule.deleted_at.is_(None),
+                )
+                .order_by(CourseModule.position, CourseModule.created_at)
+            )
+        ).scalars()
+    )
     module_ids = {m.id for m in modules}
-    lessons = list((await db.execute(select(Lesson).where(
-        Lesson.course_id == course.id, Lesson.organisation_id == org_id, Lesson.deleted_at.is_(None))
-        .order_by(Lesson.position, Lesson.created_at))).scalars())
+    lessons = list(
+        (
+            await db.execute(
+                select(Lesson)
+                .where(
+                    Lesson.course_id == course.id,
+                    Lesson.organisation_id == org_id,
+                    Lesson.deleted_at.is_(None),
+                )
+                .order_by(Lesson.position, Lesson.created_at)
+            )
+        ).scalars()
+    )
     by_module: dict[uuid.UUID, list[Lesson]] = defaultdict(list)
     for lsn in lessons:
         if lsn.module_id in module_ids:
@@ -441,8 +708,13 @@ async def load_tree(db: AsyncSession, org_id: uuid.UUID, course: Course) -> Tree
     acts: dict[uuid.UUID, list[Activity]] = defaultdict(list)
     lesson_ids = [lsn.id for lsn in lessons]
     if lesson_ids:
-        for a in (await db.execute(select(Activity).where(Activity.lesson_id.in_(lesson_ids))
-                                   .order_by(Activity.position, Activity.created_at))).scalars():
+        for a in (
+            await db.execute(
+                select(Activity)
+                .where(Activity.lesson_id.in_(lesson_ids))
+                .order_by(Activity.position, Activity.created_at)
+            )
+        ).scalars():
             acts[a.lesson_id].append(a)
     linked = await _linked_items(db, org_id, lessons)
     return Tree(modules, by_module, acts, linked)
@@ -456,12 +728,16 @@ def _lesson_linked(tree: Tree, lsn: Lesson) -> dict[str, Any] | None:
 
 
 def _lesson_out(tree: Tree, lsn: Lesson) -> s.LessonOut:
-    out = s.LessonOut.model_validate(lsn, from_attributes=True)
-    out.activities = [s.ActivityOut.model_validate(a) for a in tree.activities.get(lsn.id, [])]
+    cols = {k: getattr(lsn, k) for k in s.LessonOut.model_fields if k not in ("activities", "linked")}
+    out = s.LessonOut(**cols, activities=[s.ActivityOut.model_validate(a) for a in tree.activities.get(lsn.id, [])])
     linked = _lesson_linked(tree, lsn)
     if linked:
-        out.linked = s.LinkedItem(type=linked["type"], id=linked["id"], title=linked["title"],
-                                  status="deleted" if linked["deleted"] else linked["status"])
+        out.linked = s.LinkedItem(
+            type=linked["type"],
+            id=linked["id"],
+            title=linked["title"],
+            status="deleted" if linked["deleted"] else linked["status"],
+        )
     return out
 
 
@@ -476,42 +752,76 @@ def build_snapshot(course: Course, tree: Tree) -> dict[str, Any]:
             link_info = None
             if linked:
                 link_info = {k: v for k, v in linked.items() if k not in ("deleted", "status")}
-            lessons.append({
-                "id": str(lsn.id), "module_id": str(m.id), "title": lsn.title, "summary": lsn.summary,
-                "lesson_type": lsn.lesson_type, "content": strip_secrets(lsn.content or {}),
-                "duration_minutes": lsn.duration_minutes, "position": lsn.position,
-                "is_required": lsn.is_required, "is_preview": lsn.is_preview,
-                "assessment_id": str(lsn.assessment_id) if lsn.assessment_id else None,
-                "assignment_id": str(lsn.assignment_id) if lsn.assignment_id else None,
-                "simulation_id": str(lsn.simulation_id) if lsn.simulation_id else None,
-                "linked": link_info, "skill_ids": [str(x) for x in lsn.skill_ids or []],
-                "activities": [
-                    {"id": str(a.id), "activity_type": a.activity_type, "title": a.title,
-                     "content": strip_secrets(a.content or {}), "position": a.position}
-                    for a in tree.activities.get(lsn.id, [])
-                ],
-            })
+            lessons.append(
+                {
+                    "id": str(lsn.id),
+                    "module_id": str(m.id),
+                    "title": lsn.title,
+                    "summary": lsn.summary,
+                    "lesson_type": lsn.lesson_type,
+                    "content": strip_secrets(lsn.content or {}),
+                    "duration_minutes": lsn.duration_minutes,
+                    "position": lsn.position,
+                    "is_required": lsn.is_required,
+                    "is_preview": lsn.is_preview,
+                    "assessment_id": str(lsn.assessment_id) if lsn.assessment_id else None,
+                    "assignment_id": str(lsn.assignment_id) if lsn.assignment_id else None,
+                    "simulation_id": str(lsn.simulation_id) if lsn.simulation_id else None,
+                    "linked": link_info,
+                    "skill_ids": [str(x) for x in lsn.skill_ids or []],
+                    "activities": [
+                        {
+                            "id": str(a.id),
+                            "activity_type": a.activity_type,
+                            "title": a.title,
+                            "content": strip_secrets(a.content or {}),
+                            "position": a.position,
+                        }
+                        for a in tree.activities.get(lsn.id, [])
+                    ],
+                }
+            )
             lesson_count += 1
             required += 1 if lsn.is_required else 0
             duration += lsn.duration_minutes or 0
-        modules.append({"id": str(m.id), "title": m.title, "description": m.description, "position": m.position,
-                        "lessons": lessons})
+        modules.append(
+            {
+                "id": str(m.id),
+                "title": m.title,
+                "description": m.description,
+                "position": m.position,
+                "lessons": lessons,
+            }
+        )
     return {
         "schema_version": SCHEMA_VERSION,
         "course": {
-            "id": str(course.id), "slug": course.slug, "title": course.title, "subtitle": course.subtitle,
-            "description": course.description, "category": course.category, "difficulty": course.difficulty,
+            "id": str(course.id),
+            "slug": course.slug,
+            "title": course.title,
+            "subtitle": course.subtitle,
+            "description": course.description,
+            "category": course.category,
+            "difficulty": course.difficulty,
             "duration_minutes": course.duration_minutes or duration,
             "learning_objectives": list(course.learning_objectives or []),
-            "prerequisites": list(course.prerequisites or []), "target_audience": course.target_audience,
-            "tags": list(course.tags or []), "thumbnail_url": course.thumbnail_url, "sequential": course.sequential,
-            "certificate_enabled": course.certificate_enabled, "pass_threshold": course.pass_threshold,
+            "prerequisites": list(course.prerequisites or []),
+            "target_audience": course.target_audience,
+            "tags": list(course.tags or []),
+            "thumbnail_url": course.thumbnail_url,
+            "sequential": course.sequential,
+            "certificate_enabled": course.certificate_enabled,
+            "pass_threshold": course.pass_threshold,
             "ai_tutor_enabled": course.ai_tutor_enabled,
             "skills": [{"id": str(sk.id), "name": sk.name} for sk in course.skills],
         },
         "modules": modules,
-        "stats": {"module_count": len(modules), "lesson_count": lesson_count, "required_lesson_count": required,
-                  "duration_minutes": duration},
+        "stats": {
+            "module_count": len(modules),
+            "lesson_count": lesson_count,
+            "required_lesson_count": required,
+            "duration_minutes": duration,
+        },
     }
 
 
@@ -534,8 +844,10 @@ async def get_structure(ctx: Ctx, course_id: uuid.UUID) -> s.StructureOut:
     return s.StructureOut(
         course=_course_out(course, (len(tree.modules), n_lessons, enrols), vnum),
         modules=[
-            s.StructureModuleOut(**s.ModuleOut.model_validate(m).model_dump(),
-                                 lessons=[_lesson_out(tree, lsn) for lsn in tree.lessons.get(m.id, [])])
+            s.StructureModuleOut(
+                **s.ModuleOut.model_validate(m).model_dump(),
+                lessons=[_lesson_out(tree, lsn) for lsn in tree.lessons.get(m.id, [])],
+            )
             for m in tree.modules
         ],
         has_unpublished_changes=changed,
@@ -549,10 +861,21 @@ async def create_module(ctx: Ctx, course_id: uuid.UUID, body: s.ModuleCreate) ->
     course = await get_course(ctx, course_id)
     position = body.position
     if position is None:
-        position = int(await ctx.db.scalar(select(func.coalesce(func.max(CourseModule.position) + 1, 0)).where(
-            CourseModule.course_id == course.id, CourseModule.deleted_at.is_(None))) or 0)
-    m = CourseModule(organisation_id=ctx.org_id, course_id=course.id, title=body.title,
-                     description=body.description, position=position)
+        position = int(
+            await ctx.db.scalar(
+                select(func.coalesce(func.max(CourseModule.position) + 1, 0)).where(
+                    CourseModule.course_id == course.id, CourseModule.deleted_at.is_(None)
+                )
+            )
+            or 0
+        )
+    m = CourseModule(
+        organisation_id=ctx.org_id,
+        course_id=course.id,
+        title=body.title,
+        description=body.description,
+        position=position,
+    )
     ctx.db.add(m)
     await _touch(ctx.db, course)
     await ctx.db.flush()
@@ -560,7 +883,9 @@ async def create_module(ctx: Ctx, course_id: uuid.UUID, body: s.ModuleCreate) ->
     return m
 
 
-async def update_module(ctx: Ctx, course_id: uuid.UUID, module_id: uuid.UUID, body: s.ModuleUpdate) -> CourseModule:
+async def update_module(
+    ctx: Ctx, course_id: uuid.UUID, module_id: uuid.UUID, body: s.ModuleUpdate
+) -> CourseModule:
     course = await get_course(ctx, course_id)
     m = await _get_module(ctx, course, module_id)
     for k, v in body.model_dump(exclude_unset=True).items():
@@ -579,8 +904,9 @@ async def delete_module(ctx: Ctx, course_id: uuid.UUID, module_id: uuid.UUID) ->
     m = await _get_module(ctx, course, module_id)
     now = _now()
     m.deleted_at = now
-    await ctx.db.execute(update(Lesson).where(Lesson.module_id == m.id, Lesson.deleted_at.is_(None))
-                         .values(deleted_at=now))
+    await ctx.db.execute(
+        update(Lesson).where(Lesson.module_id == m.id, Lesson.deleted_at.is_(None)).values(deleted_at=now)
+    )
     await _touch(ctx.db, course)
     await ctx.db.flush()
     await ctx.audit("course.module_deleted", "course_module", m.id, course_id=str(course.id))
@@ -597,14 +923,23 @@ async def _validate_links(ctx: Ctx, lesson_type: str, links: dict[str, uuid.UUID
         return result
     ref = links.get(required)
     if ref is None:
-        raise BadRequest(f"'{required}' is required for {lesson_type} lessons", code="invalid_content",
-                         details={"field": required})
+        raise BadRequest(
+            f"'{required}' is required for {lesson_type} lessons",
+            code="invalid_content",
+            details={"field": required},
+        )
     model = {"assessment_id": Assessment, "assignment_id": Assignment, "simulation_id": Simulation}[required]
-    found = await ctx.db.scalar(select(model.id).where(model.id == ref, model.organisation_id == ctx.org_id,
-                                                       model.deleted_at.is_(None)))
+    found = await ctx.db.scalar(
+        select(model.id).where(
+            model.id == ref, model.organisation_id == ctx.org_id, model.deleted_at.is_(None)
+        )
+    )
     if not found:
-        raise BadRequest(f"Linked {required.removesuffix('_id')} not found", code="invalid_link",
-                         details={"field": required})
+        raise BadRequest(
+            f"Linked {required.removesuffix('_id')} not found",
+            code="invalid_link",
+            details={"field": required},
+        )
     result[required] = ref
     return result
 
@@ -621,12 +956,29 @@ async def create_lesson(ctx: Ctx, course_id: uuid.UUID, module_id: uuid.UUID, bo
     links = await _validate_links(ctx, body.lesson_type, {f: getattr(body, f) for f in LINK_FIELDS})
     position = body.position
     if position is None:
-        position = int(await ctx.db.scalar(select(func.coalesce(func.max(Lesson.position) + 1, 0)).where(
-            Lesson.module_id == m.id, Lesson.deleted_at.is_(None))) or 0)
-    lsn = Lesson(organisation_id=ctx.org_id, course_id=course.id, module_id=m.id, title=body.title,
-                 summary=body.summary, lesson_type=body.lesson_type, content=content,
-                 duration_minutes=body.duration_minutes, position=position, is_required=body.is_required,
-                 is_preview=body.is_preview, skill_ids=await _validate_lesson_skills(ctx, body.skill_ids), **links)
+        position = int(
+            await ctx.db.scalar(
+                select(func.coalesce(func.max(Lesson.position) + 1, 0)).where(
+                    Lesson.module_id == m.id, Lesson.deleted_at.is_(None)
+                )
+            )
+            or 0
+        )
+    lsn = Lesson(
+        organisation_id=ctx.org_id,
+        course_id=course.id,
+        module_id=m.id,
+        title=body.title,
+        summary=body.summary,
+        lesson_type=body.lesson_type,
+        content=content,
+        duration_minutes=body.duration_minutes,
+        position=position,
+        is_required=body.is_required,
+        is_preview=body.is_preview,
+        skill_ids=await _validate_lesson_skills(ctx, body.skill_ids),
+        **links,
+    )
     ctx.db.add(lsn)
     await _touch(ctx.db, course)
     await ctx.db.flush()
@@ -674,8 +1026,15 @@ async def delete_lesson(ctx: Ctx, course_id: uuid.UUID, lesson_id: uuid.UUID) ->
 async def lesson_out(ctx: Ctx, course_id: uuid.UUID, lesson_id: uuid.UUID) -> s.LessonOut:
     course = await get_course(ctx, course_id)
     lsn = await _get_lesson(ctx, course, lesson_id)
-    acts = list((await ctx.db.execute(select(Activity).where(Activity.lesson_id == lsn.id)
-                                      .order_by(Activity.position, Activity.created_at))).scalars())
+    acts = list(
+        (
+            await ctx.db.execute(
+                select(Activity)
+                .where(Activity.lesson_id == lsn.id)
+                .order_by(Activity.position, Activity.created_at)
+            )
+        ).scalars()
+    )
     tree = Tree([], {}, {lsn.id: acts}, await _linked_items(ctx.db, ctx.org_id, [lsn]))
     return _lesson_out(tree, lsn)
 
@@ -683,24 +1042,37 @@ async def lesson_out(ctx: Ctx, course_id: uuid.UUID, lesson_id: uuid.UUID) -> s.
 # ----------------------------------------------------------------------------- activities
 
 
-async def create_activity(ctx: Ctx, course_id: uuid.UUID, lesson_id: uuid.UUID, body: s.ActivityCreate) -> Activity:
+async def create_activity(
+    ctx: Ctx, course_id: uuid.UUID, lesson_id: uuid.UUID, body: s.ActivityCreate
+) -> Activity:
     course = await get_course(ctx, course_id)
     lsn = await _get_lesson(ctx, course, lesson_id)
     content = validate_activity_content(body.activity_type, body.content)
     position = body.position
     if position is None:
-        position = int(await ctx.db.scalar(select(func.coalesce(func.max(Activity.position) + 1, 0)).where(
-            Activity.lesson_id == lsn.id)) or 0)
-    act = Activity(organisation_id=ctx.org_id, lesson_id=lsn.id, activity_type=body.activity_type,
-                   title=body.title, content=content, position=position)
+        position = int(
+            await ctx.db.scalar(
+                select(func.coalesce(func.max(Activity.position) + 1, 0)).where(Activity.lesson_id == lsn.id)
+            )
+            or 0
+        )
+    act = Activity(
+        organisation_id=ctx.org_id,
+        lesson_id=lsn.id,
+        activity_type=body.activity_type,
+        title=body.title,
+        content=content,
+        position=position,
+    )
     ctx.db.add(act)
     await _touch(ctx.db, course)
     await ctx.db.flush()
     return act
 
 
-async def update_activity(ctx: Ctx, course_id: uuid.UUID, activity_id: uuid.UUID,
-                          body: s.ActivityUpdate) -> Activity:
+async def update_activity(
+    ctx: Ctx, course_id: uuid.UUID, activity_id: uuid.UUID, body: s.ActivityUpdate
+) -> Activity:
     course = await get_course(ctx, course_id)
     act = await _get_activity(ctx, course, activity_id)
     data = body.model_dump(exclude_unset=True)
@@ -727,11 +1099,15 @@ async def delete_activity(ctx: Ctx, course_id: uuid.UUID, activity_id: uuid.UUID
     await ctx.db.flush()
 
 
-async def reorder_activities(ctx: Ctx, course_id: uuid.UUID, lesson_id: uuid.UUID,
-                             activity_ids: list[uuid.UUID]) -> list[Activity]:
+async def reorder_activities(
+    ctx: Ctx, course_id: uuid.UUID, lesson_id: uuid.UUID, activity_ids: list[uuid.UUID]
+) -> list[Activity]:
     course = await get_course(ctx, course_id)
     lsn = await _get_lesson(ctx, course, lesson_id)
-    acts = {a.id: a for a in (await ctx.db.execute(select(Activity).where(Activity.lesson_id == lsn.id))).scalars()}
+    acts = {
+        a.id: a
+        for a in (await ctx.db.execute(select(Activity).where(Activity.lesson_id == lsn.id))).scalars()
+    }
     if set(activity_ids) != set(acts) or len(activity_ids) != len(acts):
         raise BadRequest("activity_ids must list every activity of the lesson exactly once")
     for i, aid in enumerate(activity_ids):
@@ -747,17 +1123,43 @@ async def reorder_activities(ctx: Ctx, course_id: uuid.UUID, lesson_id: uuid.UUI
 async def reorder_structure(ctx: Ctx, course_id: uuid.UUID, body: s.ReorderIn) -> s.StructureOut:
     """Bulk drag-and-drop update: module positions, lesson positions and lesson moves between modules."""
     course = await get_course(ctx, course_id)
-    modules = {m.id: m for m in (await ctx.db.execute(select(CourseModule).where(
-        CourseModule.course_id == course.id, CourseModule.organisation_id == ctx.org_id,
-        CourseModule.deleted_at.is_(None)))).scalars()}
-    lessons = {lsn.id: lsn for lsn in (await ctx.db.execute(select(Lesson).where(
-        Lesson.course_id == course.id, Lesson.organisation_id == ctx.org_id, Lesson.deleted_at.is_(None)))).scalars()}
+    modules = {
+        m.id: m
+        for m in (
+            await ctx.db.execute(
+                select(CourseModule).where(
+                    CourseModule.course_id == course.id,
+                    CourseModule.organisation_id == ctx.org_id,
+                    CourseModule.deleted_at.is_(None),
+                )
+            )
+        ).scalars()
+    }
+    lessons = {
+        lsn.id: lsn
+        for lsn in (
+            await ctx.db.execute(
+                select(Lesson).where(
+                    Lesson.course_id == course.id,
+                    Lesson.organisation_id == ctx.org_id,
+                    Lesson.deleted_at.is_(None),
+                )
+            )
+        ).scalars()
+    }
     unknown_m = [str(m.id) for m in body.modules if m.id not in modules]
-    unknown_l = [str(lsn.id) for m in body.modules for lsn in m.lessons
-                 if lsn.id not in lessons or (lsn.module_id and lsn.module_id not in modules)]
+    unknown_l = [
+        str(lsn.id)
+        for m in body.modules
+        for lsn in m.lessons
+        if lsn.id not in lessons or (lsn.module_id and lsn.module_id not in modules)
+    ]
     if unknown_m or unknown_l:
-        raise BadRequest("Structure references modules or lessons outside this course", code="invalid_structure",
-                         details={"modules": unknown_m, "lessons": unknown_l})
+        raise BadRequest(
+            "Structure references modules or lessons outside this course",
+            code="invalid_structure",
+            details={"modules": unknown_m, "lessons": unknown_l},
+        )
     for m in body.modules:
         modules[m.id].position = m.position
         for item in m.lessons:
@@ -790,35 +1192,65 @@ def _publish_problems(tree: Tree) -> list[dict[str, Any]]:
         if f:
             linked = tree.linked.get((f, getattr(lsn, f))) if getattr(lsn, f) else None
             if not linked or linked["deleted"]:
-                problems.append({"code": "missing_link", "message": f"Linked {f.removesuffix('_id')} is missing",
-                                 **ref})
+                problems.append(
+                    {"code": "missing_link", "message": f"Linked {f.removesuffix('_id')} is missing", **ref}
+                )
         if lsn.lesson_type == LessonType.MIXED and not tree.activities.get(lsn.id):
-            problems.append({"code": "empty_lesson", "message": "Mixed lessons need at least one activity", **ref})
+            problems.append(
+                {"code": "empty_lesson", "message": "Mixed lessons need at least one activity", **ref}
+            )
     return problems
 
 
 def _version_summary(v: CourseVersion, names: dict[uuid.UUID, str] | None = None) -> s.VersionSummary:
     return s.VersionSummary(
-        id=v.id, version_number=v.version_number, status=v.status, changelog=v.changelog,
-        published_by=v.published_by, published_by_name=(names or {}).get(v.published_by) if v.published_by else None,
-        published_at=v.published_at, stats=(v.snapshot or {}).get("stats") or {})
+        id=v.id,
+        version_number=v.version_number,
+        status=v.status,
+        changelog=v.changelog,
+        published_by=v.published_by,
+        published_by_name=(names or {}).get(v.published_by) if v.published_by else None,
+        published_at=v.published_at,
+        stats=(v.snapshot or {}).get("stats") or {},
+    )
 
 
-async def publish_course(ctx: Ctx, course_id: uuid.UUID, changelog: str | None) -> tuple[Course, CourseVersion]:
+async def publish_course(
+    ctx: Ctx, course_id: uuid.UUID, changelog: str | None
+) -> tuple[Course, CourseVersion]:
     """Validate, freeze the tree into a new immutable CourseVersion and make it current."""
     course = await get_course(ctx, course_id, for_update=True)
     tree = await load_tree(ctx.db, ctx.org_id, course)
     problems = _publish_problems(tree)
     if problems:
-        raise BadRequest("The course is not ready to publish", code="publish_validation_failed",
-                         details={"problems": problems})
-    last = int(await ctx.db.scalar(select(func.coalesce(func.max(CourseVersion.version_number), 0)).where(
-        CourseVersion.course_id == course.id)) or 0)
-    await ctx.db.execute(update(CourseVersion).where(
-        CourseVersion.course_id == course.id, CourseVersion.status == "published").values(status="superseded"))
-    version = CourseVersion(organisation_id=ctx.org_id, course_id=course.id, version_number=last + 1,
-                            status="published", snapshot=build_snapshot(course, tree), changelog=changelog,
-                            published_by=ctx.user_id, published_at=_now())
+        raise BadRequest(
+            "The course is not ready to publish",
+            code="publish_validation_failed",
+            details={"problems": problems},
+        )
+    last = int(
+        await ctx.db.scalar(
+            select(func.coalesce(func.max(CourseVersion.version_number), 0)).where(
+                CourseVersion.course_id == course.id
+            )
+        )
+        or 0
+    )
+    await ctx.db.execute(
+        update(CourseVersion)
+        .where(CourseVersion.course_id == course.id, CourseVersion.status == "published")
+        .values(status="superseded")
+    )
+    version = CourseVersion(
+        organisation_id=ctx.org_id,
+        course_id=course.id,
+        version_number=last + 1,
+        status="published",
+        snapshot=build_snapshot(course, tree),
+        changelog=changelog,
+        published_by=ctx.user_id,
+        published_at=_now(),
+    )
     ctx.db.add(version)
     await ctx.db.flush()
     course.current_version_id = version.id
@@ -826,27 +1258,46 @@ async def publish_course(ctx: Ctx, course_id: uuid.UUID, changelog: str | None) 
     course.draft_version_number = version.version_number + 1
     await ctx.db.flush()
     await ctx.db.refresh(course)
-    await ctx.audit("course.published", "course", course.id, version_number=version.version_number,
-                    version_id=str(version.id), changelog=changelog)
+    await ctx.audit(
+        "course.published",
+        "course",
+        course.id,
+        version_number=version.version_number,
+        version_id=str(version.id),
+        changelog=changelog,
+    )
     return course, version
 
 
 async def list_versions(ctx: Ctx, course_id: uuid.UUID) -> list[s.VersionSummary]:
     course = await get_course(ctx, course_id)
-    versions = list((await ctx.db.execute(select(CourseVersion).where(
-        CourseVersion.course_id == course.id, CourseVersion.organisation_id == ctx.org_id)
-        .order_by(CourseVersion.version_number.desc()))).scalars())
+    versions = list(
+        (
+            await ctx.db.execute(
+                select(CourseVersion)
+                .where(CourseVersion.course_id == course.id, CourseVersion.organisation_id == ctx.org_id)
+                .order_by(CourseVersion.version_number.desc())
+            )
+        ).scalars()
+    )
     user_ids = {v.published_by for v in versions if v.published_by}
-    names = dict((await ctx.db.execute(select(User.id, User.full_name).where(User.id.in_(user_ids)))).all()) \
-        if user_ids else {}
+    names = (
+        dict((await ctx.db.execute(select(User.id, User.full_name).where(User.id.in_(user_ids)))).all())
+        if user_ids
+        else {}
+    )
     return [_version_summary(v, names) for v in versions]
 
 
 async def get_version(ctx: Ctx, course_id: uuid.UUID, number: int) -> CourseVersion:
     course = await get_course(ctx, course_id)
-    v = await ctx.db.scalar(select(CourseVersion).where(
-        CourseVersion.course_id == course.id, CourseVersion.organisation_id == ctx.org_id,
-        CourseVersion.version_number == number))
+    v = await ctx.db.scalar(
+        select(CourseVersion).where(
+            CourseVersion.course_id == course.id,
+            CourseVersion.organisation_id == ctx.org_id,
+            CourseVersion.version_number == number,
+        )
+    )
     if v is None:
         raise NotFound("Version not found")
     return v
@@ -874,46 +1325,88 @@ async def diff_versions(ctx: Ctx, course_id: uuid.UUID, from_n: int, to: str) ->
 
 def _catalog_stmt(ctx: Ctx) -> Select[Any]:
     return (
-        select(Course.id, Course.slug, CourseVersion.version_number, CourseVersion.published_at,
-               CourseVersion.snapshot["course"].label("meta"), CourseVersion.snapshot["stats"].label("stats"))
+        select(
+            Course.id,
+            Course.slug,
+            CourseVersion.version_number,
+            CourseVersion.published_at,
+            CourseVersion.snapshot["course"].label("meta"),
+            CourseVersion.snapshot["stats"].label("stats"),
+        )
         .join(CourseVersion, CourseVersion.id == Course.current_version_id)
-        .where(Course.organisation_id == ctx.org_id, Course.deleted_at.is_(None),
-               Course.status == CourseStatus.PUBLISHED)
+        .where(
+            Course.organisation_id == ctx.org_id,
+            Course.deleted_at.is_(None),
+            Course.status == CourseStatus.PUBLISHED,
+        )
     )
 
 
 async def _enrolment_states(ctx: Ctx, course_ids: list[uuid.UUID]) -> dict[uuid.UUID, s.EnrolmentState]:
     if not course_ids or not ctx.principal.user:
         return {}
-    rows = (await ctx.db.execute(select(Enrolment).where(
-        Enrolment.organisation_id == ctx.org_id, Enrolment.user_id == ctx.user_id,
-        Enrolment.course_id.in_(course_ids)))).scalars()
-    return {e.course_id: s.EnrolmentState(id=e.id, status=e.status, progress_pct=e.progress_pct,
-                                          due_date=e.due_date) for e in rows}
+    rows = (
+        await ctx.db.execute(
+            select(Enrolment).where(
+                Enrolment.organisation_id == ctx.org_id,
+                Enrolment.user_id == ctx.user_id,
+                Enrolment.course_id.in_(course_ids),
+            )
+        )
+    ).scalars()
+    return {
+        e.course_id: s.EnrolmentState(
+            id=e.id, status=e.status, progress_pct=e.progress_pct, due_date=e.due_date
+        )
+        for e in rows
+    }
 
 
-def _catalog_item(row: Any, enrol: s.EnrolmentState | None, cls: type[s.CatalogItem] = s.CatalogItem,
-                  **extra: Any) -> Any:
+def _catalog_item(
+    row: Any, enrol: s.EnrolmentState | None, cls: type[s.CatalogItem] = s.CatalogItem, **extra: Any
+) -> Any:
     meta, stats = row.meta or {}, row.stats or {}
     fields = {k: meta.get(k) for k in ("subtitle", "category", "difficulty", "thumbnail_url")}
-    return cls(id=row.id, slug=row.slug, title=meta.get("title", ""), description=meta.get("description") or "",
-               duration_minutes=meta.get("duration_minutes") or 0, tags=meta.get("tags") or [],
-               skills=meta.get("skills") or [], lesson_count=stats.get("lesson_count", 0),
-               module_count=stats.get("module_count", 0), version_number=row.version_number,
-               published_at=row.published_at, enrolment=enrol, **fields, **extra)
+    return cls(
+        id=row.id,
+        slug=row.slug,
+        title=meta.get("title", ""),
+        description=meta.get("description") or "",
+        duration_minutes=meta.get("duration_minutes") or 0,
+        tags=meta.get("tags") or [],
+        skills=meta.get("skills") or [],
+        lesson_count=stats.get("lesson_count", 0),
+        module_count=stats.get("module_count", 0),
+        version_number=row.version_number,
+        published_at=row.published_at,
+        enrolment=enrol,
+        **fields,
+        **extra,
+    )
 
 
-async def catalog(ctx: Ctx, params: PageParams, *, search: str | None, category: str | None,
-                  difficulty: str | None, skill_id: uuid.UUID | None,
-                  enrolled: bool | None) -> tuple[list[s.CatalogItem], int]:
+async def catalog(
+    ctx: Ctx,
+    params: PageParams,
+    *,
+    search: str | None,
+    category: str | None,
+    difficulty: str | None,
+    skill_id: uuid.UUID | None,
+    enrolled: bool | None,
+) -> tuple[list[s.CatalogItem], int]:
     stmt = _catalog_stmt(ctx)
     meta = CourseVersion.snapshot["course"]
     if search:
         like = f"%{escape_like(search)}%"
-        stmt = stmt.where(or_(meta["title"].astext.ilike(like, escape="\\"),
-                              meta["subtitle"].astext.ilike(like, escape="\\"),
-                              meta["description"].astext.ilike(like, escape="\\"),
-                              meta["tags"].astext.ilike(like, escape="\\")))
+        stmt = stmt.where(
+            or_(
+                meta["title"].astext.ilike(like, escape="\\"),
+                meta["subtitle"].astext.ilike(like, escape="\\"),
+                meta["description"].astext.ilike(like, escape="\\"),
+                meta["tags"].astext.ilike(like, escape="\\"),
+            )
+        )
     if category:
         stmt = stmt.where(meta["category"].astext == category)
     if difficulty:
@@ -922,12 +1415,19 @@ async def catalog(ctx: Ctx, params: PageParams, *, search: str | None, category:
         stmt = stmt.where(meta["skills"].contains([{"id": str(skill_id)}]))
     if enrolled is not None and ctx.principal.user:
         mine = select(Enrolment.course_id).where(
-            Enrolment.organisation_id == ctx.org_id, Enrolment.user_id == ctx.user_id,
-            Enrolment.status != EnrolmentStatus.WITHDRAWN)
+            Enrolment.organisation_id == ctx.org_id,
+            Enrolment.user_id == ctx.user_id,
+            Enrolment.status != EnrolmentStatus.WITHDRAWN,
+        )
         stmt = stmt.where(Course.id.in_(mine) if enrolled else Course.id.not_in(mine))
     total = int(await ctx.db.scalar(select(func.count()).select_from(stmt.subquery())) or 0)
-    rows = (await ctx.db.execute(stmt.order_by(CourseVersion.published_at.desc(), Course.id)
-                                 .limit(params.page_size).offset(params.offset))).all()
+    rows = (
+        await ctx.db.execute(
+            stmt.order_by(CourseVersion.published_at.desc(), Course.id)
+            .limit(params.page_size)
+            .offset(params.offset)
+        )
+    ).all()
     states = await _enrolment_states(ctx, [r.id for r in rows])
     return [_catalog_item(r, states.get(r.id)) for r in rows], total
 
@@ -936,28 +1436,52 @@ async def catalog_detail(ctx: Ctx, course_id: uuid.UUID) -> s.CatalogDetail:
     row = (await ctx.db.execute(_catalog_stmt(ctx).where(Course.id == course_id))).first()
     if row is None:
         raise NotFound("Course not found")
-    version = await ctx.db.scalar(select(CourseVersion.snapshot).where(CourseVersion.version_number ==
-                                                                       row.version_number,
-                                                                       CourseVersion.course_id == course_id))
+    version = await ctx.db.scalar(
+        select(CourseVersion.snapshot).where(
+            CourseVersion.version_number == row.version_number, CourseVersion.course_id == course_id
+        )
+    )
     meta = row.meta or {}
     outline = [
-        {"id": m["id"], "title": m["title"], "description": m.get("description"),
-         "lessons": [{"id": lsn["id"], "title": lsn["title"], "lesson_type": lsn["lesson_type"],
-                      "duration_minutes": lsn.get("duration_minutes", 0), "is_preview": lsn.get("is_preview", False),
-                      "is_required": lsn.get("is_required", True)} for lsn in m.get("lessons", [])]}
+        {
+            "id": m["id"],
+            "title": m["title"],
+            "description": m.get("description"),
+            "lessons": [
+                {
+                    "id": lsn["id"],
+                    "title": lsn["title"],
+                    "lesson_type": lsn["lesson_type"],
+                    "duration_minutes": lsn.get("duration_minutes", 0),
+                    "is_preview": lsn.get("is_preview", False),
+                    "is_required": lsn.get("is_required", True),
+                }
+                for lsn in m.get("lessons", [])
+            ],
+        }
         for m in (version or {}).get("modules", [])
     ]
     states = await _enrolment_states(ctx, [course_id])
-    return _catalog_item(row, states.get(course_id), s.CatalogDetail,
-                         learning_objectives=meta.get("learning_objectives") or [],
-                         prerequisites=meta.get("prerequisites") or [],
-                         target_audience=meta.get("target_audience"),
-                         certificate_enabled=meta.get("certificate_enabled", True), outline=outline)
+    return _catalog_item(
+        row,
+        states.get(course_id),
+        s.CatalogDetail,
+        learning_objectives=meta.get("learning_objectives") or [],
+        prerequisites=meta.get("prerequisites") or [],
+        target_audience=meta.get("target_audience"),
+        certificate_enabled=meta.get("certificate_enabled", True),
+        outline=outline,
+    )
 
 
 async def catalog_categories(ctx: Ctx) -> list[s.CategoryCount]:
     sub = _catalog_stmt(ctx).subquery()
-    rows = (await ctx.db.execute(
-        select(sub.c.meta["category"].astext.label("category"), func.count())
-        .where(sub.c.meta["category"].astext.is_not(None)).group_by("category").order_by("category"))).all()
+    rows = (
+        await ctx.db.execute(
+            select(sub.c.meta["category"].astext.label("category"), func.count())
+            .where(sub.c.meta["category"].astext.is_not(None))
+            .group_by("category")
+            .order_by("category")
+        )
+    ).all()
     return [s.CategoryCount(category=r[0], count=r[1]) for r in rows if r[0]]

@@ -9,7 +9,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./charts": "./src/charts/index.ts",
+    "./charts": "./src/charts/index.tsx",
     "./lib/*": "./src/lib/*.ts"
   },
   "scripts": {

@@ -50,7 +50,9 @@ class CourseCreate(CourseBase):
 class CourseUpdate(CourseBase):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     slug: str | None = Field(default=None, min_length=1, max_length=160, pattern=SLUG_PATTERN)
-    status: CourseStatus | None = Field(default=None, description="Only draft <-> in_review via this endpoint")
+    status: CourseStatus | None = Field(
+        default=None, description="Only draft <-> in_review via this endpoint"
+    )
 
 
 class CourseOut(BaseModel):

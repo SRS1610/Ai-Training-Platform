@@ -45,8 +45,9 @@ class EmbeddingResult:
 class ProviderError(Exception):
     """A provider call failed. ``retryable`` marks transient failures (429 / 5xx / network)."""
 
-    def __init__(self, message: str, *, provider: str = "", status: int | None = None,
-                 retryable: bool = False) -> None:
+    def __init__(
+        self, message: str, *, provider: str = "", status: int | None = None, retryable: bool = False
+    ) -> None:
         super().__init__(message)
         self.provider = provider
         self.status = status

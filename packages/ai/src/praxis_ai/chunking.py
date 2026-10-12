@@ -76,8 +76,9 @@ def _tail(text: str, tokens: int) -> str:
     return " ".join(words[-keep:])
 
 
-def chunk_text(text: str, *, target_tokens: int = 800, overlap_tokens: int = 100,
-               min_tokens: int = 20) -> list[Chunk]:
+def chunk_text(
+    text: str, *, target_tokens: int = 800, overlap_tokens: int = 100, min_tokens: int = 20
+) -> list[Chunk]:
     chunks: list[Chunk] = []
     for heading, body in _sections(text):
         paragraphs = [p.strip() for p in re.split(r"\n\s*\n", body) if p.strip()]
@@ -97,13 +98,19 @@ def chunk_text(text: str, *, target_tokens: int = 800, overlap_tokens: int = 100
         if cur:
             body_text = "\n\n".join(([carry] if carry else []) + cur)
             # Merge a tiny trailing piece into the previous chunk of the same section.
-            if (chunks and chunks[-1].heading == heading and estimate_tokens("\n\n".join(cur)) < min_tokens
-                    and chunks[-1].token_count + estimate_tokens("\n\n".join(cur)) <= target_tokens * 1.2):
+            if (
+                chunks
+                and chunks[-1].heading == heading
+                and estimate_tokens("\n\n".join(cur)) < min_tokens
+                and chunks[-1].token_count + estimate_tokens("\n\n".join(cur)) <= target_tokens * 1.2
+            ):
                 prev = chunks[-1]
                 merged = prev.text + "\n\n" + "\n\n".join(cur)
                 chunks[-1] = Chunk(prev.index, merged, heading, estimate_tokens(merged))
             else:
                 chunks.append(Chunk(len(chunks), body_text, heading, estimate_tokens(body_text)))
     # Prefix the heading into the chunk text so embeddings capture section context.
-    return [Chunk(c.index, (f"{c.heading}\n\n{c.text}" if c.heading else c.text), c.heading, c.token_count)
-            for c in chunks]
+    return [
+        Chunk(c.index, (f"{c.heading}\n\n{c.text}" if c.heading else c.text), c.heading, c.token_count)
+        for c in chunks
+    ]

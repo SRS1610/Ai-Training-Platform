@@ -9,8 +9,20 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 QuestionTypeLit = Literal[
-    "multiple_choice", "multiple_select", "true_false", "short_answer", "long_answer", "matching", "ordering",
-    "fill_blank", "code", "file_upload", "scenario", "decision_tree", "practical_task", "simulation",
+    "multiple_choice",
+    "multiple_select",
+    "true_false",
+    "short_answer",
+    "long_answer",
+    "matching",
+    "ordering",
+    "fill_blank",
+    "code",
+    "file_upload",
+    "scenario",
+    "decision_tree",
+    "practical_task",
+    "simulation",
 ]
 GradingModeLit = Literal["auto", "manual", "ai_assisted", "ai_recommend_human_final"]
 ShowFeedbackLit = Literal["after_submit", "after_close", "never"]
@@ -273,8 +285,17 @@ class AnswerSaved(BaseModel):
 
 
 class IntegrityEventIn(BaseModel):
-    event: Literal["focus_lost", "focus_returned", "paste", "copy", "visibility_hidden", "fullscreen_exit",
-                   "devtools_open", "resize", "other"]
+    event: Literal[
+        "focus_lost",
+        "focus_returned",
+        "paste",
+        "copy",
+        "visibility_hidden",
+        "fullscreen_exit",
+        "devtools_open",
+        "resize",
+        "other",
+    ]
     detail: str | None = Field(default=None, max_length=500)
     question_id: str | None = Field(default=None, max_length=64)
 

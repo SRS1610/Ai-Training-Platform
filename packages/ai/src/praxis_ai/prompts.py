@@ -98,21 +98,41 @@ Tone: {tone}. Respond in {language}.
 """
 
 
-def tutor_system(*, mode: str, course: str, behaviour: dict[str, Any] | None = None,
-                 knowledge_only: bool = False, graded: list[str] | None = None) -> str:
+def tutor_system(
+    *,
+    mode: str,
+    course: str,
+    behaviour: dict[str, Any] | None = None,
+    knowledge_only: bool = False,
+    graded: list[str] | None = None,
+) -> str:
     b = behaviour or {}
     tone = b.get("tone") or "encouraging and concise"
     language = b.get("language") or "the learner's language"
     if mode == "hint":
-        body = TUTOR_HINT.format(marker=task_marker("tutor_hint"), course=course or "this course",
-                                 graded=", ".join(graded or []) or "an assessment", tone=tone, language=language)
+        body = TUTOR_HINT.format(
+            marker=task_marker("tutor_hint"),
+            course=course or "this course",
+            graded=", ".join(graded or []) or "an assessment",
+            tone=tone,
+            language=language,
+        )
     else:
         body = TUTOR_EXPLAIN.format(
-            marker=task_marker("tutor_explain"), course=course or "this course", tone=tone, language=language,
-            fallback=(" and do not answer from general knowledge" if knowledge_only
-                      else ", then answer briefly from general knowledge and label it as such"),
-            socratic=("\nPrefer the Socratic method: end with one question that checks understanding."
-                      if b.get("socratic") else ""),
+            marker=task_marker("tutor_explain"),
+            course=course or "this course",
+            tone=tone,
+            language=language,
+            fallback=(
+                " and do not answer from general knowledge"
+                if knowledge_only
+                else ", then answer briefly from general knowledge and label it as such"
+            ),
+            socratic=(
+                "\nPrefer the Socratic method: end with one question that checks understanding."
+                if b.get("socratic")
+                else ""
+            ),
         )
     return with_isolation(body)
 
@@ -128,8 +148,9 @@ def format_passages(passages: list[dict[str, Any]]) -> str:
     return "\n\n".join(lines)
 
 
-def tutor_user_message(*, question: str, passages: list[dict[str, Any]], lesson_text: str | None,
-                       profile: dict[str, Any] | None) -> str:
+def tutor_user_message(
+    *, question: str, passages: list[dict[str, Any]], lesson_text: str | None, profile: dict[str, Any] | None
+) -> str:
     parts = []
     if profile:
         parts.append(data_block("learner_profile", profile))
@@ -152,7 +173,7 @@ Return ONLY a JSON object that matches the schema hint exactly (no markdown fenc
 
 KIND_LABELS = {
     "course": "a complete course (modules → lessons → quizzes, practical assignment with rubric, final "
-              "assessment, flashcards, revision notes and a simulation suggestion)",
+    "assessment, flashcards, revision notes and a simulation suggestion)",
     "module": "one course module with lessons and a quiz",
     "lesson": "one lesson with body content, examples and a short knowledge check",
     "quiz": "a quiz",
@@ -166,14 +187,26 @@ KIND_LABELS = {
 
 
 def generation_system(kind: str) -> str:
-    return with_isolation(GENERATION_SYSTEM.format(marker=task_marker(f"generate:{kind}"),
-                                                   kind_label=KIND_LABELS.get(kind, kind)))
+    return with_isolation(
+        GENERATION_SYSTEM.format(
+            marker=task_marker(f"generate:{kind}"), kind_label=KIND_LABELS.get(kind, kind)
+        )
+    )
 
 
-def generation_prompt(kind: str, inputs: dict[str, Any], schema_hint: dict[str, Any],
-                      feedback: str | None = None, source_text: str | None = None) -> str:
-    parts = [f"Create {KIND_LABELS.get(kind, kind)}.", data_block("input", inputs),
-             "Schema hint (JSON shape to return):", data_block("schema", schema_hint)]
+def generation_prompt(
+    kind: str,
+    inputs: dict[str, Any],
+    schema_hint: dict[str, Any],
+    feedback: str | None = None,
+    source_text: str | None = None,
+) -> str:
+    parts = [
+        f"Create {KIND_LABELS.get(kind, kind)}.",
+        data_block("input", inputs),
+        "Schema hint (JSON shape to return):",
+        data_block("schema", schema_hint),
+    ]
     if source_text:
         parts.append("Base the content on this source material:")
         parts.append(wrap_untrusted("source_material", source_text))
@@ -208,7 +241,9 @@ def grading_system() -> str:
     return with_isolation(GRADING_SYSTEM.format(marker=task_marker("grade_submission")))
 
 
-def grading_prompt(assignment: dict[str, Any], submission_text: str, history: dict[str, Any] | None = None) -> str:
+def grading_prompt(
+    assignment: dict[str, Any], submission_text: str, history: dict[str, Any] | None = None
+) -> str:
     parts = [data_block("assignment", assignment)]
     if history:
         parts.append(data_block("learner_history", history))
@@ -255,10 +290,16 @@ unless it is listed as a revealed fact. Keep replies to 1-3 sentences.
 
 
 def character_system(name: str, role: str, persona: str) -> str:
-    return with_isolation(CHARACTER_SYSTEM.format(marker=task_marker("character_reply"), name=name, role=role,
-                                                  persona=persona))
+    return with_isolation(
+        CHARACTER_SYSTEM.format(marker=task_marker("character_reply"), name=name, role=role, persona=persona)
+    )
 
 
 def character_prompt(facts: list[str], learner_message: str, character: dict[str, Any] | None = None) -> str:
-    return "\n\n".join([data_block("character", character or {}), data_block("facts", facts),
-                        wrap_untrusted("learner_message", learner_message)])
+    return "\n\n".join(
+        [
+            data_block("character", character or {}),
+            data_block("facts", facts),
+            wrap_untrusted("learner_message", learner_message),
+        ]
+    )
