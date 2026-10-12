@@ -443,3 +443,77 @@ export function ClearButton({ onClick, label = "Clear" }: { onClick: () => void;
     </Button>
   );
 }
+
+/** Single member combobox (server search), e.g. choosing a manager. */
+export function MemberSelect({
+  value,
+  onChange,
+  id,
+  placeholder = "Choose a person",
+  exclude,
+  allowClear = true,
+}: {
+  value: Option | null;
+  onChange: (v: Option | null) => void;
+  id?: string;
+  placeholder?: string;
+  exclude?: string[];
+  allowClear?: boolean;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [q, setQ] = React.useState("");
+  const res = useMemberSearch(q, open);
+  const items = (res.data?.items ?? []).filter((m) => !exclude?.includes(m.user_id));
+  return (
+    <div className="flex items-center gap-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            id={id}
+            type="button"
+            aria-expanded={open}
+            className="flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-input bg-white px-3.5 text-left text-sm shadow-sm transition-colors hover:border-slate-400 focus-visible:border-brand-500 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/15"
+          >
+            <span className={cn("flex min-w-0 items-center gap-2 truncate", value ? "text-slate-900" : "text-slate-400")}>
+              {value && <Avatar name={value.label} size="xs" />}
+              <span className="truncate">{value?.label ?? placeholder}</span>
+            </span>
+            <ChevronsUpDown className="size-4 shrink-0 text-slate-500" aria-hidden />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] min-w-[18rem] p-0">
+          <Command shouldFilter={false}>
+            <CommandInput value={q} onValueChange={setQ} placeholder="Search people" className="h-11 text-sm" trailing={res.isFetching ? <Spinner label="Searching" /> : undefined} />
+            <CommandList className="max-h-72">
+              <CommandEmpty>{res.isFetching ? "Searching…" : "No active members match"}</CommandEmpty>
+              <CommandGroup>
+                {items.map((m) => (
+                  <CommandItem
+                    key={m.user_id}
+                    value={m.user_id}
+                    onSelect={() => {
+                      onChange({ value: m.user_id, label: m.full_name, hint: m.email });
+                      setOpen(false);
+                    }}
+                  >
+                    <Avatar name={m.full_name} src={m.avatar_url} size="xs" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium text-slate-800">{m.full_name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{m.email}</span>
+                    </span>
+                    {value?.value === m.user_id && <Check className="size-4 text-brand-600" aria-hidden />}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {allowClear && value && (
+        <Button type="button" variant="ghost" size="icon-sm" aria-label="Clear selection" onClick={() => onChange(null)}>
+          <X />
+        </Button>
+      )}
+    </div>
+  );
+}

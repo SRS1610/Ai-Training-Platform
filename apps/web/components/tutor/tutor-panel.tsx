@@ -1,19 +1,24 @@
 "use client";
 
-import { Button, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Textarea, toast } from "@praxis/ui";
-import { Send, Sparkles } from "lucide-react";
-import { useState } from "react";
-import { Markdown } from "@/components/common/markdown";
-import { api, errorMessage } from "@/lib/api";
+import { Button, Sheet, SheetContent, SheetDescription, SheetTitle, Tooltip } from "@praxis/ui";
+import { Maximize2, Plus, Sparkles } from "lucide-react";
+import Link from "next/link";
+import * as React from "react";
+import { DEFAULT_PROMPTS, TutorChat } from "./tutor-chat";
+import { useMyEnrolments } from "./use-tutor";
 
-interface Msg {
-  id: string;
-  role: string;
-  content: string;
-  mode: string | null;
-}
+const LESSON_PROMPTS = [
+  "Explain this lesson in simpler terms",
+  "Give me a real-world example of this",
+  "Quiz me on the key points of this lesson",
+  "What mistakes do people usually make here?",
+];
 
-/** Right-side AI tutor drawer (minimal version; replaced by the full chat shortly). */
+/**
+ * Right-side AI tutor drawer, scoped to a course/lesson when given. Reuses the full tutor chat
+ * (streaming, citations, hint mode, ratings). A conversation is created on the first question and kept
+ * while the drawer's host stays mounted.
+ */
 export function TutorPanel({
   courseId,
   lessonId,
@@ -25,63 +30,54 @@ export function TutorPanel({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function send() {
-    const content = text.trim();
-    if (!content || busy) return;
-    setBusy(true);
-    try {
-      let sid = sessionId;
-      if (!sid) {
-        const s = await api.post<{ id: string }>("/ai/tutor/sessions", { course_id: courseId ?? null, lesson_id: lessonId ?? null });
-        sid = s.id;
-        setSessionId(sid);
-      }
-      const ex = await api.post<{ user_message: Msg; assistant_message: Msg }>(`/ai/tutor/sessions/${sid}/messages`, {
-        content,
-        lesson_id: lessonId ?? null,
-      });
-      setMessages((m) => [...m, ex.user_message, ex.assistant_message]);
-      setText("");
-    } catch (err) {
-      toast.error(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const scope = `${courseId ?? ""}:${lessonId ?? ""}`;
+  const [sessions, setSessions] = React.useState<Record<string, string>>({});
+  const sessionId = sessions[scope] ?? null;
+  const enrolments = useMyEnrolments();
+  const course = enrolments.data?.find((e) => e.course_id === courseId);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-lg gap-0 p-0">
-        <SheetHeader className="border-b border-slate-200 pb-4">
-          <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="size-5 text-violet-600" aria-hidden /> AI tutor
-          </SheetTitle>
-          <SheetDescription>Ask about this lesson. Answers cite your course materials.</SheetDescription>
-        </SheetHeader>
-        <div className="flex-1 space-y-3 overflow-y-auto p-5" aria-live="polite">
-          {messages.map((m) => (
-            <div key={m.id} className={m.role === "user" ? "ml-10 rounded-2xl bg-brand-600 px-4 py-2.5 text-sm text-white" : "mr-6 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200"}>
-              {m.role === "user" ? m.content : <Markdown className="text-sm">{m.content}</Markdown>}
+      <SheetContent side="right" className="flex w-full max-w-[min(100vw,30rem)] flex-col gap-0 p-0 sm:max-w-[30rem]" aria-describedby="tutor-panel-desc">
+        <div className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-br from-violet-50 via-fuchsia-50/60 to-white px-5 pb-4 pt-5">
+          <div className="pointer-events-none absolute -right-10 -top-12 size-40 rounded-full bg-fuchsia-200/50 blur-2xl" aria-hidden />
+          <div className="relative flex items-center gap-3 pr-10">
+            <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 text-white shadow-glow">
+              <Sparkles className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <SheetTitle className="text-base">AI tutor</SheetTitle>
+              <SheetDescription id="tutor-panel-desc" className="truncate text-xs">
+                {course ? `Grounded in ${course.title}` : "Grounded in your course materials"}
+              </SheetDescription>
             </div>
-          ))}
+          </div>
+          <div className="relative mt-3 flex gap-2">
+            {sessionId && (
+              <Button size="xs" variant="white" leftIcon={<Plus />} onClick={() => setSessions((s) => ({ ...s, [scope]: "" }))}>
+                New chat
+              </Button>
+            )}
+            <Tooltip content="Open the full tutor">
+              <Button size="xs" variant="white" leftIcon={<Maximize2 />} asChild>
+                <Link href={sessionId ? `/app/tutor?session=${sessionId}` : courseId ? `/app/tutor?course=${courseId}${lessonId ? `&lesson=${lessonId}` : ""}` : "/app/tutor"}>
+                  Full screen
+                </Link>
+              </Button>
+            </Tooltip>
+          </div>
         </div>
-        <form
-          className="flex items-end gap-2 border-t border-slate-200 p-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send();
-          }}
-        >
-          <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask the tutor…" aria-label="Message the tutor" rows={2} />
-          <Button type="submit" size="icon" loading={busy} aria-label="Send">
-            <Send className="size-4" aria-hidden />
-          </Button>
-        </form>
+        <TutorChat
+          key={scope}
+          compact
+          sessionId={sessionId || null}
+          onSessionId={(id) => setSessions((s) => ({ ...s, [scope]: id }))}
+          courseId={courseId}
+          lessonId={lessonId}
+          contextLabel={course?.title}
+          prompts={lessonId ? LESSON_PROMPTS : DEFAULT_PROMPTS}
+          className="min-h-0 flex-1"
+        />
       </SheetContent>
     </Sheet>
   );

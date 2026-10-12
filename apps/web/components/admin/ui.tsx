@@ -9,6 +9,7 @@
 import {
   Badge,
   Button,
+  CATEGORY_COLORS,
   Card,
   CardContent,
   CardHeader,
@@ -334,7 +335,7 @@ export function useUrlState(key: string, fallback = ""): [string, (v: string) =>
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const value = params.get(key) ?? fallback;
+  const value = params.get(key) || fallback;
   const set = React.useCallback(
     (v: string) => {
       const next = new URLSearchParams(Array.from(params.entries()));
@@ -346,6 +347,25 @@ export function useUrlState(key: string, fallback = ""): [string, (v: string) =>
     [params, router, pathname, key, fallback],
   );
   return [value, set];
+}
+
+/** Update several search params in one navigation (avoids lost updates from sequential replaces). */
+export function useSetUrlParams() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  return React.useCallback(
+    (updates: Record<string, string | null | undefined>) => {
+      const next = new URLSearchParams(Array.from(params.entries()));
+      for (const [k, v] of Object.entries(updates)) {
+        if (v === null || v === undefined || v === "") next.delete(k);
+        else next.set(k, v);
+      }
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [params, router, pathname],
+  );
 }
 
 /* ------------------------------------------------------------------ data displays */
@@ -366,7 +386,7 @@ export function BarList({ data, className, empty = "No data yet" }: { data: BarD
   return (
     <ul className={cn("space-y-3", className)}>
       {data.map((d, i) => {
-        const c = colorClasses(d.color ?? (["indigo", "sky", "emerald", "amber", "rose", "fuchsia", "teal", "orange", "violet"] as const)[i % 9]);
+        const c = colorClasses(d.color ?? CATEGORY_COLORS[i % CATEGORY_COLORS.length]!);
         return (
           <li key={d.key}>
             <div className="mb-1 flex items-baseline justify-between gap-3 text-sm">
@@ -466,7 +486,7 @@ export function CardsSkeleton({ count = 3, className = "h-40" }: { count?: numbe
 
 export function PlanBadge({ code }: { code: string | null | undefined }) {
   const map: Record<string, CategoryColor> = { free: "teal", individual: "sky", professional: "indigo", business: "violet", enterprise: "fuchsia" };
-  const c = colorClasses(map[code ?? ""] ?? "indigo");
+  const c = colorClasses(map[code ?? ""] ?? ("indigo" as CategoryColor));
   return (
     <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold ring-1 ring-inset", c.soft, c.text, c.ring)}>
       <Crown className="size-3" aria-hidden />
@@ -485,4 +505,22 @@ export function YesNo({ value }: { value: boolean }) {
       No
     </Badge>
   );
+}
+
+const FEATURE_LABELS: Record<string, string> = {
+  tutor: "AI tutor",
+  tutor_hint: "Tutor hints",
+  tutor_explain: "Tutor explanations",
+  content_generation: "Content generation",
+  course_generation: "Course generation",
+  grading: "AI grading",
+  simulation_ai: "Simulation AI",
+  recommendations: "Recommendations",
+  embeddings: "Knowledge embeddings",
+  embedding: "Knowledge embeddings",
+};
+
+export function humanizeFeature(key: string | null | undefined): string {
+  if (!key) return "Other";
+  return FEATURE_LABELS[key] ?? humanize(key);
 }
