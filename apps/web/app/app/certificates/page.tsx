@@ -16,7 +16,7 @@ function UpNext({ items }: { items: MyEnrolment[] }) {
   return (
     <section aria-labelledby="up-next" className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-soft sm:p-6">
       <SectionTitle id="up-next" icon={Target} color="violet" title="Certificates within reach" description="Finish these courses to earn your next credential" />
-      <ul className="mt-5 grid gap-4 md:grid-cols-2">
+      <ul className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
         {items.map((e) => (
           <li key={e.id}>
             <Link
@@ -79,7 +79,7 @@ export default function CertificatesPage() {
       {q.isError ? (
         <ErrorState error={q.error} onRetry={() => q.refetch()} />
       ) : q.isLoading ? (
-        <div className="grid gap-6 xl:grid-cols-2" aria-busy aria-label="Loading certificates">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2" aria-busy aria-label="Loading certificates">
           {[0, 1].map((i) => (
             <Skeleton key={i} className="h-80 rounded-3xl" />
           ))}

@@ -120,7 +120,7 @@ export function RubricPreview({ criteria }: { criteria: RubricCriterion[] }) {
             </div>
             {c.description && <p className="mt-1.5 text-sm text-slate-600">{c.description}</p>}
             {(c.levels?.length ?? 0) > 0 && (
-              <ul className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 {[...(c.levels ?? [])]
                   .sort((a, b) => a.score - b.score)
                   .map((l) => (
@@ -145,7 +145,7 @@ export function RubricPreview({ criteria }: { criteria: RubricCriterion[] }) {
 /** Full assignment brief: scenario, objective, instructions, resources, evidence and rubric. */
 export function AssignmentBrief({ a, checklist }: { a: LearnerAssignment; checklist: { item: EvidenceItem; met: boolean }[] }) {
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_22rem]">
       <div className="min-w-0 space-y-6">
         {a.scenario && (
           <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-50 via-orange-50/60 to-white p-5 ring-1 ring-amber-100 sm:p-7" aria-labelledby="brief-scenario">

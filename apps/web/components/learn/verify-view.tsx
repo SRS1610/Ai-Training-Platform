@@ -121,7 +121,7 @@ export function VerifyView({ certificateNumber }: { certificateNumber: string })
             <Skeleton className="mx-auto h-24 w-24 rounded-full" />
             <Skeleton className="mx-auto h-8 w-2/3" />
             <Skeleton className="mx-auto h-5 w-1/2" />
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Skeleton className="h-16 rounded-2xl" />
               <Skeleton className="h-16 rounded-2xl" />
               <Skeleton className="h-16 rounded-2xl" />
@@ -190,7 +190,7 @@ export function VerifyView({ certificateNumber }: { certificateNumber: string })
                   </p>
                 </div>
 
-                <dl className="relative mt-8 grid gap-3 sm:grid-cols-2">
+                <dl className="relative mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Field icon={CalendarCheck2} label="Issued" color="bg-sky-50 text-sky-600">
                     {formatDate(v.issued_at, { day: "numeric", month: "long", year: "numeric" })}
                   </Field>

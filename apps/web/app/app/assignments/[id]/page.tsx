@@ -195,7 +195,7 @@ function DetailSkeleton() {
       <Skeleton className="h-4 w-56" />
       <Skeleton className="h-56 rounded-3xl" />
       <Skeleton className="h-10 w-96 rounded-xl" />
-      <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_22rem]">
         <Skeleton className="h-96 rounded-3xl" />
         <Skeleton className="h-72 rounded-3xl" />
       </div>

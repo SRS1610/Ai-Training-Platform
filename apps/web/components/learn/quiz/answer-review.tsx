@@ -117,7 +117,7 @@ function AnswerDetail({ q }: { q: ResultQuestion }) {
       const mine = Array.isArray(r.order) ? (r.order as unknown[]).map(String) : [];
       const right = Array.isArray(key?.order) ? (key!.order as unknown[]).map(String) : [];
       return (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <ol className="space-y-1 text-sm">
             <li className="text-2xs font-semibold uppercase tracking-wider text-slate-500">Your order</li>
             {mine.map((id, i) => (
@@ -246,7 +246,7 @@ export function ResultQuestionCard({ q, index }: { q: ResultQuestion; index: num
             <Bot className="size-3.5" aria-hidden /> AI feedback {q.pending_review ? "· recommendation, awaiting assessor" : ""}
           </p>
           {ai.feedback && <Markdown className="mt-1 text-sm">{ai.feedback}</Markdown>}
-          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {!!ai.strengths?.length && (
               <ul className="space-y-1 text-sm text-slate-700">
                 {ai.strengths.map((s, i) => (

@@ -225,7 +225,7 @@ export function AssignmentWorkspace({ assignment: a, submission: s, onSubmitted 
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_20rem]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_20rem]">
       <div className="min-w-0 space-y-6">
         {s?.status === "returned" && s.returned_feedback && (
           <Alert tone="warning" title="Your assessor asked for changes" icon={<AlertTriangle aria-hidden />}>
@@ -302,7 +302,7 @@ export function AssignmentWorkspace({ assignment: a, submission: s, onSubmitted 
         {a.structured_fields.length > 0 && (
           <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-soft sm:p-6" aria-label="Structured answers">
             <SectionTitle icon={FileText} color="teal" title="Structured answers" description="Fill in each field" />
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               {a.structured_fields.map((f) => {
                 const long = ["textarea", "long_text", "long", "markdown", "text_long"].includes((f.type ?? "").toLowerCase());
                 const type = (f.type ?? "text").toLowerCase();

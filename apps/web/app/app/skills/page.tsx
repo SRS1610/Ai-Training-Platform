@@ -65,7 +65,7 @@ export default function SkillsPage() {
         {skills.isError ? (
           <ErrorState error={skills.error} onRetry={() => skills.refetch()} />
         ) : skills.isLoading ? (
-          <div className="grid gap-6 lg:grid-cols-5" aria-busy aria-label="Loading skills">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5" aria-busy aria-label="Loading skills">
             <Skeleton className="h-[26rem] rounded-3xl lg:col-span-2" />
             <Skeleton className="h-[26rem] rounded-3xl lg:col-span-3" />
           </div>
@@ -94,7 +94,7 @@ export default function SkillsPage() {
           <PlanCard plan={plan.data} recs={recs.data?.items ?? []} />
         ) : null}
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {recs.isError ? (
             <ErrorState error={recs.error} onRetry={() => recs.refetch()} size="sm" />
           ) : (

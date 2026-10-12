@@ -19,7 +19,7 @@ function LevelHero({ me }: { me: GamificationMe }) {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.16)_1px,transparent_0)] [background-size:22px_22px]" aria-hidden />
       <div className="pointer-events-none absolute -right-20 -top-24 size-80 rounded-full bg-white/10" aria-hidden />
       <div className="pointer-events-none absolute -bottom-28 left-1/4 size-72 rounded-full bg-white/[0.07]" aria-hidden />
-      <div className="relative grid gap-6 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+      <div className="relative grid grid-cols-1 gap-6 lg:grid-cols-[auto_1fr_auto] lg:items-center">
         <div className="flex items-center gap-5">
           <div className="relative grid size-28 shrink-0 place-items-center" aria-hidden>
             <span className="absolute inset-0 rotate-45 rounded-[2rem] bg-white/15 ring-1 ring-white/30" />
@@ -36,10 +36,10 @@ function LevelHero({ me }: { me: GamificationMe }) {
         </div>
         <div className="min-w-0">
           <p className="hidden text-sm font-semibold text-indigo-100 lg:block">Current level</p>
-          <h1 id="level-title" className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 id="level-title" className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
             <span className="hidden lg:inline">{l.name} · </span>
             {me.points.toLocaleString()} <span className="text-2xl font-semibold text-indigo-100">points</span>
-          </h1>
+          </h2>
           {l.next_level ? (
             <>
               <div
@@ -166,7 +166,7 @@ export default function AchievementsPage() {
           <KpiTile label="Leaderboard rank" value={g.rank ? `#${g.rank}` : "—"} icon={<Star />} color="emerald" hint={g.rank ? "All-time in your organisation" : "Hidden or not ranked yet"} />
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[1fr_24rem]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_24rem]">
           <div className="min-w-0 space-y-6">
             <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-soft sm:p-6" aria-labelledby="badges-earned">
               <SectionTitle id="badges-earned" icon={Medal} color="amber" title="Badges earned" description={earned.length ? `${earned.length} unlocked — nice collection` : "Your first badge is one lesson away"} />

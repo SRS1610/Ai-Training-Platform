@@ -226,7 +226,7 @@ export default function AttemptPage() {
     return (
       <div className="mx-auto max-w-6xl space-y-4" aria-busy aria-label="Loading attempt">
         <Skeleton className="h-16 rounded-2xl" />
-        <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_18rem]">
           <Skeleton className="h-[28rem] rounded-3xl" />
           <Skeleton className="hidden h-72 rounded-2xl lg:block" />
         </div>
@@ -251,7 +251,7 @@ export default function AttemptPage() {
       {/* attempt bar */}
       <div className="sticky top-16 z-10 -mx-4 mb-5 border-b border-slate-200/80 bg-white/90 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:mx-0 lg:rounded-2xl lg:border lg:shadow-soft">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0 flex-1">
+          <div className="w-full min-w-0 sm:w-auto sm:flex-1">
             <p className="truncate font-display text-base font-semibold text-slate-900">{attempt.title}</p>
             <div className="mt-1 flex items-center gap-2">
               <div className="h-1.5 w-28 overflow-hidden rounded-full bg-slate-100 sm:w-40" aria-hidden>
@@ -282,7 +282,7 @@ export default function AttemptPage() {
             )}
           </span>
           {left !== null && <TimerChip seconds={left} total={total} />}
-          <Button variant="gradient" leftIcon={<Send />} onClick={() => setConfirm(true)} disabled={submitting}>
+          <Button variant="gradient" leftIcon={<Send />} onClick={() => setConfirm(true)} disabled={submitting} className="ml-auto sm:ml-0">
             Submit
           </Button>
         </div>
@@ -326,7 +326,7 @@ export default function AttemptPage() {
         </ol>
       </nav>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_17rem]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_17rem]">
         {question && (
           <section aria-labelledby={promptId} className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
             <div className="h-1 bg-gradient-to-r from-brand-500 via-violet-500 to-fuchsia-500" aria-hidden />

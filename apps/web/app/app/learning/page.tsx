@@ -101,7 +101,7 @@ function MyLearning() {
       )}
 
       <Tabs value={tab} onValueChange={(v) => url.set({ tab: v === "in-progress" ? null : v })}>
-        <TabsList aria-label="My learning sections">
+        <TabsList aria-label="My learning sections" className="max-w-full overflow-x-auto no-scrollbar">
           <TabsTrigger value="in-progress">
             <PlayCircle aria-hidden /> In progress <span className="text-xs tabular-nums text-slate-500">{active.length}</span>
           </TabsTrigger>

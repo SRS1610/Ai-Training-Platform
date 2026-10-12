@@ -176,7 +176,7 @@ export function FillBlankInput({ question, value, onChange, disabled }: InputPro
   let n = 0;
   if (!text)
     return (
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {ids.map((id, i) => (
           <Input key={id} aria-label={`Blank ${i + 1}`} value={blanks[id] ?? ""} onChange={(e) => set(id, e.target.value)} disabled={disabled} placeholder={`Blank ${i + 1}`} />
         ))}

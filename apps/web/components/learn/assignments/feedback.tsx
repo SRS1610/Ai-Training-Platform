@@ -151,7 +151,7 @@ export function GradeFeedback({ grade, assignment }: { grade: Grade; assignment:
         </section>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <ListBlock title="Strengths" items={grade.strengths ?? []} icon={ThumbsUp} tone="emerald" />
         <ListBlock title="To improve" items={grade.weaknesses ?? []} icon={MinusCircle} tone="amber" />
         <ListBlock title="Missing requirements" items={grade.missing_requirements ?? []} icon={AlertTriangle} tone="rose" />

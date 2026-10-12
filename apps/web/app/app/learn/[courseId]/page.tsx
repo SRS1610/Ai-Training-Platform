@@ -42,7 +42,7 @@ function OverviewSkeleton() {
   return (
     <div className="space-y-6" aria-busy aria-label="Loading course">
       <Skeleton className="h-64 rounded-3xl" />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Skeleton className="h-[28rem] rounded-2xl lg:col-span-2" />
         <Skeleton className="h-72 rounded-2xl" />
       </div>
@@ -183,8 +183,10 @@ export default function CourseOverviewPage() {
               </dl>
               <div className="mt-5 flex flex-wrap gap-3">
                 {nextHref && (
-                  <Button asChild variant="gradient" size="lg" rightIcon={<ArrowRight />}>
-                    <Link href={nextHref}>{done ? "Review from the start" : e.progress_pct > 0 ? `Continue: ${d.next_lesson?.title ?? "next lesson"}` : "Start course"}</Link>
+                  <Button asChild variant="gradient" size="lg" rightIcon={<ArrowRight />} className="max-w-full">
+                    <Link href={nextHref}>
+                      <span className="min-w-0 truncate">{done ? "Review from the start" : e.progress_pct > 0 ? `Continue: ${d.next_lesson?.title ?? "next lesson"}` : "Start course"}</span>
+                    </Link>
                   </Button>
                 )}
                 {tutorEnabled && (
@@ -244,7 +246,7 @@ export default function CourseOverviewPage() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card padded className="lg:col-span-2 lg:self-start">
           <SectionTitle
             icon={ListChecks}

@@ -128,7 +128,7 @@ export function LearningPathsTab() {
         <SectionTitle id="my-paths" icon={Route} color="emerald" title="Your learning paths" description="Structured programmes of courses" />
         <div className="mt-4">
           {mine.isLoading ? (
-            <div className="grid gap-5 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <Skeleton className="h-72 rounded-2xl" />
               <Skeleton className="h-72 rounded-2xl" />
             </div>
@@ -137,7 +137,7 @@ export function LearningPathsTab() {
           ) : (mine.data ?? []).length === 0 ? (
             <EmptyState bordered size="sm" illustration="rocket" title="You haven't joined a learning path yet" description="Paths bundle courses into a programme — join one below or ask your manager." />
           ) : (
-            <ul className="grid gap-5 lg:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {mine.data!.map((p, i) => (
                 <li key={p.id}>
                   <MyPathCard path={p} index={i} />
@@ -152,7 +152,7 @@ export function LearningPathsTab() {
         <SectionTitle id="discover-paths" icon={Compass} color="violet" title="Discover paths" description="Published programmes you can join" />
         <div className="mt-4">
           {available.isLoading ? (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {[0, 1, 2].map((i) => (
                 <Skeleton key={i} className="h-56 rounded-2xl" />
               ))}
@@ -164,7 +164,7 @@ export function LearningPathsTab() {
               No other learning paths are open right now.
             </p>
           ) : (
-            <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {discover.map((p, i) => (
                 <li key={p.id}>
                   <DiscoverPathCard path={p} index={i} />

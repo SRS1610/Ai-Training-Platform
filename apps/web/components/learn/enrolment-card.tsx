@@ -46,7 +46,7 @@ export function EnrolmentCard({ e, emphasiseDue }: { e: MyEnrolment; emphasiseDu
             )}
             <DifficultyMeter difficulty={e.difficulty} className="ml-1" />
           </div>
-          <h3 className="mt-1.5 truncate font-display text-base font-semibold text-slate-900">
+          <h3 className="mt-1.5 line-clamp-2 font-display text-base font-semibold leading-snug text-slate-900 sm:line-clamp-1">
             <Link href={done ? `/app/learn/${e.course_id}` : enrolmentHref(e)} className="after:absolute after:inset-0 focus-visible:outline-none">
               {e.title}
             </Link>

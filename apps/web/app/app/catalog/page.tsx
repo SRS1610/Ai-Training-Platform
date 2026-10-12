@@ -238,7 +238,7 @@ function Catalog() {
       {list.isError ? (
         <ErrorState error={list.error} onRetry={() => list.refetch()} />
       ) : list.isLoading ? (
-        <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-busy aria-label="Loading courses">
+        <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-busy aria-label="Loading courses">
           {Array.from({ length: 8 }).map((_, i) => (
             <li key={i}>
               <CatalogCardSkeleton />
@@ -261,7 +261,7 @@ function Catalog() {
         />
       ) : (
         <>
-          <ul className={cn("stagger grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4", list.isFetching && "opacity-70 transition-opacity")}>
+          <ul className={cn("stagger grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4", list.isFetching && "opacity-70 transition-opacity")}>
             {list.data!.items.map((c) => (
               <li key={c.id}>
                 <CatalogCard course={c} />

@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@praxis/ui";
 import * as React from "react";
 import { Markdown } from "@/components/common/markdown";
 import type { LearnLesson } from "../types";
@@ -10,6 +11,9 @@ import { AssignmentLessonCard, QuizLessonCard, SimulationLessonCard, TutorLesson
 import { AudioBlock, DocumentBlock, ImageBlock, VideoBlock } from "./media-blocks";
 import { str } from "./media";
 import { ScenarioBlock } from "./scenario";
+
+/** Wide markdown tables scroll horizontally on narrow screens instead of overflowing the lesson column. */
+const PROSE = "[&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_pre]:max-w-full";
 
 /** Main content renderer for every lesson type, followed by the lesson's activity blocks. */
 export function LessonBody({
@@ -35,7 +39,7 @@ export function LessonBody({
   let main: React.ReactNode = null;
   switch (lesson.lesson_type) {
     case "text":
-      main = <Markdown className="text-base leading-relaxed sm:text-[17px]">{str(c.body_markdown) ?? ""}</Markdown>;
+      main = <Markdown className={cn("text-base leading-relaxed sm:text-[17px]", PROSE)}>{str(c.body_markdown) ?? ""}</Markdown>;
       break;
     case "video":
       main = <VideoBlock content={c} startAt={resume} onPosition={onPosition} title={lesson.title} />;
@@ -79,7 +83,7 @@ export function LessonBody({
       break;
     case "mixed":
     default:
-      main = str(c.body_markdown) && !intro ? <Markdown className="text-base leading-relaxed">{str(c.body_markdown)!}</Markdown> : null;
+      main = str(c.body_markdown) && !intro ? <Markdown className={cn("text-base leading-relaxed", PROSE)}>{str(c.body_markdown)!}</Markdown> : null;
   }
 
   const instructions = ["quiz", "assignment", "simulation"].includes(lesson.lesson_type) ? str(c.instructions) : undefined;
@@ -87,8 +91,8 @@ export function LessonBody({
 
   return (
     <div className="space-y-8">
-      {intro && <Markdown className="text-base leading-relaxed">{intro}</Markdown>}
-      {instructions && <Markdown>{instructions}</Markdown>}
+      {intro && <Markdown className={cn("text-base leading-relaxed", PROSE)}>{intro}</Markdown>}
+      {instructions && <Markdown className={PROSE}>{instructions}</Markdown>}
       {main}
       {activities.map((a) => (
         <ActivityBlock key={a.id} activity={a} courseId={courseId} enrolled={enrolled} onPosition={onPosition} />

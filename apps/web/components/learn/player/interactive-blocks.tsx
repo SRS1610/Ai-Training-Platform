@@ -93,6 +93,12 @@ const LANG_ALIASES: Record<string, string> = {
   xml: "markup",
   "c#": "csharp",
   "c++": "cpp",
+  // Prism's bundled grammars don't include PowerShell/cmd; bash tokenises comments, strings and flags well enough.
+  powershell: "bash",
+  pwsh: "bash",
+  ps1: "bash",
+  cmd: "bash",
+  batch: "bash",
 };
 
 /** Light, AA-contrast syntax theme (VS light palette, tuned for a slate-50 surface). */
@@ -106,7 +112,8 @@ const LIGHT_CODE_THEME: PrismTheme = {
 };
 
 export function CodeBlock({ code, language, title, className }: { code: string; language?: string; title?: string; className?: string }) {
-  const lang = LANG_ALIASES[(language ?? "").toLowerCase()] ?? (language ?? "text").toLowerCase();
+  const shown = (language ?? "text").toLowerCase();
+  const lang = LANG_ALIASES[shown] ?? shown;
   const [copied, setCopied] = React.useState(false);
   const [wrap, setWrap] = React.useState(false);
   const copy = async () => {
@@ -127,7 +134,7 @@ export function CodeBlock({ code, language, title, className }: { code: string; 
           <span className="size-2.5 rounded-full bg-emerald-400" />
         </span>
         <span className="ml-2 truncate font-mono text-xs text-slate-600">{title ?? "Code example"}</span>
-        <span className="ml-auto rounded-md bg-indigo-50 px-1.5 py-0.5 font-mono text-2xs font-semibold uppercase text-indigo-700 ring-1 ring-inset ring-indigo-100">{lang}</span>
+        <span className="ml-auto rounded-md bg-indigo-50 px-1.5 py-0.5 font-mono text-2xs font-semibold uppercase text-indigo-700 ring-1 ring-inset ring-indigo-100">{shown}</span>
         <button
           type="button"
           onClick={() => setWrap((w) => !w)}
@@ -153,7 +160,7 @@ export function CodeBlock({ code, language, title, className }: { code: string; 
         {({ tokens, getLineProps, getTokenProps }) => (
           // Scrollable code must be keyboard-reachable (WCAG 2.1.1); a focusable <pre> is the standard pattern.
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-          <pre className={cn("overflow-x-auto p-4 font-mono text-[13px] leading-6 scrollbar-thin", wrap && "whitespace-pre-wrap break-words")} tabIndex={0} aria-label={`${lang} code`}>
+          <pre className={cn("overflow-x-auto p-4 font-mono text-[13px] leading-6 scrollbar-thin", wrap && "whitespace-pre-wrap break-words")} tabIndex={0} aria-label={`${shown} code`}>
             {tokens.map((line, i) => {
               const lineProps = getLineProps({ line });
               return (

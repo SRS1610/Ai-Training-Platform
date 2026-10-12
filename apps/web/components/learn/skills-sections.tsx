@@ -108,8 +108,8 @@ export function SkillProfile({ skills, trends }: { skills: MySkill[]; trends: Re
   const weakest = sorted[sorted.length - 1];
 
   return (
-    <div className="grid gap-6 lg:grid-cols-5">
-      <section className="min-w-0 rounded-3xl border border-slate-200/80 bg-white p-5 shadow-soft sm:p-6 lg:col-span-2" aria-labelledby="skill-radar">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+      <section className="min-w-0 rounded-3xl border border-slate-200/80 bg-white p-5 shadow-soft sm:p-6 lg:col-span-2 lg:self-start" aria-labelledby="skill-radar">
         <SectionTitle id="skill-radar" icon={Compass} color="violet" title="Skill profile" description="Your proficiency against the 70% competence line" />
         <figure className="mt-2">
           {radar.length >= 3 ? (
@@ -240,7 +240,7 @@ export function PlanCard({ plan, recs }: { plan: LearningPlan; recs: Recommendat
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
           <div className="rounded-2xl bg-emerald-50/70 p-4 ring-1 ring-emerald-100">
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-700">
               <ThumbsUp className="size-3.5" aria-hidden /> Strengths
@@ -283,7 +283,7 @@ export function PlanCard({ plan, recs }: { plan: LearningPlan; recs: Recommendat
         </div>
 
         {plan.steps.length > 0 && (
-          <ol className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Weekly steps">
+          <ol className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Weekly steps">
             {plan.steps.map((step, i) => {
               const c = colorClasses(WEEK_COLORS[i % WEEK_COLORS.length]!);
               return (
@@ -344,7 +344,7 @@ export function PlanSkeleton() {
           <Skeleton className="h-4 w-full" />
         </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {[0, 1, 2].map((i) => (
           <Skeleton key={i} className="h-24 rounded-2xl" />
         ))}
@@ -545,7 +545,7 @@ export function Competencies({ items }: { items: MyCompetency[] }) {
       />
     );
   return (
-    <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {items.map((c, i) => {
         const color = c.attained ? "emerald" : (["indigo", "sky", "violet", "amber", "fuchsia", "teal"] as const)[i % 6]!;
         const cc = colorClasses(color);

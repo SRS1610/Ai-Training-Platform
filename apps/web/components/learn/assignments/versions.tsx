@@ -95,7 +95,7 @@ function VersionRow({ v, latest }: { v: SubmissionVersion; latest: boolean }) {
             ) : null}
             {v.code_content ? <pre className="max-h-72 overflow-auto rounded-xl bg-slate-50 p-3 font-mono text-xs text-slate-800 ring-1 ring-slate-200 scrollbar-thin">{v.code_content}</pre> : null}
             {answers.length > 0 && (
-              <dl className="grid gap-2 sm:grid-cols-2">
+              <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {answers.map(([k, val]) => (
                   <div key={k} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70">
                     <dt className="text-2xs font-semibold uppercase tracking-wider text-slate-500">{k.replace(/_/g, " ")}</dt>

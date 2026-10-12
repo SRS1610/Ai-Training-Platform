@@ -168,7 +168,7 @@ export default function QuizOverviewPage() {
         })}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <Card padded className="lg:col-span-2">
           <SectionTitle icon={ShieldCheck} color="indigo" title="Before you begin" />
           <ul className="mt-4 space-y-3">

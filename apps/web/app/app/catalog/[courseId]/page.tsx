@@ -54,7 +54,7 @@ function DetailSkeleton() {
     <div className="space-y-6" aria-busy aria-label="Loading course">
       <Skeleton className="h-4 w-48" />
       <Skeleton className="h-72 rounded-3xl" />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Skeleton className="h-96 rounded-2xl lg:col-span-2" />
         <Skeleton className="h-80 rounded-2xl" />
       </div>
@@ -142,7 +142,7 @@ export default function CourseDetailPage() {
       />
 
       <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
-        <div className="grid lg:grid-cols-[1.35fr_1fr]">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr]">
           <div className="order-2 flex flex-col p-6 sm:p-8 lg:order-1">
             <div className="flex flex-wrap items-center gap-2">
               {course.category && <CategoryBadge category={course.category} />}
@@ -216,12 +216,12 @@ export default function CourseDetailPage() {
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {course.learning_objectives.length > 0 && (
             <Card padded>
               <SectionTitle icon={Target} color="emerald" title="What you'll learn" />
-              <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+              <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {course.learning_objectives.map((o, i) => (
                   <li key={i} className="flex gap-2.5 text-sm text-slate-700">
                     <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden />
@@ -244,7 +244,7 @@ export default function CourseDetailPage() {
               icon={ListChecks}
               color="violet"
               title="Course outline"
-              description={`${course.module_count} modules · ${course.lesson_count} lessons${totalMinutes ? ` · ${formatMinutes(totalMinutes)}` : ""}`}
+              description={`${course.module_count} module${course.module_count === 1 ? "" : "s"} · ${course.lesson_count} lesson${course.lesson_count === 1 ? "" : "s"}${totalMinutes ? ` · ${formatMinutes(totalMinutes)}` : ""}`}
             />
             {course.outline.length === 0 ? (
               <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">The outline for this course hasn&apos;t been published yet.</p>

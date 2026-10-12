@@ -206,7 +206,7 @@ export function MatchingInput({ question, value, onChange, disabled, labelledBy 
             set(l, r);
           }}
         >
-          <div className="grid gap-4 md:grid-cols-[1fr_16rem]">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_16rem]">
             <ul className="space-y-2.5">
               {left.map((l, i) => {
                 const c = colorClasses(PAIR_COLORS[i % PAIR_COLORS.length]!);
