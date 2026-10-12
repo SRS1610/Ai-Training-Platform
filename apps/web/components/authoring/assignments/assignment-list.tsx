@@ -25,6 +25,7 @@ import {
 } from "@praxis/ui";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, ArrowRight, ClipboardCheck, Copy, FilePen, Paperclip, Pencil, Plus, Rocket, Scale, ShieldAlert, Sparkles, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
@@ -240,7 +241,9 @@ export function AssignmentList() {
               </span>
               <div className="min-w-0">
                 <p className="flex items-center gap-1.5 truncate font-semibold text-slate-900">
-                  <span className="truncate">{a.title}</span>
+                  <Link href={`/app/instructor/assignments/${a.id}`} onClick={(e) => e.stopPropagation()} className="truncate rounded hover:text-brand-700 focus-visible:focus-ring">
+                    {a.title}
+                  </Link>
                   {a.ai_generated && <AIBadge />}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">{courses.titleOf(a.course_id) ?? "Standalone"}</p>

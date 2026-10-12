@@ -125,7 +125,16 @@ export function KnowledgePage() {
             <div className="flex min-w-[240px] items-center gap-3">
               <SourceIcon type={d.source_type} size="sm" />
               <div className="min-w-0">
-                <p className="truncate font-semibold text-slate-900">{d.title}</p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    set({ document: d.id });
+                  }}
+                  className="block max-w-full truncate rounded text-left font-semibold text-slate-900 hover:text-brand-700 focus-visible:focus-ring"
+                >
+                  {d.title}
+                </button>
                 <p className="truncate text-xs text-muted-foreground">
                   {sourceMeta(d.source_type).label}
                   {d.category ? ` · ${d.category}` : ""}
@@ -173,7 +182,7 @@ export function KnowledgePage() {
       { id: "updated", header: "Updated", cell: ({ row }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatRelative(row.original.updated_at)}</span> },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [courses.data],
+    [courses.data, set],
   );
 
   const filtered = !!q || status !== "all" || approved !== "all" || course !== "all";

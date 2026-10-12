@@ -29,12 +29,20 @@ export interface CatalogOutlineModule {
   description: string | null;
   lessons: CatalogOutlineLesson[];
 }
+export interface CatalogInstructor {
+  id: string;
+  full_name: string;
+  avatar_url?: string | null;
+  job_title?: string | null;
+}
 export type CatalogDetail = Omit<S["CatalogDetail"], "skills" | "tags" | "outline" | "learning_objectives" | "prerequisites"> & {
   skills: SkillChip[];
   tags: string[];
   learning_objectives: string[];
   prerequisites: string[];
   outline: CatalogOutlineModule[];
+  /** Course instructor (added to `GET /catalog/{id}`; optional until the OpenAPI types are regenerated). */
+  instructor?: CatalogInstructor | null;
 };
 export type CategoryCount = S["CategoryCount"];
 export type SkillOut = S["app__modules__skills__schemas__SkillOut"];

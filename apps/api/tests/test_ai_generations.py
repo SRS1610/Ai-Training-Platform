@@ -256,3 +256,21 @@ async def test_lesson_level_kinds_apply_into_existing_course(client):
     await client.post(f"/api/v1/ai/generations/{gen['id']}/approve", headers=admin.headers)
     r = await client.post(f"/api/v1/ai/generations/{gen['id']}/apply", headers=admin.headers)
     assert r.status_code == 400 and r.json()["error"]["code"] == "course_required"
+
+
+async def test_applied_rubric_weights_are_percentages(client):
+    """AI rubrics use relative weights; applied rubrics must look like authored ones (sum to 100) so they
+    can be edited and saved unchanged, and so learner/assessor views show real percentages."""
+    admin = await signup(client)
+    await set_plan(admin.org_id, "business")
+    gen = await generate(client, admin.headers, "rubric", {"subject": "Incident report writing"})
+    await client.post(f"/api/v1/ai/generations/{gen['id']}/approve", headers=admin.headers)
+    r = await client.post(f"/api/v1/ai/generations/{gen['id']}/apply", headers=admin.headers, json={})
+    assert r.status_code == 200, r.text
+    rubric_id = r.json()["entity_id"]
+    r = await client.get(f"/api/v1/rubrics/{rubric_id}", headers=admin.headers)
+    criteria = r.json()["criteria"]
+    assert criteria and abs(sum(c["weight"] for c in criteria) - 100) < 0.01
+    assert all(c["id"] and c["max_score"] > 0 for c in criteria)
+    r = await client.patch(f"/api/v1/rubrics/{rubric_id}", headers=admin.headers, json={"criteria": criteria})
+    assert r.status_code == 200, r.text

@@ -30,6 +30,7 @@ from app.models.content import (
 from app.models.identity import User
 from app.models.learning import Enrolment, EnrolmentStatus
 from app.models.simulation import Simulation
+from app.models.tenancy import OrganisationUser
 from app.modules.billing.plans import check_limit
 from app.modules.courses import schemas as s
 from app.modules.courses.content_rules import (
@@ -1463,6 +1464,17 @@ async def catalog_detail(ctx: Ctx, course_id: uuid.UUID) -> s.CatalogDetail:
         for m in (version or {}).get("modules", [])
     ]
     states = await _enrolment_states(ctx, [course_id])
+    teacher = (
+        await ctx.db.execute(
+            select(User.id, User.full_name, User.avatar_url, OrganisationUser.job_title)
+            .join(Course, Course.instructor_id == User.id)
+            .outerjoin(
+                OrganisationUser,
+                (OrganisationUser.user_id == User.id) & (OrganisationUser.organisation_id == ctx.org_id),
+            )
+            .where(Course.id == course_id, Course.organisation_id == ctx.org_id)
+        )
+    ).first()
     return _catalog_item(
         row,
         states.get(course_id),
@@ -1472,6 +1484,14 @@ async def catalog_detail(ctx: Ctx, course_id: uuid.UUID) -> s.CatalogDetail:
         target_audience=meta.get("target_audience"),
         certificate_enabled=meta.get("certificate_enabled", True),
         outline=outline,
+        instructor=s.CatalogInstructor(
+            id=teacher.id,
+            full_name=teacher.full_name,
+            avatar_url=teacher.avatar_url,
+            job_title=teacher.job_title,
+        )
+        if teacher
+        else None,
     )
 
 

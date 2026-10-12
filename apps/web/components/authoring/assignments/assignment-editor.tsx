@@ -919,5 +919,5 @@ export function AssignmentEditor({ assignmentId }: { assignmentId: string }) {
       </div>
     );
   if (q.isError || !q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} size="lg" />;
-  return <Editor assignment={q.data} />;
+  return <Editor key={q.data.id} assignment={q.data} />;
 }

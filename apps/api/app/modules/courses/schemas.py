@@ -302,12 +302,20 @@ class CatalogItem(BaseModel):
     enrolment: EnrolmentState | None = None
 
 
+class CatalogInstructor(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    avatar_url: str | None = None
+    job_title: str | None = None
+
+
 class CatalogDetail(CatalogItem):
     learning_objectives: list[Any] = []
     prerequisites: list[Any] = []
     target_audience: str | None = None
     certificate_enabled: bool = True
     outline: list[dict[str, Any]] = []
+    instructor: CatalogInstructor | None = None
 
 
 class CategoryCount(BaseModel):

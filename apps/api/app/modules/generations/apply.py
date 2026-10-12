@@ -15,8 +15,23 @@ from app.models.assessment import Assessment, AssessmentItem, Question, Question
 from app.models.assignment import Assignment, Rubric
 from app.models.content import Activity, Course, CourseModule, CourseStatus, Lesson
 from app.models.simulation import Simulation
+from app.modules.assignments.logic import normalise_criteria
 
 DIFFICULTIES = {"beginner", "intermediate", "advanced", "expert"}
+
+
+def rubric_criteria(criteria: Any) -> list[dict[str, Any]]:
+    """AI rubrics carry relative weights (e.g. 1.0 each); store them like authored rubrics, whose weights
+    are percentages summing to 100 (ids and max_score filled in). Falls back to the raw list if it can't be
+    normalised."""
+    crit = [dict(c) for c in (criteria or []) if isinstance(c, dict)]
+    total = sum(float(c.get("weight") or 0) for c in crit)
+    if not crit or total <= 0:
+        return crit
+    scaled = [round(float(c.get("weight") or 0) * 100.0 / total, 2) for c in crit]
+    scaled[-1] = round(100.0 - sum(scaled[:-1]), 2)
+    normalised, errors = normalise_criteria([{**c, "weight": w} for c, w in zip(crit, scaled, strict=True)])
+    return crit if errors else normalised
 
 
 class Applier:
@@ -229,7 +244,7 @@ class Applier:
                 organisation_id=self.org_id,
                 title=r["title"][:255],
                 description=r.get("description"),
-                criteria=r.get("criteria") or [],
+                criteria=rubric_criteria(r.get("criteria")),
                 total_points=float(r.get("total_points", 100)),
                 created_by=self.user_id,
                 ai_generated=True,
@@ -577,7 +592,7 @@ async def apply_output(
         return "rubric", r.id, dict(ap.created), f"/app/instructor/rubrics/{r.id}"
     if kind == "scenario":
         s = await ap.apply_scenario(data, course_id)
-        return "simulation", s.id, dict(ap.created), f"/app/instructor/simulations/{s.id}/builder"
+        return "simulation", s.id, dict(ap.created), f"/app/instructor/simulations/{s.id}"
     course = await ap.course(course_id)
     if kind == "module":
         m = await ap.module_from(course, data, await ap.next_module_position(course.id))

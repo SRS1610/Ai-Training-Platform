@@ -5,6 +5,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
+  Avatar,
   Badge,
   Breadcrumbs,
   Button,
@@ -33,6 +34,7 @@ import {
   Lock,
   PlayCircle,
   Target,
+  UserRound,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -192,7 +194,10 @@ export default function CourseDetailPage() {
                 </Button>
               )}
             </div>
-            {course.published_at && <p className="mt-4 text-xs text-slate-500">Last updated {formatDate(course.published_at)}</p>}
+            <p className="mt-4 text-xs text-slate-500">
+              {course.instructor ? <>Led by <span className="font-semibold text-slate-700">{course.instructor.full_name}</span>{course.published_at ? " · " : ""}</> : null}
+              {course.published_at ? `Last updated ${formatDate(course.published_at)}` : null}
+            </p>
           </div>
           <CourseCover category={course.category} thumbnailUrl={course.thumbnail_url} iconSize="lg" className="order-1 min-h-[200px] lg:order-2 lg:min-h-full">
             <div className="absolute bottom-5 left-5 right-5 hidden flex-wrap gap-2 sm:flex">
@@ -338,6 +343,19 @@ export default function CourseDetailPage() {
             </ul>
             <div className="mt-5">{cta}</div>
           </Card>
+
+          {course.instructor && (
+            <Card padded>
+              <SectionTitle icon={UserRound} color="violet" title="Your instructor" />
+              <div className="mt-4 flex items-center gap-3">
+                <Avatar name={course.instructor.full_name} src={course.instructor.avatar_url ?? undefined} size="lg" />
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-slate-900">{course.instructor.full_name}</p>
+                  {course.instructor.job_title && <p className="truncate text-sm text-slate-600">{course.instructor.job_title}</p>}
+                </div>
+              </div>
+            </Card>
+          )}
 
           {course.skills.length > 0 && (
             <Card padded>

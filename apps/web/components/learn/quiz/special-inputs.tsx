@@ -199,7 +199,7 @@ export function SimulationInput({ question, value, onChange, disabled, labelledB
   const selected = typeof value?.session_id === "string" ? (value.session_id as string) : null;
   const q = useQuery({
     queryKey: ["simulation-sessions", "mine", simId],
-    queryFn: ({ signal }) => api.get<Page<SessionSummary>>("/simulation-sessions", { signal, query: { simulation_id: simId, page_size: 20 } }),
+    queryFn: ({ signal }) => api.get<Page<SessionSummary>>("/simulation-sessions", { signal, query: { simulation_id: simId, page_size: 50 } }),
     enabled: !!simId,
   });
   const completed = (q.data?.items ?? []).filter((s) => s.status === "completed");

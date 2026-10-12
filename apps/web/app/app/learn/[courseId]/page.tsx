@@ -88,6 +88,7 @@ export default function CourseOverviewPage() {
   const c = colorClasses(color);
   const allLessons = d.modules.flatMap((m) => m.lessons);
   const totalMinutes = allLessons.reduce((a, l) => a + (l.duration_minutes || 0), 0);
+  const byType = Object.entries(allLessons.reduce<Record<string, number>>((acc, l) => ({ ...acc, [l.lesson_type]: (acc[l.lesson_type] ?? 0) + 1 }), {})).sort((a, b) => b[1] - a[1]);
   const nextHref = d.next_lesson ? `/app/learn/${courseId}/lesson/${d.next_lesson.id}` : allLessons[0] ? `/app/learn/${courseId}/lesson/${allLessons[0].id}` : null;
   const nextModule = d.modules.find((m) => m.lessons.some((l) => l.id === d.next_lesson?.id))?.id;
   const tutorEnabled = course.ai_tutor_enabled !== false;
@@ -111,7 +112,21 @@ export default function CourseOverviewPage() {
 
       <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
         <div className="flex flex-col lg:flex-row">
-          <CourseCover category={course.category} thumbnailUrl={course.thumbnail_url} iconSize="lg" className="h-36 shrink-0 lg:h-auto lg:w-72" />
+          <CourseCover category={course.category} thumbnailUrl={course.thumbnail_url} iconSize="lg" className="h-36 shrink-0 lg:h-auto lg:w-72">
+            {byType.length > 0 && (
+              <ul className="absolute bottom-4 left-4 right-4 hidden flex-wrap gap-1.5 lg:flex" aria-label="Lesson formats">
+                {byType.slice(0, 5).map(([type, n]) => {
+                  const m = lessonMeta(type);
+                  return (
+                    <li key={type} className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-sm">
+                      <m.icon className={cn("size-3.5", colorClasses(m.color).icon)} aria-hidden />
+                      {n} {m.label.toLowerCase()}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CourseCover>
           <div className="flex flex-1 flex-col gap-6 p-6 sm:p-8 xl:flex-row xl:items-center">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -230,7 +245,7 @@ export default function CourseOverviewPage() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card padded className="lg:col-span-2">
+        <Card padded className="lg:col-span-2 lg:self-start">
           <SectionTitle
             icon={ListChecks}
             color="violet"

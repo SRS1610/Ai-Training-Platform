@@ -340,6 +340,8 @@ async def test_learner_visibility_and_catalog(client):
     assert (await client.get(f"{API}/catalog?enrolled=false", headers=learner.headers)).json()["total"] == 0
     detail = (await client.get(f"{API}/catalog/{pub['id']}", headers=learner.headers)).json()
     assert len(detail["outline"][0]["lessons"]) == 2 and "content" not in detail["outline"][0]["lessons"][0]
+    # the course creator is the default instructor and is shown on the catalog page
+    assert detail["instructor"]["id"] == str(admin.user_id) and detail["instructor"]["full_name"]
     cats = (await client.get(f"{API}/catalog/categories", headers=learner.headers)).json()
     assert cats == [{"category": "Security", "count": 1}]
     assert (await client.get(f"{API}/catalog/{draft['id']}", headers=learner.headers)).status_code == 404

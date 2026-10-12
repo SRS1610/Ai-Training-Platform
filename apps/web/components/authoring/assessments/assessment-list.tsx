@@ -25,6 +25,7 @@ import {
 } from "@praxis/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, FileQuestion, Pencil, Plus, Rocket, ShieldAlert, Timer, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
@@ -171,7 +172,9 @@ export function AssessmentList() {
                 <FileQuestion className="size-4" />
               </span>
               <div className="min-w-0">
-                <p className="truncate font-semibold text-slate-900">{a.title}</p>
+                <Link href={`/app/instructor/assessments/${a.id}`} onClick={(e) => e.stopPropagation()} className="block truncate rounded font-semibold text-slate-900 hover:text-brand-700 focus-visible:focus-ring">
+                  {a.title}
+                </Link>
                 <p className="truncate text-xs text-muted-foreground">{courses.titleOf(a.course_id) ?? "Standalone"}</p>
               </div>
             </div>

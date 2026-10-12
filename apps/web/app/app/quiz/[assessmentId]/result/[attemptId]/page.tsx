@@ -2,7 +2,7 @@
 
 import { Button, EmptyState, ProgressRing, Skeleton, Tabs, TabsList, TabsTrigger, cn } from "@praxis/ui";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Award, BookOpen, CheckCircle2, Clock, EyeOff, Hourglass, ListChecks, RotateCcw, Sparkles, Target, Trophy, XCircle } from "lucide-react";
+import { ArrowLeft, Award, BookOpen, CheckCircle2, Clock, EyeOff, Hourglass, ListChecks, MinusCircle, RotateCcw, Sparkles, Target, Trophy, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import * as React from "react";
@@ -51,7 +51,8 @@ export default function QuizResultPage() {
   const pct = r.percentage ?? 0;
   const counts = {
     correct: r.questions.filter((x) => x.is_correct === true).length,
-    incorrect: r.questions.filter((x) => x.is_correct === false).length,
+    partial: r.questions.filter((x) => x.is_correct === false && (x.score ?? 0) > 0).length,
+    incorrect: r.questions.filter((x) => x.is_correct === false && !((x.score ?? 0) > 0)).length,
     pending: r.questions.filter((x) => x.pending_review).length,
   };
   const shown = [...r.questions]
@@ -148,9 +149,10 @@ export default function QuizResultPage() {
         </div>
       </section>
 
-      <section aria-label="Summary" className="grid grid-cols-3 gap-3">
+      <section aria-label="Summary" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Correct", value: counts.correct, icon: CheckCircle2, cls: "from-emerald-50 border-emerald-200 text-emerald-700" },
+          { label: "Partly right", value: counts.partial, icon: MinusCircle, cls: "from-amber-50 border-amber-200 text-amber-800" },
           { label: "Incorrect", value: counts.incorrect, icon: XCircle, cls: "from-rose-50 border-rose-200 text-rose-700" },
           { label: "In review", value: counts.pending, icon: Hourglass, cls: "from-violet-50 border-violet-200 text-violet-700" },
         ].map((t) => (

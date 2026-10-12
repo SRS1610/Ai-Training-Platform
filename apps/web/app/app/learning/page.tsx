@@ -2,7 +2,7 @@
 
 import { Button, EmptyState, KpiTile, PageHeader, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@praxis/ui";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, BookOpen, CheckCircle2, ClipboardList, Library, PlayCircle, Route, Trophy } from "lucide-react";
+import { AlertTriangle, BookOpen, CheckCircle2, ClipboardCheck, ClipboardList, Library, PlayCircle, Route, Trophy } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ErrorState } from "@/components/common/error-state";
@@ -59,9 +59,17 @@ function MyLearning() {
         description="Pick up where you left off, keep on top of assigned training and track your paths."
         icon={<BookOpen />}
         actions={
-          <Button asChild variant="gradient" leftIcon={<Library />}>
-            <Link href="/app/catalog">Browse catalog</Link>
-          </Button>
+          <>
+            <Button asChild variant="secondary" leftIcon={<ClipboardCheck />}>
+              <Link href="/app/assignments">Assignments</Link>
+            </Button>
+            <Button asChild variant="secondary" leftIcon={<Trophy />} className="hidden sm:inline-flex">
+              <Link href="/app/achievements">Achievements</Link>
+            </Button>
+            <Button asChild variant="gradient" leftIcon={<Library />}>
+              <Link href="/app/catalog">Browse catalog</Link>
+            </Button>
+          </>
         }
       />
 

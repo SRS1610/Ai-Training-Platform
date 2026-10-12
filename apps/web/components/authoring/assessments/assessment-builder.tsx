@@ -393,5 +393,5 @@ export function AssessmentBuilder({ assessmentId }: { assessmentId: string }) {
   });
   if (q.isLoading) return <BuilderSkeleton />;
   if (q.isError || !q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} size="lg" />;
-  return <Workspace assessment={q.data} />;
+  return <Workspace key={q.data.id} assessment={q.data} />;
 }

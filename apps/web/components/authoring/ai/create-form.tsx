@@ -228,7 +228,7 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
 
       <fieldset>
         <legend className="mb-3 font-display text-lg font-semibold text-slate-900">What should we generate?</legend>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" role="radiogroup" aria-label="Generation type">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4" role="radiogroup" aria-label="Generation type">
           {KINDS.map((k) => {
             const on = kind === k.value;
             const c = colorClasses(k.color);
@@ -240,17 +240,17 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
                 aria-checked={on}
                 onClick={() => setKind(k.value)}
                 className={cn(
-                  "flex items-start gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition-all focus-visible:focus-ring",
-                  k.value === "course" && "sm:col-span-2",
+                  "flex items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-sm transition-all focus-visible:focus-ring sm:items-start sm:p-4",
+                  k.value === "course" && "col-span-2",
                   on ? cn(c.border, "bg-gradient-to-br ring-2", c.tint, c.ring) : "border-slate-200 hover:-translate-y-0.5 hover:shadow-lift",
                 )}
               >
-                <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-sm", c.gradient)}>
+                <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-sm sm:size-10", c.gradient)}>
                   <k.icon className="size-5" aria-hidden />
                 </span>
                 <span className="min-w-0">
-                  <span className={cn("block font-semibold", on ? c.text : "text-slate-900")}>{k.label}</span>
-                  <span className="block text-xs leading-snug text-muted-foreground">{k.description}</span>
+                  <span className={cn("block text-sm font-semibold leading-tight sm:text-base", on ? c.text : "text-slate-900")}>{k.label}</span>
+                  <span className={cn("text-xs leading-snug text-muted-foreground", k.value === "course" ? "block" : "hidden sm:block")}>{k.description}</span>
                 </span>
               </button>
             );

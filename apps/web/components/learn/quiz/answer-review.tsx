@@ -25,6 +25,13 @@ function Pill({ tone, children }: { tone: "good" | "bad" | "neutral" | "key"; ch
   );
 }
 
+/** Tone for one fill-in-the-blank answer (case-insensitive match against the released accepted answers). */
+function blankTone(mine: string | undefined, accepted: unknown): "good" | "bad" | "neutral" {
+  if (!Array.isArray(accepted) || !accepted.length) return "neutral";
+  const norm = (v: unknown) => String(v ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  return accepted.some((a) => norm(a) === norm(mine)) ? "good" : "bad";
+}
+
 function textOf(list: unknown, id: unknown) {
   return choices(list).find((c) => c.id === String(id))?.text ?? String(id ?? "—");
 }
@@ -140,8 +147,8 @@ function AnswerDetail({ q }: { q: ResultQuestion }) {
           {choices(o.blanks).map((b, i) => (
             <li key={b.id} className="flex flex-wrap items-center gap-2">
               <span className="text-slate-500">Blank {i + 1}:</span>
-              <Pill tone="neutral">{mine[b.id] || "—"}</Pill>
-              {right[b.id]?.length ? <Pill tone="key">{right[b.id]!.slice(0, 3).join(" / ")}</Pill> : null}
+              <Pill tone={blankTone(mine[b.id], right[b.id])}>{mine[b.id] || "—"}</Pill>
+              {right[b.id]?.length && blankTone(mine[b.id], right[b.id]) !== "good" ? <Pill tone="key">{right[b.id]!.slice(0, 3).join(" / ")}</Pill> : null}
             </li>
           ))}
         </ul>

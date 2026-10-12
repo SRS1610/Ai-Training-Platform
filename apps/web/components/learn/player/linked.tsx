@@ -1,11 +1,13 @@
 "use client";
 
-import { Badge, Button, ProgressRing, Skeleton, StatusPill, cn, colorClasses } from "@praxis/ui";
+import type { Page } from "@praxis/types";
+import { BandChip, Badge, Button, ProgressRing, Skeleton, StatusPill, cn, colorClasses } from "@praxis/ui";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Bot, ClipboardCheck, Clock, HelpCircle, MonitorPlay, Repeat, Sparkles, Target, Trophy } from "lucide-react";
 import Link from "next/link";
 import { Markdown } from "@/components/common/markdown";
 import { ApiError, api } from "@/lib/api";
+import { formatDate } from "@/lib/format";
 import { lk } from "../query-keys";
 import type { LessonPayload, LessonState, QuizOverview, Submission } from "../types";
 import { str } from "./media";
@@ -144,11 +146,43 @@ export function AssignmentLessonCard({ lesson }: { lesson: LessonPayload }) {
   );
 }
 
+interface SimSession {
+  id: string;
+  attempt_number: number;
+  status: string;
+  total_score: number | null;
+  band: string | null;
+  passed: boolean | null;
+  completed_at: string | null;
+}
+
 export function SimulationLessonCard({ lesson, progress }: { lesson: LessonPayload; progress: LessonState }) {
   const id = lesson.simulation_id ?? lesson.linked?.id;
   const done = progress.status === "completed";
+  const sessions = useQuery({
+    queryKey: ["simulation-sessions", "mine", id],
+    queryFn: ({ signal }) => api.get<Page<SimSession>>("/simulation-sessions", { signal, query: { simulation_id: id, page_size: 50 } }),
+    enabled: !!id,
+    retry: false,
+  });
+  const completed = (sessions.data?.items ?? []).filter((x) => x.status === "completed" && x.total_score !== null);
+  const best = completed.reduce<SimSession | null>((a, x) => (!a || (x.total_score ?? 0) > (a.total_score ?? 0) ? x : a), null);
+  const inProgress = (sessions.data?.items ?? []).find((x) => x.status === "in_progress" || x.status === "active");
   return (
-    <Frame color="violet" icon={MonitorPlay} eyebrow="Simulation" title={lesson.linked?.title ?? lesson.title}>
+    <Frame
+      color="violet"
+      icon={MonitorPlay}
+      eyebrow="Simulation"
+      title={lesson.linked?.title ?? lesson.title}
+      aside={
+        best && best.total_score !== null ? (
+          <div className="flex flex-col items-center gap-1.5">
+            <ProgressRing value={best.total_score} size={84} stroke={8} color={best.passed ? "emerald" : "amber"} sublabel="best" aria-label={`Best simulation score ${Math.round(best.total_score)}`} />
+            {best.band && <BandChip band={best.band} size="sm" />}
+          </div>
+        ) : undefined
+      }
+    >
       <p className="text-sm text-slate-600">
         Step into a realistic work environment — handle the situation, make decisions under pressure and get scored feedback on each skill.
       </p>
@@ -160,10 +194,12 @@ export function SimulationLessonCard({ lesson, progress }: { lesson: LessonPaylo
         ) : progress.status === "in_progress" ? (
           <StatusPill status="in_progress" />
         ) : null}
+        {completed.length > 0 && <Stat icon={Repeat} label={`${completed.length} run${completed.length === 1 ? "" : "s"} completed`} />}
+        {best?.completed_at && <Stat icon={Clock} label={`Best on ${formatDate(best.completed_at)}`} />}
       </div>
       {id ? (
         <Button asChild variant={done ? "secondary" : "gradient"} className="mt-5" rightIcon={<ArrowRight />}>
-          <Link href={`/app/simulations/${id}`}>{done ? "Practise again" : "Launch simulation"}</Link>
+          <Link href={`/app/simulations/${id}`}>{inProgress ? "Resume simulation" : done || completed.length ? "Practise again" : "Launch simulation"}</Link>
         </Button>
       ) : (
         <p className="mt-3 text-sm text-slate-600">This simulation isn&apos;t available right now.</p>
