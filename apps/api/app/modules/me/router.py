@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import Ctx, get_ctx, get_current_user
-from app.core.db import get_db
+from app.core.db import DbSession
 from app.models.identity import User
 from app.models.tenancy import MembershipStatus, OrganisationUser
 
@@ -137,7 +137,7 @@ async def me(ctx: Ctx = Depends(get_ctx)) -> MeOut:
 
 @router.patch("", response_model=UserOut)
 async def update_me(
-    body: MeUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    body: MeUpdate, user: User = Depends(get_current_user), db: AsyncSession = DbSession
 ):
     data = body.model_dump(exclude_unset=True)
     if "default_organisation_id" in data and data["default_organisation_id"]:
@@ -153,5 +153,5 @@ async def update_me(
 
 
 @router.get("/organisations", response_model=list[OrgSummary])
-async def my_organisations(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def my_organisations(user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     return [_org_summary(m) for m in await _memberships(db, user.id)]

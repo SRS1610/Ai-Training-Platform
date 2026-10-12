@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import Ctx, Principal, get_optional_principal, require_permission
-from app.core.db import get_db
+from app.core.db import DbSession
 from app.core.middleware import client_ip
 from app.core.pagination import Page, PageParams, page_params
 from app.modules.invitations import service
@@ -71,7 +71,7 @@ async def revoke(invitation_id: uuid.UUID, ctx: Ctx = Depends(require_permission
 
 
 @public_router.get("/lookup", response_model=InvitationLookup)
-async def lookup(token: str = Query(..., min_length=10, max_length=200), db: AsyncSession = Depends(get_db)):
+async def lookup(token: str = Query(..., min_length=10, max_length=200), db: AsyncSession = DbSession):
     return await service.lookup(db, token)
 
 
@@ -80,7 +80,7 @@ async def accept(
     body: AcceptIn,
     request: Request,
     response: Response,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
     principal: Principal | None = Depends(get_optional_principal),
 ) -> AcceptOut:
     from app.modules.auth import service as auth_service

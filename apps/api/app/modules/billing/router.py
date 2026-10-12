@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import Ctx, require_permission
-from app.core.db import get_db
+from app.core.db import DbSession
 from app.core.pagination import Page, PageParams, page_params, paginate
 from app.models.platform import Payment
 from app.modules.billing import service
@@ -36,7 +36,7 @@ async def list_plans() -> list[PlanOut]:
 
 
 @public_router.post("/webhook", include_in_schema=False)
-async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
+async def stripe_webhook(request: Request, db: AsyncSession = DbSession) -> dict:
     payload = await request.body()
     return await service.handle_webhook(db, payload, request.headers.get("stripe-signature"))
 

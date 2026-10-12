@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import Ctx, get_ctx, require_permission
-from app.core.db import get_db
+from app.core.db import DbSession
 from app.core.pagination import Page, PageParams, page_params, paginate
 from app.models.platform import Certificate
 from app.modules.certificates import events as _events  # noqa: F401  (registers the course.completed handler)
@@ -81,6 +81,6 @@ async def revoke(certificate_id: uuid.UUID, body: RevokeIn, ctx: Ctx = Depends(I
 
 
 @public_router.get("/{certificate_number}", response_model=VerificationOut)
-async def verify(certificate_number: str, db: AsyncSession = Depends(get_db)) -> dict:
+async def verify(certificate_number: str, db: AsyncSession = DbSession) -> dict:
     """Public certificate verification. Recomputes the HMAC so edited records report ``invalid``."""
     return await service.verify(db, certificate_number)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 
 import pyotp
 from sqlalchemy import select
@@ -27,6 +28,57 @@ async def test_register_login_me(client):
     r = await client.post("/api/v1/auth/login", json={"email": acct.email, "password": PASSWORD})
     assert r.status_code == 200 and r.json()["tokens"]["access_token"]
 
+
+async def test_writes_are_committed_before_the_response_is_sent(client):
+    """Regression: the request's transaction must be committed before the first response byte is sent.
+
+    FastAPI runs a request-scoped yield dependency's exit code (where ``get_db`` commits) only after the
+    response has gone out, so a client reusing a fresh access token on another connection raced the
+    session insert and got ``401 session_revoked``. The ASGI ``send`` hook below looks for the login's
+    session row from an independent connection at the moment the response body is sent."""
+    import json
+
+    from app.core.db import get_sessionmaker
+    from app.main import app
+    from app.models.identity import AuthSession
+
+    acct = await signup(client)
+    payload = json.dumps({"email": acct.email, "password": PASSWORD}).encode()
+    seen: dict[str, object] = {}
+    sent = False
+
+    async def receive() -> dict:
+        nonlocal sent
+        if sent:
+            return {"type": "http.disconnect"}
+        sent = True
+        return {"type": "http.request", "body": payload, "more_body": False}
+
+    async def send(message: dict) -> None:
+        if message["type"] == "http.response.start":
+            seen["status"] = message["status"]
+        elif message["type"] == "http.response.body" and message.get("body"):
+            sid = security.decode_access_token(json.loads(message["body"])["tokens"]["access_token"])["sid"]
+            async with get_sessionmaker()() as other:
+                seen["row"] = await other.get(AuthSession, uuid.UUID(sid))
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/api/v1/auth/login",
+        "raw_path": b"/api/v1/auth/login",
+        "query_string": b"",
+        "root_path": "",
+        "headers": [(b"host", b"test"), (b"content-type", b"application/json")],
+        "client": ("127.0.0.1", 50000),
+        "server": ("test", 80),
+    }
+    await app(scope, receive, send)
+    assert seen["status"] == 200
+    assert seen["row"] is not None, "session row was not committed when the response was sent"
 
 async def test_individual_signup_gets_personal_workspace(client):
     acct = await signup(client, org_name=None, full_name="Solo Learner")

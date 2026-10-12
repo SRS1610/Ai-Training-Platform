@@ -22,6 +22,7 @@ from app.models.platform import Badge, Certificate, PointsLedger, UserBadge
 from app.models.simulation import SimulationSession, SimulationSessionStatus
 from app.models.tenancy import MembershipStatus, Organisation, OrganisationUser
 from app.modules.billing.plans import has_feature
+from app.modules.progress.service import local_today
 
 # ----------------------------------------------------------------------------- configuration
 
@@ -187,17 +188,25 @@ def level_for(points: int) -> dict[str, Any]:
 # ----------------------------------------------------------------------------- activity & streaks
 
 
+async def _user_today(db: AsyncSession, user_id: uuid.UUID) -> date:
+    """The user's current local date (activity days and streaks are kept in the learner's timezone)."""
+    return local_today(await db.scalar(select(User.timezone).where(User.id == user_id)))
+
+
 async def record_activity(
     db: AsyncSession, org_id: uuid.UUID, user_id: uuid.UUID, day: date | None = None
 ) -> None:
-    """Ensure an ``activity_days`` row exists for today (idempotent; learning module may also increment)."""
+    """Ensure an ``activity_days`` row exists for today (idempotent; learning module may also increment).
+
+    "Today" is the learner's local calendar day, the same day the progress module records against;
+    using UTC here created a second row whenever the two dates differed."""
     stmt = (
         pg_insert(ActivityDay)
         .values(
             id=uuid.uuid4(),
             organisation_id=org_id,
             user_id=user_id,
-            day=day or datetime.now(UTC).date(),
+            day=day or await _user_today(db, user_id),
             events=1,
             seconds=0,
         )
@@ -219,7 +228,7 @@ SELECT max(day) AS last_day, count(*) AS len FROM g GROUP BY grp ORDER BY max(da
 async def streak(
     db: AsyncSession, org_id: uuid.UUID, user_id: uuid.UUID, today: date | None = None
 ) -> dict[str, Any]:
-    today = today or datetime.now(UTC).date()
+    today = today or await _user_today(db, user_id)
     islands = (await db.execute(_STREAK_SQL, {"org": org_id, "uid": user_id})).all()
     if not islands:
         return {"current": 0, "longest": 0, "last_active_day": None, "active_today": False}

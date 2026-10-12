@@ -10,6 +10,7 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from fastapi import Depends
 from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session
@@ -82,7 +83,16 @@ async def bind_tenant(session: AsyncSession, org_id: uuid.UUID | None, *, bypass
 
 async def get_db() -> AsyncIterator[AsyncSession]:
     """FastAPI dependency: one session per request. Auth/system lookups start with RLS bypass enabled
-    for identity tables only (those tables are not under RLS); tenant binding happens in auth deps."""
+    for identity tables only (those tables are not under RLS); tenant binding happens in auth deps.
+
+    Always declare it through ``DbSession`` (``Depends(get_db, scope="function")``). FastAPI runs the
+    exit code of a request-scoped yield dependency only after the response has been sent, which would
+    commit after the client already holds a 2xx: an immediate follow-up request could miss the write
+    (e.g. a new login token answering ``401 session_revoked``), and a failed commit would be reported as
+    success. Function scope commits once the endpoint has returned and its response is serialised,
+    before anything is sent. Every use must carry the same scope because it is part of FastAPI's
+    dependency cache key: mixing scopes would open two sessions in one request. Streaming endpoints
+    must finish their database work (and commit) before they return the response."""
     async with get_sessionmaker()() as session:
         try:
             yield session
@@ -117,3 +127,7 @@ async def tenant_scope(
         yield
     finally:
         await bind_tenant(session, prev_org, bypass=prev_bypass)
+
+
+# The one way to inject the request session (see ``get_db`` for why the scope matters).
+DbSession = Depends(get_db, scope="function")

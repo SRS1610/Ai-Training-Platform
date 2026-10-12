@@ -16,7 +16,7 @@ from app.auth.deps import Principal, get_current_user, get_principal
 from app.core import security
 from app.core.audit import write_audit
 from app.core.config import settings
-from app.core.db import get_db, tenant_scope
+from app.core.db import DbSession, tenant_scope
 from app.core.errors import BadRequest, Forbidden, NotFound, Unauthorized
 from app.core.middleware import ACCESS_COOKIE, CSRF_COOKIE, REFRESH_COOKIE, client_ip
 from app.models.identity import AuthSession, User
@@ -99,7 +99,7 @@ async def providers() -> ProvidersOut:
 
 @router.post("/register", response_model=TokenOut, status_code=201)
 async def register(
-    body: RegisterIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)
+    body: RegisterIn, request: Request, response: Response, db: AsyncSession = DbSession
 ):
     if not body.accept_terms:
         raise BadRequest("You must accept the terms of service", code="terms_required")
@@ -124,7 +124,7 @@ async def register(
 
 
 @router.post("/login", response_model=LoginOut)
-async def login(body: LoginIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+async def login(body: LoginIn, request: Request, response: Response, db: AsyncSession = DbSession):
     ip = client_ip(request)
     user = await service.authenticate(db, body.email, body.password, ip)
     if await _sso_enforced_for(db, user.email):
@@ -157,7 +157,7 @@ async def login(body: LoginIn, request: Request, response: Response, db: AsyncSe
 
 @router.post("/mfa/verify", response_model=TokenOut)
 async def mfa_verify(
-    body: MFAVerifyIn, request: Request, response: Response, db: AsyncSession = Depends(get_db)
+    body: MFAVerifyIn, request: Request, response: Response, db: AsyncSession = DbSession
 ):
     user, challenge = await service.complete_mfa_challenge(db, body.mfa_token, body.code, body.recovery_code)
     ip = client_ip(request)
@@ -186,7 +186,7 @@ async def mfa_verify(
 
 @router.post("/refresh", response_model=TokenOut)
 async def refresh(
-    request: Request, response: Response, body: RefreshIn | None = None, db: AsyncSession = Depends(get_db)
+    request: Request, response: Response, body: RefreshIn | None = None, db: AsyncSession = DbSession
 ):
     raw = (body.refresh_token if body else None) or request.cookies.get(REFRESH_COOKIE)
     if not raw:
@@ -201,7 +201,7 @@ async def refresh(
 
 @router.post("/logout", status_code=204)
 async def logout(
-    response: Response, principal: Principal = Depends(get_principal), db: AsyncSession = Depends(get_db)
+    response: Response, principal: Principal = Depends(get_principal), db: AsyncSession = DbSession
 ):
     if principal.session_id and principal.user:
         await service.revoke_session(db, principal.session_id, principal.user.id, "logout")
@@ -211,14 +211,14 @@ async def logout(
 
 
 @router.post("/email/verify")
-async def verify_email(body: TokenIn, db: AsyncSession = Depends(get_db)) -> dict:
+async def verify_email(body: TokenIn, db: AsyncSession = DbSession) -> dict:
     user = await service.verify_email(db, body.token)
     return {"verified": True, "email": user.email}
 
 
 @router.post("/email/resend", status_code=202)
 async def resend_verification(
-    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    user: User = Depends(get_current_user), db: AsyncSession = DbSession
 ) -> dict:
     if not user.email_verified_at:
         await service.send_verification_email(db, user)
@@ -226,13 +226,13 @@ async def resend_verification(
 
 
 @router.post("/password/forgot", status_code=202)
-async def forgot_password(body: EmailIn, db: AsyncSession = Depends(get_db)) -> dict:
+async def forgot_password(body: EmailIn, db: AsyncSession = DbSession) -> dict:
     await service.request_password_reset(db, body.email)
     return {"sent": True}
 
 
 @router.post("/password/reset")
-async def reset_password(body: PasswordResetIn, db: AsyncSession = Depends(get_db)) -> dict:
+async def reset_password(body: PasswordResetIn, db: AsyncSession = DbSession) -> dict:
     await service.reset_password(db, body.token, body.password)
     return {"reset": True}
 
@@ -242,7 +242,7 @@ async def change_password(
     body: PasswordChangeIn,
     principal: Principal = Depends(get_principal),
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
 ):
     await service.change_password(db, user, body.current_password, body.new_password, principal.session_id)
     return Response(status_code=204)
@@ -258,14 +258,14 @@ async def mfa_setup(user: User = Depends(get_current_user)) -> MFASetupOut:
 
 @router.post("/mfa/enable", response_model=MFAEnableOut)
 async def mfa_enable(
-    body: MFAEnableIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    body: MFAEnableIn, user: User = Depends(get_current_user), db: AsyncSession = DbSession
 ):
     return MFAEnableOut(recovery_codes=await service.mfa_enable(db, user, body.code))
 
 
 @router.post("/mfa/disable", status_code=204)
 async def mfa_disable(
-    body: MFADisableIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    body: MFADisableIn, user: User = Depends(get_current_user), db: AsyncSession = DbSession
 ):
     await service.mfa_disable(db, user, body.password, body.code)
     return Response(status_code=204)
@@ -275,7 +275,7 @@ async def mfa_disable(
 async def list_sessions(
     principal: Principal = Depends(get_principal),
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
 ) -> list[SessionOut]:
     rows = (
         (
@@ -297,7 +297,7 @@ async def list_sessions(
 
 @router.delete("/sessions/{session_id}", status_code=204)
 async def revoke_session(
-    session_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    session_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = DbSession
 ):
     await service.revoke_session(db, session_id, user.id, "user_revoked")
     return Response(status_code=204)
@@ -307,7 +307,7 @@ async def revoke_session(
 async def revoke_other_sessions(
     principal: Principal = Depends(get_principal),
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
 ):
     await service.revoke_all_sessions(db, user.id, "user_revoked_others", except_id=principal.session_id)
     return Response(status_code=204)
@@ -329,7 +329,7 @@ async def _sso_enforced_for(db: AsyncSession, email: str) -> bool:
 
 @router.get("/sso/discover", response_model=SSODiscoverOut)
 async def sso_discover(
-    email: str = Query(..., max_length=320), db: AsyncSession = Depends(get_db)
+    email: str = Query(..., max_length=320), db: AsyncSession = DbSession
 ) -> SSODiscoverOut:
     conn = await _sso_connection_for_email(db, email)
     if not conn:
@@ -340,7 +340,7 @@ async def sso_discover(
 
 
 @router.get("/oauth/{provider}/authorize")
-async def oauth_authorize(provider: str, return_to: str | None = None, db: AsyncSession = Depends(get_db)):
+async def oauth_authorize(provider: str, return_to: str | None = None, db: AsyncSession = DbSession):
     if provider.startswith("sso-"):
         conn = await db.get(SSOConnection, uuid.UUID(provider[4:]))
         if not conn or not conn.enabled:
@@ -361,7 +361,7 @@ async def oauth_callback(
     request: Request,
     code: str = Query(...),
     state: str = Query(...),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
 ):
     st = await oauth.consume_state(db, state)
     if st.data.get("provider") != provider:

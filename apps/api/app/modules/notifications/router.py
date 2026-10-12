@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import Ctx, get_ctx, get_current_user
-from app.core.db import get_db
+from app.core.db import DbSession
 from app.core.errors import NotFound
 from app.core.pagination import Page, PageParams, page_params, paginate
 from app.models.identity import User
@@ -71,13 +71,13 @@ async def _prefs_out(db: AsyncSession, user: User) -> PreferencesOut:
 
 
 @router.get("/preferences", response_model=PreferencesOut)
-async def get_preferences(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_preferences(user: User = Depends(get_current_user), db: AsyncSession = DbSession):
     return await _prefs_out(db, user)
 
 
 @router.put("/preferences", response_model=PreferencesOut)
 async def update_preferences(
-    body: PreferencesIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    body: PreferencesIn, user: User = Depends(get_current_user), db: AsyncSession = DbSession
 ) -> PreferencesOut:
     pref = await service.get_or_create_pref(db, user.id)
     service.merge_preferences(pref, {k: v.model_dump() for k, v in body.preferences.items()})
@@ -87,7 +87,7 @@ async def update_preferences(
 
 @router.post("/push-subscriptions", response_model=PushSubscriptionOut, status_code=201)
 async def subscribe_push(
-    body: PushSubscriptionIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    body: PushSubscriptionIn, user: User = Depends(get_current_user), db: AsyncSession = DbSession
 ) -> PushSubscriptionOut:
     pref = await service.get_or_create_pref(db, user.id)
     service.add_push_subscription(
@@ -110,7 +110,7 @@ async def subscribe_push(
 
 @router.delete("/push-subscriptions", response_model=PushSubscriptionOut)
 async def unsubscribe_push(
-    body: PushUnsubscribeIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    body: PushUnsubscribeIn, user: User = Depends(get_current_user), db: AsyncSession = DbSession
 ) -> PushSubscriptionOut:
     pref = await service.get_or_create_pref(db, user.id)
     if not service.remove_push_subscription(pref, body.endpoint):

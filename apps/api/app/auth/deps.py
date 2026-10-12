@@ -22,7 +22,7 @@ from sqlalchemy.orm import joinedload
 
 from app.auth.rbac import ALL_CODES
 from app.core.audit import write_audit
-from app.core.db import bind_tenant, get_db, tenant_scope
+from app.core.db import DbSession, bind_tenant, tenant_scope
 from app.core.errors import Forbidden, NotFound, Unauthorized
 from app.core.middleware import ACCESS_COOKIE, client_ip
 from app.core.security import constant_time_equals, decode_access_token, hash_token
@@ -139,7 +139,7 @@ async def _principal_from_api_key(db: AsyncSession, raw: str) -> Principal:
     return Principal(user=None, api_key=key, mfa_verified=True)
 
 
-async def get_optional_principal(request: Request, db: AsyncSession = Depends(get_db)) -> Principal | None:
+async def get_optional_principal(request: Request, db: AsyncSession = DbSession) -> Principal | None:
     cached = getattr(request.state, "principal", None)
     if cached is not None:
         return cached
@@ -279,7 +279,7 @@ async def resolve_ctx(request: Request, db: AsyncSession, principal: Principal) 
 
 
 async def get_ctx(
-    request: Request, db: AsyncSession = Depends(get_db), principal: Principal = Depends(get_principal)
+    request: Request, db: AsyncSession = DbSession, principal: Principal = Depends(get_principal)
 ) -> Ctx:
     return await resolve_ctx(request, db, principal)
 

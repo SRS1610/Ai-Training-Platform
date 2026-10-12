@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import Ctx, get_current_user, require_permission
-from app.core.db import get_db
+from app.core.db import DbSession
 from app.core.middleware import client_ip
 from app.models.identity import User
 from app.modules.organisations import service
@@ -21,7 +21,7 @@ async def create_organisation(
     body: OrgCreate,
     request: Request,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = DbSession,
 ) -> OrgOut:
     return await service.create_additional(db, user, body, client_ip(request))
 
