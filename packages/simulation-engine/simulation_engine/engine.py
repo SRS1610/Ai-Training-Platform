@@ -288,13 +288,36 @@ def _resolve_chat(d: SimulationDefinition, state: dict[str, Any], text: str, cha
 
 def _new_outcome(state: dict[str, Any], **kw: Any) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "seq": state["seq"], "accepted": True, "matched": "action", "action_id": None, "label": None,
-        "tool": None, "kind": None, "character": None, "intent": None, "outputs": [], "messages": [],
-        "events": [], "revealed_facts": [], "problems_added": [], "problems_removed": [],
-        "phase_before": state["phase"], "phase_after": state["phase"], "phase_changed": False,
-        "score_deltas": {}, "classification": "neutral", "feedback": "", "hint": "", "time_cost": 0.0,
-        "sim_minutes": state["minutes"], "ended": False, "end_reason": None, "variables_changed": [],
-        "notices": [], "reason": None, "message": None,
+        "seq": state["seq"],
+        "accepted": True,
+        "matched": "action",
+        "action_id": None,
+        "label": None,
+        "tool": None,
+        "kind": None,
+        "character": None,
+        "intent": None,
+        "outputs": [],
+        "messages": [],
+        "events": [],
+        "revealed_facts": [],
+        "problems_added": [],
+        "problems_removed": [],
+        "phase_before": state["phase"],
+        "phase_after": state["phase"],
+        "phase_changed": False,
+        "score_deltas": {},
+        "classification": "neutral",
+        "feedback": "",
+        "hint": "",
+        "time_cost": 0.0,
+        "sim_minutes": state["minutes"],
+        "ended": False,
+        "end_reason": None,
+        "variables_changed": [],
+        "notices": [],
+        "reason": None,
+        "message": None,
     }
     base.update(kw)
     return base
@@ -346,16 +369,31 @@ def _action_step(
         msgs = []
         if a.kind == "ask" and who:
             msgs = [_msg_out(d, who, a.precondition_message)]
-        return _rejected(st, "precondition_failed", a.precondition_message, action_id=a.id, label=a.label,
-                         tool=a.tool, kind=a.kind, messages=msgs)
+        return _rejected(
+            st,
+            "precondition_failed",
+            a.precondition_message,
+            action_id=a.id,
+            label=a.label,
+            tool=a.tool,
+            kind=a.kind,
+            messages=msgs,
+        )
     if a.input.type == "choice":
         valid = {c.id for c in a.input.choices}
         if inp.get("choice") not in valid:
             raise InvalidInput(f"choice must be one of: {', '.join(sorted(valid))}")
     if a.input.type in ("free_text", "command") and a.input.min_length:
         if len(str(inp.get("text", "")).strip()) < a.input.min_length:
-            return _rejected(st, "invalid_input", f"Please enter at least {a.input.min_length} characters.",
-                             action_id=a.id, label=a.label, tool=a.tool, kind=a.kind)
+            return _rejected(
+                st,
+                "invalid_input",
+                f"Please enter at least {a.input.min_length} characters.",
+                action_id=a.id,
+                label=a.label,
+                tool=a.tool,
+                kind=a.kind,
+            )
 
     count = st["action_counts"].get(a.id, 0)
     pre_ctx = _ctx(st, inp)
@@ -385,9 +423,20 @@ def _action_step(
             notices.append(policy.message)
 
     st["seq"] += 1
-    outcome = _new_outcome(st, action_id=a.id, label=a.label, tool=a.tool, kind=a.kind, character=who,
-                           intent=res.intent if res else None, classification=spec.classification,
-                           feedback=spec.feedback or "", hint=a.hint, branch=branch_id, notices=notices)
+    outcome = _new_outcome(
+        st,
+        action_id=a.id,
+        label=a.label,
+        tool=a.tool,
+        kind=a.kind,
+        character=who,
+        intent=res.intent if res else None,
+        classification=spec.classification,
+        feedback=spec.feedback or "",
+        hint=a.hint,
+        branch=branch_id,
+        notices=notices,
+    )
     _learner_entry(d, st, a, inp)
     before_vars = copy.deepcopy(st["variables"])
     _apply_effects(d, st, spec.effects, inp, outcome)
@@ -403,11 +452,23 @@ def _action_step(
     tool = d.tool(a.tool)
     for o in spec.outputs:
         if truthy(o.when, post_ctx):
-            entry = {"tool": a.tool, "panel": o.panel or (tool.panel if tool else None), "format": o.format,
-                     "text": render(o.text, post_ctx)}
+            entry = {
+                "tool": a.tool,
+                "panel": o.panel or (tool.panel if tool else None),
+                "format": o.format,
+                "text": render(o.text, post_ctx),
+            }
             outcome["outputs"].append(entry)
-            st["transcript"].append({"seq": st["seq"], "minutes": st["minutes"], "from": "system", "name": None,
-                                     "kind": "output", **entry})
+            st["transcript"].append(
+                {
+                    "seq": st["seq"],
+                    "minutes": st["minutes"],
+                    "from": "system",
+                    "name": None,
+                    "kind": "output",
+                    **entry,
+                }
+            )
             break
     for m in spec.messages:
         if truthy(m.when, post_ctx):
@@ -415,25 +476,47 @@ def _action_step(
             outcome["messages"].append(out)
             st["transcript"].append(_message_entry(d, st, m.character, out["text"]))
 
-    st["history"].append({
-        "seq": st["seq"], "type": "action", "action_id": a.id, "label": a.label, "tool": a.tool, "kind": a.kind,
-        "branch": branch_id, "input": _loggable_input(inp), "classification": spec.classification,
-        "score_deltas": deltas, "minutes": st["minutes"], "time_cost": time_cost,
-        "phase_before": outcome["phase_before"], "phase_after": None,
-    })
+    st["history"].append(
+        {
+            "seq": st["seq"],
+            "type": "action",
+            "action_id": a.id,
+            "label": a.label,
+            "tool": a.tool,
+            "kind": a.kind,
+            "branch": branch_id,
+            "input": _loggable_input(inp),
+            "classification": spec.classification,
+            "score_deltas": deltas,
+            "minutes": st["minutes"],
+            "time_cost": time_cost,
+            "phase_before": outcome["phase_before"],
+            "phase_after": None,
+        }
+    )
     _post_step(d, st, outcome, a.id, before_vars)
     st["history"][-1]["phase_after"] = st["phase"]
     return StepResult(state=st, outcome=outcome)
 
 
-def _fact_step(d: SimulationDefinition, st: dict[str, Any], res: Resolution, inp: dict[str, Any]) -> StepResult:
+def _fact_step(
+    d: SimulationDefinition, st: dict[str, Any], res: Resolution, inp: dict[str, Any]
+) -> StepResult:
     char_fact = d.fact(res.fact_id or "")
     assert char_fact is not None
     char, fact = char_fact
     st["seq"] += 1
     before_vars = copy.deepcopy(st["variables"])
-    outcome = _new_outcome(st, matched="fact", action_id=None, tool=None, kind="ask", character=char.id,
-                           intent=res.intent, label="Question")
+    outcome = _new_outcome(
+        st,
+        matched="fact",
+        action_id=None,
+        tool=None,
+        kind="ask",
+        character=char.id,
+        intent=res.intent,
+        label="Question",
+    )
     st["transcript"].append(_learner_text_entry(st, str(inp.get("text", "")), "message", None, char.id))
     _reveal(d, st, [fact.id], outcome)
     ctx = _ctx(st, inp)
@@ -443,28 +526,56 @@ def _fact_step(d: SimulationDefinition, st: dict[str, Any], res: Resolution, inp
     time_cost = 1.0
     _advance_time(d, st, time_cost)
     outcome["time_cost"] = time_cost
-    st["history"].append({"seq": st["seq"], "type": "fact", "action_id": None, "fact_id": fact.id,
-                          "label": f"Asked {char.name}", "tool": None, "kind": "ask", "branch": None,
-                          "input": _loggable_input(inp), "classification": "neutral", "score_deltas": {},
-                          "minutes": st["minutes"], "time_cost": time_cost, "phase_before": outcome["phase_before"],
-                          "phase_after": None})
+    st["history"].append(
+        {
+            "seq": st["seq"],
+            "type": "fact",
+            "action_id": None,
+            "fact_id": fact.id,
+            "label": f"Asked {char.name}",
+            "tool": None,
+            "kind": "ask",
+            "branch": None,
+            "input": _loggable_input(inp),
+            "classification": "neutral",
+            "score_deltas": {},
+            "minutes": st["minutes"],
+            "time_cost": time_cost,
+            "phase_before": outcome["phase_before"],
+            "phase_after": None,
+        }
+    )
     _post_step(d, st, outcome, None, before_vars)
     st["history"][-1]["phase_after"] = st["phase"]
     return StepResult(state=st, outcome=outcome)
 
 
 def _unknown_step(
-    d: SimulationDefinition, st: dict[str, Any], inp: dict[str, Any], *, tool: str | None, character: str | None
+    d: SimulationDefinition,
+    st: dict[str, Any],
+    inp: dict[str, Any],
+    *,
+    tool: str | None,
+    character: str | None,
 ) -> StepResult:
     policy = d.settings.unknown_input
     st["seq"] += 1
     st["unknown_inputs"] = st.get("unknown_inputs", 0) + 1
     before_vars = copy.deepcopy(st["variables"])
-    outcome = _new_outcome(st, matched="unknown", action_id=UNKNOWN_ACTION_ID, tool=tool, kind="unknown",
-                           character=character, label="Unrecognised input")
+    outcome = _new_outcome(
+        st,
+        matched="unknown",
+        action_id=UNKNOWN_ACTION_ID,
+        tool=tool,
+        kind="unknown",
+        character=character,
+        label="Unrecognised input",
+    )
     text = str(inp.get("text", ""))
     t = d.tool(tool) if tool else None
-    st["transcript"].append(_learner_text_entry(st, text, "message" if character else "command", tool, character))
+    st["transcript"].append(
+        _learner_text_entry(st, text, "message" if character else "command", tool, character)
+    )
     ctx = _ctx(st, inp)
     deltas: dict[str, float] = {}
     if character:
@@ -476,19 +587,48 @@ def _unknown_step(
         outcome["messages"].append(out)
         st["transcript"].append(_message_entry(d, st, character, out["text"]))
     else:  # an unknown terminal command is realistic noise, not a communication failure
-        txt = render(t.unknown_input_output, ctx) if t and t.unknown_input_output else render(policy.reply, ctx)
-        entry = {"tool": tool, "panel": t.panel if t else None, "format": "terminal" if t else "text", "text": txt}
+        txt = (
+            render(t.unknown_input_output, ctx) if t and t.unknown_input_output else render(policy.reply, ctx)
+        )
+        entry = {
+            "tool": tool,
+            "panel": t.panel if t else None,
+            "format": "terminal" if t else "text",
+            "text": txt,
+        }
         outcome["outputs"].append(entry)
-        st["transcript"].append({"seq": st["seq"], "minutes": st["minutes"], "from": "system", "name": None,
-                                 "kind": "output", **entry})
+        st["transcript"].append(
+            {
+                "seq": st["seq"],
+                "minutes": st["minutes"],
+                "from": "system",
+                "name": None,
+                "kind": "output",
+                **entry,
+            }
+        )
     _add_scores(d, st, deltas, outcome)
     _advance_time(d, st, policy.time_cost)
     outcome["time_cost"] = policy.time_cost
-    st["history"].append({"seq": st["seq"], "type": "unknown", "action_id": UNKNOWN_ACTION_ID,
-                          "label": "Unrecognised input", "tool": tool, "kind": "unknown", "branch": None,
-                          "character": character, "input": _loggable_input(inp), "classification": "neutral",
-                          "score_deltas": deltas, "minutes": st["minutes"], "time_cost": policy.time_cost,
-                          "phase_before": outcome["phase_before"], "phase_after": None})
+    st["history"].append(
+        {
+            "seq": st["seq"],
+            "type": "unknown",
+            "action_id": UNKNOWN_ACTION_ID,
+            "label": "Unrecognised input",
+            "tool": tool,
+            "kind": "unknown",
+            "branch": None,
+            "character": character,
+            "input": _loggable_input(inp),
+            "classification": "neutral",
+            "score_deltas": deltas,
+            "minutes": st["minutes"],
+            "time_cost": policy.time_cost,
+            "phase_before": outcome["phase_before"],
+            "phase_after": None,
+        }
+    )
     _post_step(d, st, outcome, None, before_vars)
     st["history"][-1]["phase_after"] = st["phase"]
     return StepResult(state=st, outcome=outcome)
@@ -506,17 +646,32 @@ def _msg_out(d: SimulationDefinition, character: str | None, text: str) -> dict[
     return {"from": character or "system", "name": char.name if char else None, "text": text}
 
 
-def _message_entry(d: SimulationDefinition, st: dict[str, Any], character: str | None, text: str) -> dict[str, Any]:
+def _message_entry(
+    d: SimulationDefinition, st: dict[str, Any], character: str | None, text: str
+) -> dict[str, Any]:
     out = _msg_out(d, character, text)
-    return {"seq": st["seq"], "minutes": st["minutes"], "kind": "message" if character else "notice",
-            "tool": None, **out}
+    return {
+        "seq": st["seq"],
+        "minutes": st["minutes"],
+        "kind": "message" if character else "notice",
+        "tool": None,
+        **out,
+    }
 
 
 def _learner_text_entry(
     st: dict[str, Any], text: str, kind: str, tool: str | None, to: str | None
 ) -> dict[str, Any]:
-    return {"seq": st["seq"], "minutes": st["minutes"], "from": "learner", "name": None, "kind": kind,
-            "tool": tool, "to": to, "text": text}
+    return {
+        "seq": st["seq"],
+        "minutes": st["minutes"],
+        "from": "learner",
+        "name": None,
+        "kind": kind,
+        "tool": tool,
+        "to": to,
+        "text": text,
+    }
 
 
 def _learner_entry(d: SimulationDefinition, st: dict[str, Any], a: Action, inp: dict[str, Any]) -> None:
@@ -551,8 +706,9 @@ def _reveal(d: SimulationDefinition, st: dict[str, Any], fact_ids: list[str], ou
         char, fact = found
         st["revealed_facts"].append(fid)
         if outcome is not None:
-            outcome["revealed_facts"].append({"id": fid, "character": char.id, "character_name": char.name,
-                                              "text": render(fact.text, ctx)})
+            outcome["revealed_facts"].append(
+                {"id": fid, "character": char.id, "character_name": char.name, "text": render(fact.text, ctx)}
+            )
 
 
 def _set_phase(d: SimulationDefinition, st: dict[str, Any], phase: str) -> None:
@@ -563,7 +719,11 @@ def _set_phase(d: SimulationDefinition, st: dict[str, Any], phase: str) -> None:
 
 
 def _apply_effects(
-    d: SimulationDefinition, st: dict[str, Any], effects: list[Effect], inp: dict[str, Any], outcome: dict,
+    d: SimulationDefinition,
+    st: dict[str, Any],
+    effects: list[Effect],
+    inp: dict[str, Any],
+    outcome: dict,
     depth: int = 0,
 ) -> None:
     for eff in effects:
@@ -634,7 +794,9 @@ def _event_triggered(ev: Event, st: dict[str, Any], last_action: str | None) -> 
     return t.condition is not None and truthy(t.condition, ctx)
 
 
-def _fire_event(d: SimulationDefinition, st: dict[str, Any], ev: Event, outcome: dict, depth: int = 0) -> None:
+def _fire_event(
+    d: SimulationDefinition, st: dict[str, Any], ev: Event, outcome: dict, depth: int = 0
+) -> None:
     st["fired_events"][ev.id] = st["fired_events"].get(ev.id, 0) + 1
     _apply_effects(d, st, ev.effects, {}, outcome, depth)
     _add_scores(d, st, ev.score, outcome)
@@ -652,14 +814,30 @@ def _fire_event(d: SimulationDefinition, st: dict[str, Any], ev: Event, outcome:
         _advance_time(d, st, ev.time_cost)
     if ev.classification == "critical" and f"event:{ev.id}" not in st["criticals"]:
         st["criticals"].append(f"event:{ev.id}")
-    st["history"].append({"seq": st["seq"], "type": "event", "action_id": None, "event_id": ev.id,
-                          "label": ev.title or ev.id, "tool": None, "kind": "event", "branch": None, "input": {},
-                          "classification": ev.classification, "score_deltas": dict(ev.score),
-                          "minutes": st["minutes"], "time_cost": ev.time_cost or 0.0, "phase_before": st["phase"],
-                          "phase_after": st["phase"]})
+    st["history"].append(
+        {
+            "seq": st["seq"],
+            "type": "event",
+            "action_id": None,
+            "event_id": ev.id,
+            "label": ev.title or ev.id,
+            "tool": None,
+            "kind": "event",
+            "branch": None,
+            "input": {},
+            "classification": ev.classification,
+            "score_deltas": dict(ev.score),
+            "minutes": st["minutes"],
+            "time_cost": ev.time_cost or 0.0,
+            "phase_before": st["phase"],
+            "phase_after": st["phase"],
+        }
+    )
 
 
-def _process_events(d: SimulationDefinition, st: dict[str, Any], outcome: dict, last_action: str | None) -> bool:
+def _process_events(
+    d: SimulationDefinition, st: dict[str, Any], outcome: dict, last_action: str | None
+) -> bool:
     fired = False
     for ev in d.events:
         if _event_eligible(ev, st) and _event_triggered(ev, st, last_action):
@@ -685,8 +863,12 @@ def _auto_advance(d: SimulationDefinition, st: dict[str, Any]) -> None:
 
 def _auto_reveal(d: SimulationDefinition, st: dict[str, Any], outcome: dict | None) -> None:
     ctx = _ctx(st)
-    ids = [f.id for c in d.characters for f in c.facts
-           if f.auto_reveal and f.id not in st["revealed_facts"] and truthy(f.when, ctx)]
+    ids = [
+        f.id
+        for c in d.characters
+        for f in c.facts
+        if f.auto_reveal and f.id not in st["revealed_facts"] and truthy(f.when, ctx)
+    ]
     if ids:
         _reveal(d, st, ids, outcome)
 
@@ -729,15 +911,19 @@ def _post_step(
     outcome["sim_minutes"] = st["minutes"]
     outcome["ended"] = bool(st["ended"])
     outcome["end_reason"] = st["end_reason"]
-    outcome["variables_changed"] = sorted(k for k in set(before_vars) | set(st["variables"])
-                                          if before_vars.get(k) != st["variables"].get(k))
+    outcome["variables_changed"] = sorted(
+        k for k in set(before_vars) | set(st["variables"]) if before_vars.get(k) != st["variables"].get(k)
+    )
 
 
 # ---------------------------------------------------------------------------------------------- projections
 
 
 def available_actions(
-    definition: SimulationDefinition | dict[str, Any], state: dict[str, Any], *, include_unlisted: bool = False
+    definition: SimulationDefinition | dict[str, Any],
+    state: dict[str, Any],
+    *,
+    include_unlisted: bool = False,
 ) -> list[dict[str, Any]]:
     """Learner-safe descriptions of the actions that can be taken now (no effects, scores or answers)."""
     d = parse_definition(definition)
@@ -745,18 +931,31 @@ def available_actions(
     for a in d.actions:
         if (not include_unlisted and not is_listed(a)) or not is_available(d, state, a):
             continue
-        out.append({
-            "id": a.id, "tool": a.tool, "label": a.label, "kind": a.kind, "description": a.description,
-            "character": a.character,
-            "input": {"type": a.input.type, "placeholder": a.input.placeholder, "min_length": a.input.min_length,
-                      "choices": [{"id": c.id, "label": c.label} for c in a.input.choices]},
-        })
+        out.append(
+            {
+                "id": a.id,
+                "tool": a.tool,
+                "label": a.label,
+                "kind": a.kind,
+                "description": a.description,
+                "character": a.character,
+                "input": {
+                    "type": a.input.type,
+                    "placeholder": a.input.placeholder,
+                    "min_length": a.input.min_length,
+                    "choices": [{"id": c.id, "label": c.label} for c in a.input.choices],
+                },
+            }
+        )
     return out
 
 
 def public_variables(d: SimulationDefinition, state: dict[str, Any]) -> dict[str, Any]:
-    return {k: v for k, v in state["variables"].items()
-            if (spec := d.variables.get(k)) is not None and spec.visibility == "public"}
+    return {
+        k: v
+        for k, v in state["variables"].items()
+        if (spec := d.variables.get(k)) is not None and spec.visibility == "public"
+    }
 
 
 def _phase_list(d: SimulationDefinition, state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -794,29 +993,62 @@ def learner_view(definition: SimulationDefinition | dict[str, Any], state: dict[
     for t in d.tools:
         if not truthy(t.visible_when, ctx):
             continue
-        free = sorted({a.input.type for a in d.actions if a.tool == t.id and a.input.type in ("command", "free_text")})
-        tools.append({"id": t.id, "name": t.name, "panel": t.panel, "description": t.description, "icon": t.icon,
-                      "prompt": render(t.prompt, ctx), "accepts": free})
+        free = sorted(
+            {a.input.type for a in d.actions if a.tool == t.id and a.input.type in ("command", "free_text")}
+        )
+        tools.append(
+            {
+                "id": t.id,
+                "name": t.name,
+                "panel": t.panel,
+                "description": t.description,
+                "icon": t.icon,
+                "prompt": render(t.prompt, ctx),
+                "accepts": free,
+            }
+        )
     revealed = []
     for fid in state["revealed_facts"]:
         found = d.fact(fid)
         if found:
             char, fact = found
-            revealed.append({"id": fid, "character": char.id, "character_name": char.name,
-                             "text": render(fact.text, ctx)})
+            revealed.append(
+                {"id": fid, "character": char.id, "character_name": char.name, "text": render(fact.text, ctx)}
+            )
     pub = public_variables(d, state)
     characters = []
     for c in d.characters:
-        characters.append({"id": c.id, "name": c.name, "role": c.role, "avatar": c.avatar,
-                           "patience": pub.get(c.patience_var) if c.patience_var else None})
+        characters.append(
+            {
+                "id": c.id,
+                "name": c.name,
+                "role": c.role,
+                "avatar": c.avatar,
+                "patience": pub.get(c.patience_var) if c.patience_var else None,
+            }
+        )
     eff = d.scoring.efficiency
     return {
         "schema_version": d.schema_version,
-        "meta": {k: getattr(d.meta, k) for k in ("title", "description", "industry", "environment_type",
-                                                   "difficulty", "estimated_minutes", "briefing", "learner_role",
-                                                   "objectives")},
-        "phase": {"id": state["phase"], "name": ph.name if ph else state["phase"],
-                  "description": ph.description if ph else ""},
+        "meta": {
+            k: getattr(d.meta, k)
+            for k in (
+                "title",
+                "description",
+                "industry",
+                "environment_type",
+                "difficulty",
+                "estimated_minutes",
+                "briefing",
+                "learner_role",
+                "objectives",
+            )
+        },
+        "phase": {
+            "id": state["phase"],
+            "name": ph.name if ph else state["phase"],
+            "description": ph.description if ph else "",
+        },
         "phases": _phase_list(d, state),
         "panels": panels,
         "tools": tools,
@@ -834,14 +1066,39 @@ def learner_view(definition: SimulationDefinition | dict[str, Any], state: dict[
     }
 
 
-_PUBLIC_OUTCOME_KEYS = ("seq", "accepted", "matched", "action_id", "label", "tool", "kind", "character",
-                        "outputs", "messages", "events", "revealed_facts", "problems_added", "problems_removed",
-                        "phase_before", "phase_after", "phase_changed", "time_cost", "sim_minutes", "ended",
-                        "end_reason", "notices", "reason", "message")
+_PUBLIC_OUTCOME_KEYS = (
+    "seq",
+    "accepted",
+    "matched",
+    "action_id",
+    "label",
+    "tool",
+    "kind",
+    "character",
+    "outputs",
+    "messages",
+    "events",
+    "revealed_facts",
+    "problems_added",
+    "problems_removed",
+    "phase_before",
+    "phase_after",
+    "phase_changed",
+    "time_cost",
+    "sim_minutes",
+    "ended",
+    "end_reason",
+    "notices",
+    "reason",
+    "message",
+)
 
 
 def public_outcome(
-    definition: SimulationDefinition | dict[str, Any], outcome: dict[str, Any], *, include_feedback: bool = False
+    definition: SimulationDefinition | dict[str, Any],
+    outcome: dict[str, Any],
+    *,
+    include_feedback: bool = False,
 ) -> dict[str, Any]:
     """Learner-safe projection of a step outcome. Classification, score deltas and feedback are only
     included when ``include_feedback`` (practice mode)."""
@@ -849,8 +1106,11 @@ def public_outcome(
     out = {k: copy.deepcopy(outcome.get(k)) for k in _PUBLIC_OUTCOME_KEYS}
     if out["action_id"] == UNKNOWN_ACTION_ID:
         out["action_id"] = None
-    out["variables_changed"] = [v for v in outcome.get("variables_changed", [])
-                                if (spec := d.variables.get(v)) is not None and spec.visibility == "public"]
+    out["variables_changed"] = [
+        v
+        for v in outcome.get("variables_changed", [])
+        if (spec := d.variables.get(v)) is not None and spec.visibility == "public"
+    ]
     if include_feedback:
         out["classification"] = outcome.get("classification")
         out["feedback"] = outcome.get("feedback") or ""

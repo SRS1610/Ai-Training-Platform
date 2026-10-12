@@ -580,7 +580,16 @@ async def grade_attempt_answers(
         grades.append(g)
         graded_any = True
     await db.flush()
-    human_final = bool(assessment.high_stakes) or assessment.grading_mode == "ai_recommend_human_final"
+    snap_settings = attempt.settings_snapshot or {}  # frozen at attempt start; falls back to the live row
+    high_stakes = bool(snap_settings.get("high_stakes", assessment.high_stakes)) or bool(
+        assessment.high_stakes
+    )
+    mode = snap_settings.get("grading_mode") or assessment.grading_mode
+    human_final = (
+        high_stakes
+        or mode == "ai_recommend_human_final"
+        or assessment.grading_mode == "ai_recommend_human_final"
+    )
     if human_final:
         if attempt.status not in (AttemptStatus.GRADED,):
             attempt.status = AttemptStatus.NEEDS_REVIEW
@@ -614,5 +623,3 @@ async def grade_attempt_answers(
     else:  # pragma: no cover
         log.warning("ai.finalize_attempt_missing")
     return grades
-
-

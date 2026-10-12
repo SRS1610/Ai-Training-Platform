@@ -59,8 +59,8 @@ async def get_document(ctx: Ctx, document_id: uuid.UUID) -> KnowledgeDocument:
 async def _enqueue_ingest(ctx: Ctx, doc: KnowledgeDocument) -> None:
     from app.workers import enqueue
 
-    await ctx.db.commit()  # the worker must see the committed row
-    await enqueue("ai.ingest_document", document_id=str(doc.id), organisation_id=str(ctx.org_id))
+    # Held until the request transaction commits, so the worker always sees the new row.
+    await enqueue("ai.ingest_document", db=ctx.db, document_id=str(doc.id), organisation_id=str(ctx.org_id))
 
 
 async def _new_doc(
@@ -163,6 +163,7 @@ async def update_document(ctx: Ctx, doc: KnowledgeDocument, body: DocumentUpdate
             update(KnowledgeChunk).where(KnowledgeChunk.document_id == doc.id).values(course_id=new_course)
         )
     await ctx.db.flush()
+    await ctx.db.refresh(doc)  # reload server-side updated_at
     await ctx.audit("knowledge.document.updated", "knowledge_document", doc.id)
     return doc
 
@@ -172,6 +173,7 @@ async def set_approval(ctx: Ctx, doc: KnowledgeDocument, approved: bool) -> Know
     doc.approved_by = ctx.user_id if approved else None
     doc.approved_at = datetime.now(UTC) if approved else None
     await ctx.db.flush()
+    await ctx.db.refresh(doc)  # reload server-side updated_at
     await ctx.audit(
         "knowledge.document.approved" if approved else "knowledge.document.unapproved",
         "knowledge_document",
@@ -184,6 +186,7 @@ async def reprocess(ctx: Ctx, doc: KnowledgeDocument) -> KnowledgeDocument:
     doc.status = "pending"
     doc.error = None
     await ctx.db.flush()
+    await ctx.db.refresh(doc)  # reload server-side updated_at
     await ctx.audit("knowledge.document.reprocessed", "knowledge_document", doc.id)
     await _enqueue_ingest(ctx, doc)
     return doc
@@ -271,11 +274,11 @@ async def ingest_document(
         log.info("knowledge.ingested", document_id=str(doc.id), chunks=len(chunks), model=emb.model)
     except (AppError, ExtractionError, OSError, ValueError) as exc:
         await db.rollback()
-        await _mark_failed(db, doc.id, str(getattr(exc, "message", None) or exc))
+        await _mark_failed(db, document_id, str(getattr(exc, "message", None) or exc))
     except Exception as exc:  # noqa: BLE001 - capture any ingestion failure on the document
         log.exception("knowledge.ingest_crashed", document_id=str(document_id))
         await db.rollback()
-        await _mark_failed(db, doc.id, f"Unexpected error: {type(exc).__name__}")
+        await _mark_failed(db, document_id, f"Unexpected error: {type(exc).__name__}")
     return await db.get(KnowledgeDocument, document_id)
 
 

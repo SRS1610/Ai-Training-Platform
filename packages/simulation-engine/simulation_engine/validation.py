@@ -49,8 +49,12 @@ class ValidationReport:
         self.warnings.append(Issue(code, path, message))
 
     def as_dict(self) -> dict[str, Any]:
-        return {"valid": self.valid, "errors": [e.as_dict() for e in self.errors],
-                "warnings": [w.as_dict() for w in self.warnings], "stats": self.stats}
+        return {
+            "valid": self.valid,
+            "errors": [e.as_dict() for e in self.errors],
+            "warnings": [w.as_dict() for w in self.warnings],
+            "stats": self.stats,
+        }
 
 
 def _dupes(ids: list[str]) -> list[str]:
@@ -70,9 +74,15 @@ def validate(definition: SimulationDefinition | dict[str, Any]) -> ValidationRep
                 report.error("schema", ".".join(str(p) for p in err["loc"]), err["msg"])
             return report
     _check(d, report)
-    report.stats = {"actions": len(d.actions), "phases": len(d.phases), "events": len(d.events),
-                    "characters": len(d.characters), "facts": sum(len(c.facts) for c in d.characters),
-                    "panels": len(d.environment.panels), "tools": len(d.tools)}
+    report.stats = {
+        "actions": len(d.actions),
+        "phases": len(d.phases),
+        "events": len(d.events),
+        "characters": len(d.characters),
+        "facts": sum(len(c.facts) for c in d.characters),
+        "panels": len(d.environment.panels),
+        "tools": len(d.tools),
+    }
     return report
 
 
@@ -87,16 +97,27 @@ def _check(d: SimulationDefinition, r: ValidationReport) -> None:  # noqa: C901 
     intents = {i.id for i in d.intents}
     dims = set(d.dimension_ids())
     variables = set(d.variables)
-    problems = {eff.add_problem.id for a in d.actions for br in [a, *a.branches] for eff in br.effects
-                if eff.add_problem} | {eff.add_problem.id for e in d.events for eff in e.effects if eff.add_problem}
+    problems = {
+        eff.add_problem.id
+        for a in d.actions
+        for br in [a, *a.branches]
+        for eff in br.effects
+        if eff.add_problem
+    } | {eff.add_problem.id for e in d.events for eff in e.effects if eff.add_problem}
     secret = {k for k, v in d.variables.items() if v.visibility == "secret"}
 
-    for label, ids in (("panel", [p.id for p in d.environment.panels]), ("tool", [t.id for t in d.tools]),
-                       ("character", [c.id for c in d.characters]),
-                       ("fact", [f.id for c in d.characters for f in c.facts]),
-                       ("phase", [p.id for p in d.phases]), ("action", [a.id for a in d.actions]),
-                       ("event", [e.id for e in d.events]), ("intent", [i.id for i in d.intents]),
-                       ("dimension", d.dimension_ids()), ("feedback_rule", [f.id for f in d.feedback_rules])):
+    for label, ids in (
+        ("panel", [p.id for p in d.environment.panels]),
+        ("tool", [t.id for t in d.tools]),
+        ("character", [c.id for c in d.characters]),
+        ("fact", [f.id for c in d.characters for f in c.facts]),
+        ("phase", [p.id for p in d.phases]),
+        ("action", [a.id for a in d.actions]),
+        ("event", [e.id for e in d.events]),
+        ("intent", [i.id for i in d.intents]),
+        ("dimension", d.dimension_ids()),
+        ("feedback_rule", [f.id for f in d.feedback_rules]),
+    ):
         for dup in _dupes(ids):
             r.error("duplicate_id", label, f"Duplicate {label} id '{dup}'")
 
@@ -106,8 +127,14 @@ def _check(d: SimulationDefinition, r: ValidationReport) -> None:  # noqa: C901 
         errors, refs = check_condition(c)
         for e in errors:
             r.error("condition", path, e)
-        for kind, known in (("variables", variables), ("facts", facts), ("phases", phases), ("actions", actions),
-                            ("events", events), ("problems", problems)):
+        for kind, known in (
+            ("variables", variables),
+            ("facts", facts),
+            ("phases", phases),
+            ("actions", actions),
+            ("events", events),
+            ("problems", problems),
+        ):
             for ref in sorted(refs[kind] - known):
                 r.error("unknown_ref", path, f"Condition references unknown {kind[:-1]} '{ref}'")
 
@@ -192,7 +219,11 @@ def _check(d: SimulationDefinition, r: ValidationReport) -> None:  # noqa: C901 
     # environment
     for i, p in enumerate(d.environment.panels):
         if p.type not in KNOWN_PANEL_TYPES:
-            r.warn("panel_type", f"environment.panels[{i}]", f"Unknown panel type '{p.type}' (rendered generically)")
+            r.warn(
+                "panel_type",
+                f"environment.panels[{i}]",
+                f"Unknown panel type '{p.type}' (rendered generically)",
+            )
         cond(p.visible_when, f"environment.panels[{i}].visible_when")
         walk_text(p.data, f"environment.panels[{i}].data")
         for j, v in enumerate(p.variants):
@@ -238,8 +269,11 @@ def _check(d: SimulationDefinition, r: ValidationReport) -> None:  # noqa: C901 
         for j, aa in enumerate(ph.auto_advance):
             cond(aa.when, f"phases[{i}].auto_advance[{j}].when")
             if aa.to not in ph.transitions:
-                r.error("transition", f"phases[{i}].auto_advance[{j}]",
-                        f"Auto-advance from '{ph.id}' to '{aa.to}' is not an allowed transition")
+                r.error(
+                    "transition",
+                    f"phases[{i}].auto_advance[{j}]",
+                    f"Auto-advance from '{ph.id}' to '{aa.to}' is not an allowed transition",
+                )
 
     # actions
     for i, a in enumerate(d.actions):
@@ -310,6 +344,12 @@ def _check(d: SimulationDefinition, r: ValidationReport) -> None:  # noqa: C901 
 
 def _graph_checks(d: SimulationDefinition, r: ValidationReport) -> None:
     phases = {p.id for p in d.phases}
+    if (
+        d.completion.success is None
+        and not any(p.terminal for p in d.phases)
+        and not any(eff.complete for a in d.actions for s in [a, *a.branches] for eff in s.effects)
+    ):
+        r.error("no_completion", "completion", "No completion condition, terminal phase or completing action")
     if d.initial_phase not in phases:
         return
     forced: dict[str, set[str]] = {}
@@ -338,16 +378,19 @@ def _graph_checks(d: SimulationDefinition, r: ValidationReport) -> None:
         if p.id not in seen:
             r.error("unreachable_phase", f"phases.{p.id}", f"Phase '{p.id}' can never be reached")
         elif not p.terminal and not p.transitions and not forced.get(p.id):
-            ends = any(eff.complete for a in d.actions for s in [a, *a.branches] for eff in s.effects
-                       if not a.phases or p.id in a.phases)
+            ends = any(
+                eff.complete
+                for a in d.actions
+                for s in [a, *a.branches]
+                for eff in s.effects
+                if not a.phases or p.id in a.phases
+            )
             if not ends and d.completion.success is None:
-                r.error("dead_end", f"phases.{p.id}", f"Phase '{p.id}' has no way forward and no way to finish")
+                r.error(
+                    "dead_end", f"phases.{p.id}", f"Phase '{p.id}' has no way forward and no way to finish"
+                )
             elif not ends:
                 r.warn("dead_end", f"phases.{p.id}", f"Phase '{p.id}' has no outgoing transitions")
-    if d.completion.success is None and not any(p.terminal for p in d.phases) and not any(
-        eff.complete for a in d.actions for s in [a, *a.branches] for eff in s.effects
-    ):
-        r.error("no_completion", "completion", "No completion condition, terminal phase or completing action")
 
 
 def _reachability_checks(d: SimulationDefinition, r: ValidationReport) -> None:
@@ -371,10 +414,15 @@ def _reachability_checks(d: SimulationDefinition, r: ValidationReport) -> None:
         if dim.baseline == "full" or k == eff_dim:
             continue
         if achievable[k] < dim.max_points:
-            r.warn("unreachable_max", f"scoring.dimensions.{k}",
-                   f"'{dim.name}' can reach at most {achievable[k]:g} of {dim.max_points:g} points")
-    if not any(a.classification == "correct" or any(b.classification == "correct" for b in a.branches)
-               for a in d.actions):
+            r.warn(
+                "unreachable_max",
+                f"scoring.dimensions.{k}",
+                f"'{dim.name}' can reach at most {achievable[k]:g} of {dim.max_points:g} points",
+            )
+    if not any(
+        a.classification == "correct" or any(b.classification == "correct" for b in a.branches)
+        for a in d.actions
+    ):
         r.warn("no_correct_actions", "actions", "No action is classified as correct")
     phases_with_actions = {p for a in d.actions for p in (a.phases or [x.id for x in d.phases])}
     for p in d.phases:
@@ -416,10 +464,21 @@ def repair(raw: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     for p in d["phases"]:
         p.setdefault("name", str(p.get("id", "")).title())
         p["transitions"] = [t for t in p.get("transitions", []) if t in phase_ids]
-        p["auto_advance"] = [aa for aa in p.get("auto_advance", []) if isinstance(aa, dict)
-                             and aa.get("to") in p["transitions"]]
-    for key in ("tools", "characters", "intents", "actions", "events", "feedback_rules", "variations",
-                "opening_messages"):
+        p["auto_advance"] = [
+            aa
+            for aa in p.get("auto_advance", [])
+            if isinstance(aa, dict) and aa.get("to") in p["transitions"]
+        ]
+    for key in (
+        "tools",
+        "characters",
+        "intents",
+        "actions",
+        "events",
+        "feedback_rules",
+        "variations",
+        "opening_messages",
+    ):
         if not isinstance(d.get(key), list):
             d[key] = []
     if not isinstance(d.get("variables"), dict):
@@ -444,11 +503,13 @@ def repair(raw: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     sc = d.get("scoring") if isinstance(d.get("scoring"), dict) else {}
     dims = [x for x in sc.get("dimensions", []) if isinstance(x, dict) and x.get("id")]
     if not dims:
-        dims = [{"id": "technical_accuracy", "name": "Technical accuracy", "weight": 40, "max_points": 20},
-                {"id": "troubleshooting_process", "name": "Process", "weight": 25, "max_points": 15},
-                {"id": "communication", "name": "Communication", "weight": 15, "max_points": 10},
-                {"id": "decision_making", "name": "Decision making", "weight": 10, "max_points": 10},
-                {"id": "efficiency", "name": "Efficiency", "weight": 10, "max_points": 10}]
+        dims = [
+            {"id": "technical_accuracy", "name": "Technical accuracy", "weight": 40, "max_points": 20},
+            {"id": "troubleshooting_process", "name": "Process", "weight": 25, "max_points": 15},
+            {"id": "communication", "name": "Communication", "weight": 15, "max_points": 10},
+            {"id": "decision_making", "name": "Decision making", "weight": 10, "max_points": 10},
+            {"id": "efficiency", "name": "Efficiency", "weight": 10, "max_points": 10},
+        ]
         notes.append("Added default scoring dimensions")
     for x in dims:
         x.setdefault("name", x["id"].replace("_", " ").title())
@@ -467,13 +528,17 @@ def repair(raw: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     sc["dimensions"] = dims
     dim_ids = {x["id"] for x in dims}
     for key in ("efficiency", "process"):
-        if isinstance(sc.get(key), dict) and sc[key].get("dimension", "efficiency" if key == "efficiency"
-                                                         else "troubleshooting_process") not in dim_ids:
+        if (
+            isinstance(sc.get(key), dict)
+            and sc[key].get("dimension", "efficiency" if key == "efficiency" else "troubleshooting_process")
+            not in dim_ids
+        ):
             sc.pop(key)
             notes.append(f"Removed {key} scoring that referenced a missing dimension")
     if isinstance(sc.get("process"), dict):
-        sc["process"]["required_order"] = [p for p in sc["process"].get("required_order", DEFAULT_PHASE_ORDER)
-                                           if p in phase_ids]
+        sc["process"]["required_order"] = [
+            p for p in sc["process"].get("required_order", DEFAULT_PHASE_ORDER) if p in phase_ids
+        ]
     d["scoring"] = sc
     var_names = set(d["variables"])
     kept = []
@@ -502,13 +567,24 @@ def repair(raw: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     for e in d["events"]:
         _repair_outcome(e, dim_ids, var_names, fact_ids, phase_ids, notes)
     action_ids = {a["id"] for a in kept}
-    d["events"] = [e for e in d["events"] if isinstance(e, dict) and isinstance(e.get("trigger"), dict) and (
-        e["trigger"].get("type") != "after_action" or e["trigger"].get("action") in action_ids)]
+    d["events"] = [
+        e
+        for e in d["events"]
+        if isinstance(e, dict)
+        and isinstance(e.get("trigger"), dict)
+        and (e["trigger"].get("type") != "after_action" or e["trigger"].get("action") in action_ids)
+    ]
     return d, notes
 
 
-def _repair_outcome(spec: dict[str, Any], dims: set[str], var_names: set[str], fact_ids: set[str],
-                    phase_ids: list[str], notes: list[str]) -> None:
+def _repair_outcome(
+    spec: dict[str, Any],
+    dims: set[str],
+    var_names: set[str],
+    fact_ids: set[str],
+    phase_ids: list[str],
+    notes: list[str],
+) -> None:
     if isinstance(spec.get("score"), dict):
         spec["score"] = {k: v for k, v in spec["score"].items() if k in dims and isinstance(v, int | float)}
     effects = []

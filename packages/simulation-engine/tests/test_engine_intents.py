@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from simulation_engine.intents import Vocabulary, match_intents, normalise, normalise_command, score_intent, stem
+from simulation_engine.intents import (
+    Vocabulary,
+    match_intents,
+    normalise,
+    normalise_command,
+    score_intent,
+    stem,
+)
 from simulation_engine.schema import Intent
 
 
@@ -15,7 +22,11 @@ def test_normalise_and_stem():
 
 def test_vocabulary_synonyms():
     v = Vocabulary({"intranet": ["sharepoint"]})
-    assert v.tokens("When did the laptop begin failing?", keep_question_words=True)[:3] == ["when", "computer", "start"]
+    assert v.tokens("When did the laptop begin failing?", keep_question_words=True)[:3] == [
+        "when",
+        "computer",
+        "start",
+    ]
     assert v.canon("sharepoint") == "intranet"
 
 
@@ -27,13 +38,16 @@ INTENTS = [
 ]
 
 
-@pytest.mark.parametrize("text, expected", [
-    ("When did this begin?", "when"),
-    ("how long has it been like this", "when"),
-    ("What errror do you get?", "error"),  # typo tolerated
-    ("what do you see on your screen right now", "error"),
-    ("Is anyone else having this?", "other"),
-])
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("When did this begin?", "when"),
+        ("how long has it been like this", "when"),
+        ("What errror do you get?", "error"),  # typo tolerated
+        ("what do you see on your screen right now", "error"),
+        ("Is anyone else having this?", "other"),
+    ],
+)
 def test_match_intents(text, expected):
     hits = match_intents(text, INTENTS, Vocabulary())
     assert hits and hits[0][0] == expected

@@ -76,7 +76,7 @@ class AIConfigUpdate(BaseModel):
     def _behaviour(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
         if v is None:
             return v
-        allowed = {"tone", "socratic", "citations", "language", "max_hint_level"}
+        allowed = {"tone", "socratic", "citations", "cite_sources", "language", "max_hint_level"}
         return {k: val for k, val in v.items() if k in allowed}
 
 

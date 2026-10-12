@@ -1,6 +1,6 @@
 "use client";
 
-import type { InvitationLookup, Me } from "@praxis/types";
+import type { InvitationAcceptOut, InvitationLookup, Me } from "@praxis/types";
 import { Alert, Avatar, Button, EmptyState, FormField, Input, Skeleton, humanize } from "@praxis/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Mail, User } from "lucide-react";
@@ -10,7 +10,7 @@ import * as React from "react";
 import { z } from "zod";
 import { PasswordInput, PasswordStrength } from "@/components/auth/password-input";
 import { applyApiErrors, useZodForm } from "@/components/forms/form";
-import { api, ApiError, errorMessage } from "@/lib/api";
+import { api, ApiError, errorMessage, readCookie } from "@/lib/api";
 import { setActiveOrgId } from "@/lib/org";
 import { qk } from "@/lib/query-keys";
 
@@ -38,7 +38,7 @@ export function AcceptInvite() {
     // Accepting may or may not sign the user in; check and route accordingly.
     try {
       const me = await api.get<Me>("/me", { redirectOn401: false, noOrg: true });
-      const orgId = (lookup.data?.organisation as { id?: string } | null | undefined)?.id;
+      const orgId = lookup.data?.organisation_id;
       if (orgId && me.organisations.some((o) => o.id === orgId)) setActiveOrgId(orgId);
       qc.clear();
       router.replace("/app/dashboard?welcome=1");
@@ -51,9 +51,13 @@ export function AcceptInvite() {
     setError(null);
     setJoining(true);
     try {
-      await api.post("/invitations/accept", { token, ...body }, { redirectOn401: false, noOrg: true });
+      await api.post<InvitationAcceptOut>("/invitations/accept", { token, accept_terms: true, ...body }, { redirectOn401: false, noOrg: true });
       await finish();
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.push(`/login?email=${encodeURIComponent(lookup.data?.email ?? "")}&next=${encodeURIComponent(`/accept-invite?token=${encodeURIComponent(token)}`)}`);
+        return;
+      }
       setError(err instanceof ApiError && err.status === 404 ? "This invitation is no longer valid." : applyApiErrors(form, err));
       setJoining(false);
     }
@@ -100,16 +104,18 @@ export function AcceptInvite() {
   }
 
   const inv = lookup.data!;
-  const orgName = inv.organisation_name ?? inv.organisation?.name ?? "your organisation";
-  const role = inv.role ?? inv.roles?.[0];
+  const signedIn = !!readCookie("praxis_csrf");
+  const loginHref = `/login?email=${encodeURIComponent(inv.email)}&next=${encodeURIComponent(`/accept-invite?token=${encodeURIComponent(token)}`)}`;
+  const orgName = inv.organisation_name || "your organisation";
+  const role = inv.roles?.[0];
 
   return (
     <>
       <div className="mb-8">
-        <Avatar name={orgName} src={inv.organisation?.logo_url} size="xl" shape="rounded" className="mb-5 shadow-glow" />
+        <Avatar name={orgName} src={inv.organisation_logo_url} size="xl" shape="rounded" className="mb-5 shadow-glow" />
         <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900">Join {orgName}</h1>
         <p className="mt-2 text-slate-600">
-          {inv.inviter_name ? <>{inv.inviter_name} invited you</> : <>You&apos;ve been invited</>} to train on Praxis
+          {inv.invited_by_name ? <>{inv.invited_by_name} invited you</> : <>You&apos;ve been invited</>} to train on Praxis
           {role ? (
             <>
               {" "}
@@ -124,14 +130,21 @@ export function AcceptInvite() {
           {error}
         </Alert>
       )}
-      {inv.user_exists ? (
+      {inv.existing_account ? (
         <div className="space-y-4">
           <Alert tone="brand">
-            You already have a Praxis account for <strong>{inv.email}</strong>. Accept to add {orgName} to your organisations.
+            You already have a Praxis account for <strong>{inv.email}</strong>.{" "}
+            {signedIn ? <>Accept to add {orgName} to your organisations.</> : <>Sign in with that account to accept.</>}
           </Alert>
-          <Button variant="gradient" size="lg" block loading={joining} onClick={() => accept({})}>
-            Accept invitation
-          </Button>
+          {signedIn ? (
+            <Button variant="gradient" size="lg" block loading={joining} onClick={() => accept({})}>
+              Accept invitation
+            </Button>
+          ) : (
+            <Button asChild variant="gradient" size="lg" block>
+              <Link href={loginHref}>Sign in to accept</Link>
+            </Button>
+          )}
         </div>
       ) : (
         <form onSubmit={form.handleSubmit((v) => accept(v))} noValidate className="space-y-5">

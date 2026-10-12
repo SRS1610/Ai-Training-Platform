@@ -1,6 +1,6 @@
 "use client";
 
-import type { SearchHit } from "@praxis/types";
+import type { SearchGroup, SearchItem, SearchResponse } from "@praxis/types";
 import {
   CommandDialog,
   CommandEmpty,
@@ -40,21 +40,19 @@ const TYPE_ROUTES: Record<string, (id: string) => string> = {
   certificate: () => `/app/certificates`,
 };
 
-/** Normalise the (concurrently built) search response into a flat list of hits. */
-export function normaliseSearch(data: unknown): SearchHit[] {
+/** Normalise the search response ({groups:[{type,label,items}]}) — tolerant of flat shapes too. */
+export function normaliseSearch(data: unknown): SearchGroup[] {
   if (!data || typeof data !== "object") return [];
-  const d = data as Record<string, unknown>;
-  const list = Array.isArray(d.items) ? d.items : Array.isArray(d.results) ? d.results : Array.isArray(data) ? (data as unknown[]) : null;
-  if (list) return list as SearchHit[];
-  const out: SearchHit[] = [];
-  for (const [group, items] of Object.entries(d)) {
-    if (Array.isArray(items)) for (const it of items) out.push({ type: group.replace(/s$/, ""), ...(it as object) } as SearchHit);
-  }
-  return out;
+  const d = data as Partial<SearchResponse> & { items?: SearchItem[]; results?: SearchItem[] };
+  if (Array.isArray(d.groups)) return d.groups.filter((g) => g.items?.length);
+  const flat = d.items ?? d.results ?? (Array.isArray(data) ? (data as SearchItem[]) : []);
+  const byType = new Map<string, SearchItem[]>();
+  for (const it of flat) byType.set(it.type, [...(byType.get(it.type) ?? []), it]);
+  return [...byType.entries()].map(([type, items]) => ({ type, label: humanize(type), items }));
 }
 
-function hitHref(h: SearchHit): string {
-  return h.link ?? h.url ?? TYPE_ROUTES[h.type]?.(h.id) ?? "/app/dashboard";
+function hitHref(h: SearchItem): string {
+  return h.link || TYPE_ROUTES[h.type]?.(String(h.id)) || "/app/dashboard";
 }
 
 export function useCommandPaletteHotkey(setOpen: React.Dispatch<React.SetStateAction<boolean>>) {
@@ -95,11 +93,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     staleTime: 30_000,
     retry: false,
   });
-  const hits = normaliseSearch(search.data);
-  const grouped = hits.reduce<Record<string, SearchHit[]>>((acc, h) => {
-    (acc[h.type] ??= []).push(h);
-    return acc;
-  }, {});
+  const groups = normaliseSearch(search.data);
 
   const nav = visibleNav(can, !!user?.is_superadmin).flatMap((s) => s.items.map((i) => ({ ...i, section: s.label })));
   const needle = q.trim().toLowerCase();
@@ -154,10 +148,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           </span>
         </CommandEmpty>
 
-        {Object.entries(grouped).map(([type, items]) => {
+        {groups.map(({ type, label, items }) => {
           const c = categoryClasses(type);
           return (
-            <CommandGroup key={type} heading={humanize(type)}>
+            <CommandGroup key={type} heading={label}>
               {items.map((h) => (
                 <CommandItem key={`${type}-${h.id}`} value={`${type}-${h.id}`} onSelect={() => go(hitHref(h))}>
                   <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", c.soft, c.icon)}>

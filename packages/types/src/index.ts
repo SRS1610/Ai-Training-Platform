@@ -224,21 +224,31 @@ export interface MeUpdate {
 /* ------------------------------------------------------------------ invitations */
 
 export interface InvitationLookup {
+  organisation_id: UUID;
+  organisation_name: string;
+  organisation_logo_url: string | null;
   email: string;
-  organisation_name?: string;
-  organisation?: { id: UUID; name: string; logo_url?: string | null } | null;
-  role?: string | null;
-  roles?: string[];
-  inviter_name?: string | null;
-  expires_at?: ISODateTime | null;
-  user_exists?: boolean;
-  [key: string]: unknown;
+  roles: string[];
+  invited_by_name: string | null;
+  expires_at: ISODateTime;
+  existing_account: boolean;
 }
 
 export interface InvitationAcceptIn {
   token: string;
-  full_name?: string;
-  password?: string;
+  full_name?: string | null;
+  password?: string | null;
+  accept_terms?: boolean;
+}
+
+export interface InvitationAcceptOut {
+  organisation_id: UUID;
+  user_id: UUID;
+  account_created: boolean;
+  access_token: string | null;
+  refresh_token: string | null;
+  csrf_token: string | null;
+  expires_at: ISODateTime | null;
 }
 
 /* ------------------------------------------------------------------ dashboard */
@@ -365,23 +375,36 @@ export interface Notification {
 }
 
 export interface UnreadCount {
-  count?: number;
-  unread?: number;
+  count: number;
 }
 
 /* ------------------------------------------------------------------ search */
 
-export interface SearchHit {
+export interface SearchItem {
+  id: UUID | string;
   type: string;
-  id: UUID;
   title: string;
   subtitle?: string | null;
   snippet?: string | null;
-  link?: string | null;
-  url?: string | null;
+  status?: string | null;
+  link: string;
+  score?: number;
+  meta?: Record<string, unknown>;
 }
 
-export type SearchResponse =
-  | { items: SearchHit[]; total?: number }
-  | { results: SearchHit[] }
-  | Record<string, SearchHit[]>;
+export interface SearchGroup {
+  type: string;
+  label: string;
+  items: SearchItem[];
+}
+
+export interface SearchResponse {
+  query: string;
+  total: number;
+  groups: SearchGroup[];
+  types_searched: string[];
+  fuzzy: boolean;
+}
+
+/** @deprecated use SearchItem */
+export type SearchHit = SearchItem;

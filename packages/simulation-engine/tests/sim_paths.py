@@ -22,9 +22,11 @@ def act(action_id: str, inp: Any = None) -> Step:
     return (action_id, inp, None, None)
 
 
-HELPDESK_NOTES = ("Root cause: GlobalConnect VPN 5.2.1 update left a stale static DNS server on the adapter. "
-                  "Fix: reset DNS to DHCP (automatic) and ipconfig /flushdns. Verified with nslookup "
-                  "intranet.corp.local; user confirmed.")
+HELPDESK_NOTES = (
+    "Root cause: GlobalConnect VPN 5.2.1 update left a stale static DNS server on the adapter. "
+    "Fix: reset DNS to DHCP (automatic) and ipconfig /flushdns. Verified with nslookup "
+    "intranet.corp.local; user confirmed."
+)
 
 HELPDESK_OPTIMAL: list[Step] = [
     act("review_ticket"),
@@ -55,16 +57,27 @@ HELPDESK_OPTIMAL: list[Step] = [
 ]
 
 PHISHING_OPTIMAL: list[Step] = [
-    act("open_report"), act("view_headers"), act("sandbox_url"), act("query_siem"), act("search_mailboxes"),
+    act("open_report"),
+    act("view_headers"),
+    act("sandbox_url"),
+    act("query_siem"),
+    act("search_mailboxes"),
     act("classify", {"choice": "phishing"}),
     chat("Quick update: credential phishing campaign, 47 recipients, one account compromised.", "tom"),
-    act("quarantine_all"), act("block_sender"), act("reset_jnguyen"),
+    act("quarantine_all"),
+    act("block_sender"),
+    act("reset_jnguyen"),
     chat("Did you enter your password on that page?", "jasmine"),
     chat("Did you get an MFA push notification and approve it?", "jasmine"),
     act("notify_ir"),
     chat("You did the right thing reporting it, you're not in trouble.", "jasmine"),
-    act("send_awareness", {"text": "A phishing email impersonating Microsoft was quarantined. If you clicked the "
-                                   "link or entered your password, report it to the service desk."}),
+    act(
+        "send_awareness",
+        {
+            "text": "A phishing email impersonating Microsoft was quarantined. If you clicked the "
+            "link or entered your password, report it to the service desk."
+        },
+    ),
     act("close_incident"),
 ]
 
@@ -74,11 +87,18 @@ RESTAURANT_OPTIMAL: list[Step] = [
     chat("I'm so sorry, this is unacceptable and we take it very seriously.", "daniel"),
     chat("Mia, what happened with the order?", "mia"),
     chat("Luca, how was the garnish plated?", "luca"),
-    act("check_kitchen_log"), act("check_allergen_chart"), act("remove_hazard"),
+    act("check_kitchen_log"),
+    act("check_allergen_chart"),
+    act("remove_hazard"),
     chat("Tonight's meal is on the house, no charge.", "daniel"),
     act("notify_supervisor"),
-    act("write_incident_report", {"text": "Peanut allergy declared on docket by Mia; garnish taken from satay tray "
-                                          "at 19:42. First aid given, ambulance called."}),
+    act(
+        "write_incident_report",
+        {
+            "text": "Peanut allergy declared on docket by Mia; garnish taken from satay tray "
+            "at 19:42. First aid given, ambulance called."
+        },
+    ),
     act("close_case"),
 ]
 

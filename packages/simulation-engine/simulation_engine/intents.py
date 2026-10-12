@@ -9,12 +9,14 @@ from difflib import SequenceMatcher
 
 from simulation_engine.schema import Intent
 
-STOPWORDS = frozenset("""
+STOPWORDS = frozenset(
+    """
 a an the is are was were be been am do does did to of in on at for with and or but if it its this that
 these those i you your yours me my we our us he she they them their there here can could would should will
 shall may might please just so ok okay any some about from by as into than then also have has had
 what whats when where which who whom why how
-""".split())
+""".split()
+)
 
 # Question words matter for intent ("when did it start" vs "what started"), so they are kept in patterns
 # even though they are stopwords for example-overlap scoring.
@@ -24,15 +26,36 @@ BUILTIN_SYNONYMS: dict[str, list[str]] = {
     "computer": ["pc", "laptop", "machine", "notebook", "device", "workstation"],
     "start": ["began", "begin", "beginning", "started", "starting", "commence"],
     "error": ["errors", "message", "msg", "warning", "popup", "prompt", "alert"],
-    "change": ["changed", "changes", "update", "updated", "updates", "install", "installed", "upgrade",
-               "upgraded", "new"],
+    "change": [
+        "changed",
+        "changes",
+        "update",
+        "updated",
+        "updates",
+        "install",
+        "installed",
+        "upgrade",
+        "upgraded",
+        "new",
+    ],
     "wireless": ["wifi", "wlan", "wi"],
     "wired": ["ethernet", "cable", "lan", "plugged"],
     "other": ["another", "others", "else", "colleague", "colleagues", "coworker", "phone"],
     "work": ["working", "works", "worked", "function", "functioning"],
     "internet": ["web", "online", "website", "websites", "browse", "browsing", "site", "sites"],
-    "see": ["show", "showing", "display", "displayed", "says", "say", "saying", "read", "reads", "appear",
-            "appears"],
+    "see": [
+        "show",
+        "showing",
+        "display",
+        "displayed",
+        "says",
+        "say",
+        "saying",
+        "read",
+        "reads",
+        "appear",
+        "appears",
+    ],
     "problem": ["issue", "issues", "problems", "trouble", "fault", "symptom", "symptoms"],
     "hello": ["hi", "hey", "morning", "afternoon", "evening", "greetings"],
     "thank": ["thanks", "thankyou", "cheers", "appreciate"],
@@ -75,7 +98,9 @@ class Vocabulary:
     def canon(self, word: str) -> str:
         return self.map.get(word) or self.map.get(stem(word)) or stem(word)
 
-    def tokens(self, text: str, *, drop_stopwords: bool = True, keep_question_words: bool = False) -> list[str]:
+    def tokens(
+        self, text: str, *, drop_stopwords: bool = True, keep_question_words: bool = False
+    ) -> list[str]:
         out = []
         for w in _WORD.findall(normalise(text)):
             if drop_stopwords and w in STOPWORDS and not (keep_question_words and w in QUESTION_WORDS):
@@ -89,7 +114,9 @@ def _word_match(p: str, words: Iterable[str]) -> bool:
         if w == p:
             return True
         if len(p) >= 4 and len(w) >= 4:
-            if (len(p) >= 5 and (w.startswith(p) or p.startswith(w))) or SequenceMatcher(None, p, w).ratio() >= 0.84:
+            if (len(p) >= 5 and (w.startswith(p) or p.startswith(w))) or SequenceMatcher(
+                None, p, w
+            ).ratio() >= 0.84:
                 return True
     return False
 

@@ -37,7 +37,9 @@ def process_adherence(d: SimulationDefinition, state: dict[str, Any]) -> dict[st
     return {"skipped": skipped, "penalty": proc.skip_penalty * len(skipped), "order": visited}
 
 
-def compute_scores(definition: SimulationDefinition | dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+def compute_scores(
+    definition: SimulationDefinition | dict[str, Any], state: dict[str, Any]
+) -> dict[str, Any]:
     d = parse_definition(definition)
     sc = d.scoring
     process = process_adherence(d, state)
@@ -55,8 +57,17 @@ def compute_scores(definition: SimulationDefinition | dict[str, Any], state: dic
         pct = raw / dim.max_points if dim.max_points > 0 else 0.0
         weighted = pct * dim.weight
         total += weighted
-        dims.append({"id": dim.id, "name": dim.name, "weight": dim.weight, "raw": round(raw, 2),
-                     "max_points": dim.max_points, "percent": round(pct * 100, 1), "score": round(weighted, 2)})
+        dims.append(
+            {
+                "id": dim.id,
+                "name": dim.name,
+                "weight": dim.weight,
+                "raw": round(raw, 2),
+                "max_points": dim.max_points,
+                "percent": round(pct * 100, 1),
+                "score": round(weighted, 2),
+            }
+        )
     total = round(total, 1)
     critical = bool(state.get("criticals"))
     if critical and sc.critical_cap is not None:
@@ -64,9 +75,16 @@ def compute_scores(definition: SimulationDefinition | dict[str, Any], state: dic
     band = band_for(d, total)
     completed = state.get("end_reason") == "success"
     passed = total >= sc.pass_mark and not critical and (completed or not sc.require_completion)
-    return {"total_score": total, "band": band, "passed": passed, "dimensions": dims,
-            "critical_failure": critical, "completed": completed, "process": process,
-            "efficiency_factor": round(eff_factor, 3)}
+    return {
+        "total_score": total,
+        "band": band,
+        "passed": passed,
+        "dimensions": dims,
+        "critical_failure": critical,
+        "completed": completed,
+        "process": process,
+        "efficiency_factor": round(eff_factor, 3),
+    }
 
 
 def band_for(definition: SimulationDefinition | dict[str, Any], total: float) -> str:
@@ -87,7 +105,12 @@ def _label(d: SimulationDefinition, action_id: str) -> str:
 
 def build_feedback(d: SimulationDefinition, state: dict[str, Any], scores: dict[str, Any]) -> dict[str, Any]:
     ctx = EvalContext.from_state(state)
-    buckets: dict[str, list[dict[str, Any]]] = {"strength": [], "improvement": [], "missed_step": [], "tip": []}
+    buckets: dict[str, list[dict[str, Any]]] = {
+        "strength": [],
+        "improvement": [],
+        "missed_step": [],
+        "tip": [],
+    }
     for rule in sorted(d.feedback_rules, key=lambda r: -r.priority):
         if truthy(rule.when, ctx):
             buckets[rule.type].append({"id": rule.id, "text": rule.text})
@@ -105,34 +128,64 @@ def build_feedback(d: SimulationDefinition, state: dict[str, Any], scores: dict[
         if key in seen:
             continue
         seen.add(key)
-        item = {"action_id": h["action_id"], "label": h["label"], "feedback": spec.feedback if spec else "",
-                "minutes": h["minutes"]}
+        item = {
+            "action_id": h["action_id"],
+            "label": h["label"],
+            "feedback": spec.feedback if spec else "",
+            "minutes": h["minutes"],
+        }
         (critical if h["classification"] == "critical" else incorrect).append(item)
     for ev_id in [c for c in state.get("criticals", []) if c.startswith("event:")]:
         ev = d.event(ev_id[6:])
-        critical.append({"action_id": ev_id, "label": _label(d, ev_id), "feedback": ev.feedback if ev else "",
-                         "minutes": None})
+        critical.append(
+            {
+                "action_id": ev_id,
+                "label": _label(d, ev_id),
+                "feedback": ev.feedback if ev else "",
+                "minutes": None,
+            }
+        )
     for skipped in scores["process"]["skipped"]:
         ph = d.phase(skipped)
-        buckets["improvement"].append({
-            "id": f"process_skipped_{skipped}",
-            "text": f"You skipped the {ph.name if ph else skipped} phase. Follow the full troubleshooting "
-                    "process instead of jumping ahead.",
-        })
+        buckets["improvement"].append(
+            {
+                "id": f"process_skipped_{skipped}",
+                "text": f"You skipped the {ph.name if ph else skipped} phase. Follow the full "
+                "troubleshooting process instead of jumping ahead.",
+            }
+        )
     weakest = sorted(scores["dimensions"], key=lambda x: x["percent"])
     if weakest and weakest[0]["percent"] < 60:
-        buckets["tip"].append({"id": f"focus_{weakest[0]['id']}",
-                               "text": f"Focus area: {weakest[0]['name']} ({weakest[0]['percent']}%)."})
-    timeline = [{"seq": h["seq"], "minutes": h["minutes"], "type": h["type"], "label": h["label"],
-                 "classification": h["classification"], "phase": h.get("phase_after") or h.get("phase_before")}
-                for h in state.get("history", [])]
+        buckets["tip"].append(
+            {
+                "id": f"focus_{weakest[0]['id']}",
+                "text": f"Focus area: {weakest[0]['name']} ({weakest[0]['percent']}%).",
+            }
+        )
+    timeline = [
+        {
+            "seq": h["seq"],
+            "minutes": h["minutes"],
+            "type": h["type"],
+            "label": h["label"],
+            "classification": h["classification"],
+            "phase": h.get("phase_after") or h.get("phase_before"),
+        }
+        for h in state.get("history", [])
+    ]
     reason = state.get("end_reason")
-    reason_text = {"success": "resolved the scenario", "failure": "ended the scenario unsuccessfully",
-                   "escalated": "escalated the scenario", "timeout": "ran out of time",
-                   "action_limit": "reached the action limit"}.get(reason or "", "did not finish the scenario")
-    summary = (f"You {reason_text} in {state.get('minutes', 0):g} simulated minutes and scored "
-               f"{scores['total_score']:g}/100 ({scores['band']}). "
-               + ("Passed." if scores["passed"] else "Not yet passed."))
+    reason_text = {
+        "success": "resolved the scenario",
+        "failure": "ended the scenario unsuccessfully",
+        "escalated": "escalated the scenario",
+        "timeout": "ran out of time",
+        "action_limit": "reached the action limit",
+    }.get(reason or "", "did not finish the scenario")
+    summary = (
+        f"You {reason_text} in {state.get('minutes', 0):g} simulated minutes and scored "
+        f"{scores['total_score']:g}/100 ({scores['band']}). "
+        + ("Passed." if scores["passed"] else "Not yet passed.")
+    )
     if critical:
         summary += " A critical error capped your score."
     return {
@@ -158,7 +211,10 @@ def finish(definition: SimulationDefinition | dict[str, Any], state: dict[str, A
     feedback = build_feedback(d, st, scores)
     eff = d.scoring.efficiency
     return {
-        **{k: scores[k] for k in ("total_score", "band", "passed", "dimensions", "critical_failure", "completed")},
+        **{
+            k: scores[k]
+            for k in ("total_score", "band", "passed", "dimensions", "critical_failure", "completed")
+        },
         "end_reason": st["end_reason"],
         "sim_minutes": st.get("minutes", 0.0),
         "target_minutes": eff.target_minutes if eff else None,

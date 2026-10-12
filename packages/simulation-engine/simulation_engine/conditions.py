@@ -67,7 +67,7 @@ def _lookup(ctx: EvalContext, name: str, default: Any = None) -> Any:
     if not isinstance(name, str):
         raise ConditionError("var name must be a string")
     if name.startswith("$input"):
-        rest = name[len("$input"):].lstrip(".")
+        rest = name[len("$input") :].lstrip(".")
         value: Any = ctx.input
         for part in rest.split(".") if rest else []:
             value = _child(value, part)
@@ -297,12 +297,29 @@ def _op_count_keywords(e: _Evaluator, raw: Any, d: int) -> int:
 
 
 _OPS = {
-    "and": _op_and, "or": _op_or, "not": _op_not, "!": _op_not,
-    "==": _cmp("=="), "!=": _cmp("!="), "<": _cmp("<"), "<=": _cmp("<="), ">": _cmp(">"), ">=": _cmp(">="),
-    "in": _op_in, "+": _op_add, "-": _op_sub, "var": _op_var,
-    "has_fact": _op_has_fact, "phase_is": _op_phase_is, "visited_phase": _op_visited,
-    "action_taken": _op_action_taken, "count": _op_count, "event_fired": _op_event_fired,
-    "has_problem": _op_has_problem, "contains": _op_contains, "count_keywords": _op_count_keywords,
+    "and": _op_and,
+    "or": _op_or,
+    "not": _op_not,
+    "!": _op_not,
+    "==": _cmp("=="),
+    "!=": _cmp("!="),
+    "<": _cmp("<"),
+    "<=": _cmp("<="),
+    ">": _cmp(">"),
+    ">=": _cmp(">="),
+    "in": _op_in,
+    "+": _op_add,
+    "-": _op_sub,
+    "var": _op_var,
+    "has_fact": _op_has_fact,
+    "phase_is": _op_phase_is,
+    "visited_phase": _op_visited,
+    "action_taken": _op_action_taken,
+    "count": _op_count,
+    "event_fired": _op_event_fired,
+    "has_problem": _op_has_problem,
+    "contains": _op_contains,
+    "count_keywords": _op_count_keywords,
 }
 OPERATORS = frozenset(_OPS)
 
@@ -319,18 +336,25 @@ def truthy(cond: Any, ctx: EvalContext) -> bool:
     return bool(evaluate(cond, ctx))
 
 
-# ---------------------------------------------------------------------------------------------- static analysis
+# ------------------------------------------------------------------------------------- static analysis
 
-_REF_OPS = {"has_fact": "facts", "phase_is": "phases", "visited_phase": "phases", "action_taken": "actions",
-            "event_fired": "events", "has_problem": "problems"}
+_REF_OPS = {
+    "has_fact": "facts",
+    "phase_is": "phases",
+    "visited_phase": "phases",
+    "action_taken": "actions",
+    "event_fired": "events",
+    "has_problem": "problems",
+}
 
 
 def check_condition(cond: Any) -> tuple[list[str], dict[str, set[str]]]:
     """Statically check a condition. Returns (errors, references by kind: variables/facts/phases/actions/
     events/problems) so the validator can detect unknown references."""
     errors: list[str] = []
-    refs: dict[str, set[str]] = {k: set() for k in ("variables", "facts", "phases", "actions", "events",
-                                                     "problems")}
+    refs: dict[str, set[str]] = {
+        k: set() for k in ("variables", "facts", "phases", "actions", "events", "problems")
+    }
     nodes = 0
 
     def walk(c: Any, depth: int) -> None:

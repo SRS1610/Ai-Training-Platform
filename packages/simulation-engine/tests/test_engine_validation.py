@@ -17,12 +17,26 @@ def minimal() -> dict:
         "meta": {"title": "Mini"},
         "tools": [{"id": "t", "name": "Tool", "panel": "p"}],
         "environment": {"panels": [{"id": "p", "type": "dashboard", "title": "P"}]},
-        "phases": [{"id": "INITIAL", "name": "Start", "transitions": ["DONE"],
-                    "auto_advance": [{"to": "DONE", "when": {"var": "done"}}]},
-                   {"id": "DONE", "name": "Done", "terminal": True}],
+        "phases": [
+            {
+                "id": "INITIAL",
+                "name": "Start",
+                "transitions": ["DONE"],
+                "auto_advance": [{"to": "DONE", "when": {"var": "done"}}],
+            },
+            {"id": "DONE", "name": "Done", "terminal": True},
+        ],
         "variables": {"done": {"type": "bool", "initial": False}},
-        "actions": [{"id": "go", "tool": "t", "label": "Go", "classification": "correct",
-                     "effects": [{"set": {"done": True}}], "score": {"skill": 10}}],
+        "actions": [
+            {
+                "id": "go",
+                "tool": "t",
+                "label": "Go",
+                "classification": "correct",
+                "effects": [{"set": {"done": True}}],
+                "score": {"skill": 10},
+            }
+        ],
         "scoring": {"dimensions": [{"id": "skill", "name": "Skill", "weight": 100, "max_points": 10}]},
     }
 
@@ -37,8 +51,11 @@ def test_templates_are_valid(key):
 
 def test_list_templates_shape():
     items = list_templates()
-    assert {t["key"] for t in items} == {"it-helpdesk-network", "phishing-email-investigation",
-                                        "restaurant-food-safety-complaint"}
+    assert {t["key"] for t in items} == {
+        "it-helpdesk-network",
+        "phishing-email-investigation",
+        "restaurant-food-safety-complaint",
+    }
     assert {t["industry"] for t in items} == {"it", "cybersecurity", "hospitality"}
     with pytest.raises(KeyError):
         load_template("nope")
@@ -62,29 +79,62 @@ def test_weights_must_sum_to_100():
 
 def test_unknown_references():
     d = minimal()
-    d["actions"].append({
-        "id": "bad", "tool": "ghost", "label": "Bad", "kind": "ask", "character": "nobody", "phases": ["NOPE"],
-        "preconditions": {"has_fact": "missing_fact"}, "score": {"nodim": 1},
-        "input": {"type": "free_text", "intents": ["no_intent"]},
-        "effects": [{"set": {"undeclared": 1}, "reveal": ["f9"], "transition": "LIMBO", "trigger_event": "e9",
-                     "remove_problem": "p9"}],
-        "outputs": [{"text": "{{nothere}}", "panel": "nopanel"}],
-        "messages": [{"character": "ghost", "text": "hi"}],
-    })
-    d["events"] = [{"id": "e1", "trigger": {"type": "after_action", "action": "missing"}},
-                   {"id": "e2", "trigger": {"type": "time"}}, {"id": "e3", "trigger": {"type": "condition"}}]
+    d["actions"].append(
+        {
+            "id": "bad",
+            "tool": "ghost",
+            "label": "Bad",
+            "kind": "ask",
+            "character": "nobody",
+            "phases": ["NOPE"],
+            "preconditions": {"has_fact": "missing_fact"},
+            "score": {"nodim": 1},
+            "input": {"type": "free_text", "intents": ["no_intent"]},
+            "effects": [
+                {
+                    "set": {"undeclared": 1},
+                    "reveal": ["f9"],
+                    "transition": "LIMBO",
+                    "trigger_event": "e9",
+                    "remove_problem": "p9",
+                }
+            ],
+            "outputs": [{"text": "{{nothere}}", "panel": "nopanel"}],
+            "messages": [{"character": "ghost", "text": "hi"}],
+        }
+    )
+    d["events"] = [
+        {"id": "e1", "trigger": {"type": "after_action", "action": "missing"}},
+        {"id": "e2", "trigger": {"type": "time"}},
+        {"id": "e3", "trigger": {"type": "condition"}},
+    ]
     d["tools"].append({"id": "t2", "name": "T2", "panel": "missing_panel"})
     d["opening_messages"] = [{"character": "ghost", "text": "x"}]
     d["variations"] = [{"id": "v", "set": {"nope": 1}}]
     d["feedback_rules"] = [{"id": "f", "type": "tip", "text": "x", "when": {"bogus_op": 1}}]
     r = validate(d)
     messages = " ".join(e.message for e in r.errors)
-    for needle in ("unknown tool 'ghost'", "unknown character 'nobody'", "Unknown phase 'NOPE'", "missing_fact",
-                   "Unknown scoring dimension 'nodim'", "undeclared variable 'undeclared'", "unknown fact 'f9'",
-                   "unknown phase 'LIMBO'", "unknown event 'e9'", "unknown variable 'nothere'", "Unknown panel",
-                   "Unknown character 'ghost'", "Unknown intent 'no_intent'", "unknown action 'missing'",
-                   "at_minutes", "needs a condition", "missing_panel", "unknown operator 'bogus_op'",
-                   "Variation sets undeclared variable"):
+    for needle in (
+        "unknown tool 'ghost'",
+        "unknown character 'nobody'",
+        "Unknown phase 'NOPE'",
+        "missing_fact",
+        "Unknown scoring dimension 'nodim'",
+        "undeclared variable 'undeclared'",
+        "unknown fact 'f9'",
+        "unknown phase 'LIMBO'",
+        "unknown event 'e9'",
+        "unknown variable 'nothere'",
+        "Unknown panel",
+        "Unknown character 'ghost'",
+        "Unknown intent 'no_intent'",
+        "unknown action 'missing'",
+        "at_minutes",
+        "needs a condition",
+        "missing_panel",
+        "unknown operator 'bogus_op'",
+        "Variation sets undeclared variable",
+    ):
         assert needle in messages, needle
     assert any("p9" in w.message for w in r.warnings)
 
@@ -117,12 +167,31 @@ def test_secret_leak_regex_and_action_shape():
     d["environment"]["panels"][0]["data"] = {"x": ["{{answer}}"]}
     d["environment"]["panels"][0]["variants"] = [{"when": True, "data": {"y": {"z": "{{answer}}"}}}]
     d["actions"] += [
-        {"id": "c", "tool": "t", "label": "C", "kind": "command", "input": {"type": "command", "patterns": ["(bad"]}},
+        {
+            "id": "c",
+            "tool": "t",
+            "label": "C",
+            "kind": "command",
+            "input": {"type": "command", "patterns": ["(bad"]},
+        },
         {"id": "c2", "tool": "t", "label": "C2", "kind": "command", "input": {"type": "command"}},
-        {"id": "c3", "tool": "t", "label": "C3", "kind": "command",
-         "input": {"type": "command", "patterns": ["x" * 301]}},
-        {"id": "s", "tool": "t", "label": "S", "kind": "select",
-         "input": {"type": "choice", "choices": [{"id": "a", "label": "{{answer}}"}, {"id": "a", "label": "b"}]}},
+        {
+            "id": "c3",
+            "tool": "t",
+            "label": "C3",
+            "kind": "command",
+            "input": {"type": "command", "patterns": ["x" * 301]},
+        },
+        {
+            "id": "s",
+            "tool": "t",
+            "label": "S",
+            "kind": "select",
+            "input": {
+                "type": "choice",
+                "choices": [{"id": "a", "label": "{{answer}}"}, {"id": "a", "label": "b"}],
+            },
+        },
         {"id": "s2", "tool": "t", "label": "S2", "kind": "select", "input": {"type": "choice"}},
         {"id": "q", "tool": "t", "label": "Q", "kind": "ask", "input": {"type": "free_text"}},
         {"id": "go", "tool": "t", "label": "dup"},
@@ -165,24 +234,44 @@ def test_empty_phase_warning_and_title():
 
 def test_repair_fixes_machine_output():
     raw = {
-        "meta": {}, "junk": True, "phases": [], "tools": [{"id": "t", "panel": "ghost"}],
+        "meta": {},
+        "junk": True,
+        "phases": [],
+        "tools": [{"id": "t", "panel": "ghost"}],
         "characters": [{"id": "c", "facts": [{"id": "f", "text": "x", "intents": ["nope"]}]}],
         "intents": [{"id": "i", "patterns": ["hello"]}],
         "actions": [
-            {"id": "keep", "tool": "t", "kind": "ask", "character": "zzz",
-             "effects": [{"set": {"ghost": 1, "ok": True}, "reveal": ["f", "nofact"], "transition": "NOWHERE"}, 3],
-             "score": {"technical_accuracy": 5, "ghost_dim": 2, "bad": "x"}},
+            {
+                "id": "keep",
+                "tool": "t",
+                "kind": "ask",
+                "character": "zzz",
+                "effects": [
+                    {"set": {"ghost": 1, "ok": True}, "reveal": ["f", "nofact"], "transition": "NOWHERE"},
+                    3,
+                ],
+                "score": {"technical_accuracy": 5, "ghost_dim": 2, "bad": "x"},
+            },
             {"id": "drop", "tool": "nope"},
-            {"id": "chat", "tool": "t", "kind": "ask", "character": "c", "input": {"type": "free_text",
-                                                                                  "intents": ["zzz"]}},
+            {
+                "id": "chat",
+                "tool": "t",
+                "kind": "ask",
+                "character": "c",
+                "input": {"type": "free_text", "intents": ["zzz"]},
+            },
             "garbage",
         ],
         "variables": {"ok": {"initial": False}},
-        "events": [{"id": "e", "trigger": {"type": "after_action", "action": "drop"}},
-                   {"id": "e2", "trigger": {"type": "time", "at_minutes": 5}, "effects": [{"inc": {"ghost": 1}}]}],
-        "scoring": {"dimensions": [{"id": "a", "weight": 30}, {"id": "b", "weight": 30}],
-                    "efficiency": {"dimension": "efficiency", "target_minutes": 5, "max_minutes": 10},
-                    "process": {"dimension": "a", "required_order": ["INITIAL", "BOGUS"]}},
+        "events": [
+            {"id": "e", "trigger": {"type": "after_action", "action": "drop"}},
+            {"id": "e2", "trigger": {"type": "time", "at_minutes": 5}, "effects": [{"inc": {"ghost": 1}}]},
+        ],
+        "scoring": {
+            "dimensions": [{"id": "a", "weight": 30}, {"id": "b", "weight": 30}],
+            "efficiency": {"dimension": "efficiency", "target_minutes": 5, "max_minutes": 10},
+            "process": {"dimension": "a", "required_order": ["INITIAL", "BOGUS"]},
+        },
     }
     fixed, notes = repair(raw)
     assert notes
@@ -193,17 +282,25 @@ def test_repair_fixes_machine_output():
     assert keep["effects"][0]["set"] == {"ok": True} and keep["effects"][0]["reveal"] == ["f"]
     assert "transition" not in keep["effects"][0]
     assert sum(x["weight"] for x in fixed["scoring"]["dimensions"]) == pytest.approx(100)
-    assert "efficiency" not in fixed["scoring"] and fixed["scoring"]["process"]["required_order"] == ["INITIAL"]
+    assert "efficiency" not in fixed["scoring"] and fixed["scoring"]["process"]["required_order"] == [
+        "INITIAL"
+    ]
     assert [e["id"] for e in fixed["events"]] == ["e2"]
     report = validate(fixed)
     assert not any(e.code == "schema" for e in report.errors), report.as_dict()
 
 
 def test_repair_defaults_and_zero_weights():
-    fixed, notes = repair({"scoring": {"dimensions": [{"id": "x", "weight": 0}, {"id": "y"}]},
-                           "initial_phase": "ZZZ",
-                           "phases": [{"id": "A", "transitions": ["B", "ghost"],
-                                       "auto_advance": [{"to": "ghost", "when": True}]}, {"id": "B"}]})
+    fixed, notes = repair(
+        {
+            "scoring": {"dimensions": [{"id": "x", "weight": 0}, {"id": "y"}]},
+            "initial_phase": "ZZZ",
+            "phases": [
+                {"id": "A", "transitions": ["B", "ghost"], "auto_advance": [{"to": "ghost", "when": True}]},
+                {"id": "B"},
+            ],
+        }
+    )
     assert fixed["initial_phase"] == "A"
     assert fixed["phases"][0]["transitions"] == ["B"] and fixed["phases"][0]["auto_advance"] == []
     assert [x["weight"] for x in fixed["scoring"]["dimensions"]] == [50, 50]

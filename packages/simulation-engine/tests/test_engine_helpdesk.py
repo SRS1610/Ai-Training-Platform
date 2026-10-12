@@ -22,10 +22,10 @@ from simulation_engine import (
     start,
     step,
 )
-from simulation_engine.engine import EngineError, render
 from simulation_engine.conditions import EvalContext
+from simulation_engine.engine import EngineError, render
 
-SECRET = "stale_static_dns_after_vpn_update"
+SECRET = "stale_static_dns_after_vpn_update"  # noqa: S105 - the scenario root cause, not a credential
 
 
 @pytest.fixture(scope="module")
@@ -39,7 +39,13 @@ def test_optimal_path_scores_expert(d):
     assert all(o["matched"] == "action" for o in outcomes), [o["action_id"] for o in outcomes]
     assert state["ended"] and state["end_reason"] == "success"
     assert [p["phase"] for p in state["phase_history"]] == [
-        "INITIAL", "INVESTIGATION", "DIAGNOSIS", "REMEDIATION", "VALIDATION", "RESOLUTION"]
+        "INITIAL",
+        "INVESTIGATION",
+        "DIAGNOSIS",
+        "REMEDIATION",
+        "VALIDATION",
+        "RESOLUTION",
+    ]
     result = finish(d, state)
     assert result["band"] == "Expert" and result["total_score"] >= 95 and result["passed"]
     assert {x["id"]: x["percent"] for x in result["dimensions"]}["efficiency"] == 100
@@ -54,9 +60,12 @@ def test_optimal_path_scores_expert(d):
 def test_optimal_path_works_for_every_variation(d, seed):
     s = start(d, seed)
     alias = s["variables"]["interface_alias"]
-    steps = [x if x[0] or "Set-Dns" not in str(x[1]) else
-             term(f'Set-DnsClientServerAddress -InterfaceAlias "{alias}" -ResetServerAddresses')
-             for x in HELPDESK_OPTIMAL]
+    steps = [
+        x
+        if x[0] or "Set-Dns" not in str(x[1])
+        else term(f'Set-DnsClientServerAddress -InterfaceAlias "{alias}" -ResetServerAddresses')
+        for x in HELPDESK_OPTIMAL
+    ]
     state, _ = play(d, steps, state=s)
     assert finish(d, state)["band"] == "Expert"
 
@@ -95,8 +104,10 @@ def test_close_before_fix_is_critical_fail(d):
 
 
 def test_close_after_fix_without_validation_is_critical(d):
-    state, outcomes = play(d, [term("Set-DnsClientServerAddress -InterfaceAlias Wi-Fi -ResetServerAddresses"),
-                               act("close_ticket")])
+    state, outcomes = play(
+        d,
+        [term("Set-DnsClientServerAddress -InterfaceAlias Wi-Fi -ResetServerAddresses"), act("close_ticket")],
+    )
     assert outcomes[0]["branch"] == "guessed"
     assert outcomes[-1]["classification"] == "critical"
     assert not finish(d, state)["passed"]
@@ -104,12 +115,19 @@ def test_close_after_fix_without_validation_is_critical(d):
 
 def test_shotgun_path_has_consequences_and_fails(d):
     steps = [
-        act("open_system_info"), act("reinstall_driver"), act("reset_password"),
-        term("netsh int ip reset"), term("ipconfig /release"), term("Restart-Computer -Force"),
+        act("open_system_info"),
+        act("reinstall_driver"),
+        act("reset_password"),
+        term("netsh int ip reset"),
+        term("ipconfig /release"),
+        term("Restart-Computer -Force"),
     ]
     state, outcomes = play(d, steps)
     by_id = {o["action_id"]: o for o in outcomes}
-    assert by_id["reinstall_driver"]["time_cost"] == 20 and by_id["reinstall_driver"]["classification"] == "incorrect"
+    assert (
+        by_id["reinstall_driver"]["time_cost"] == 20
+        and by_id["reinstall_driver"]["classification"] == "incorrect"
+    )
     assert any("password" in m["text"].lower() for m in by_id["reset_password"]["messages"])
     assert by_id["netsh_reset"]["branch"] == "shotgun"
     assert by_id["netsh_reset"]["score_deltas"]["troubleshooting_process"] < 0
@@ -136,17 +154,25 @@ def test_escalating_too_early_ends_simulation(d):
 
 
 def test_escalating_after_diagnosis_is_bounced(d):
-    state, outcomes = play(d, [act("record_diagnosis", {"choice": "stale_static_dns"}), act("escalate_ticket")])
+    state, outcomes = play(
+        d, [act("record_diagnosis", {"choice": "stale_static_dns"}), act("escalate_ticket")]
+    )
     assert outcomes[-1]["branch"] == "diagnosed" and not state["ended"]
 
 
 def test_wrong_diagnosis_and_public_dns(d):
-    state, outcomes = play(d, [
-        act("record_diagnosis", {"choice": "driver_fault"}),
-        term("Set-DnsClientServerAddress -InterfaceAlias Wi-Fi -ServerAddresses 8.8.8.8"),
-        term("nslookup intranet.corp.local"), term("nslookup google.com"), term("ping intranet.corp.local"),
-        term("ping google.com"), chat("Can you try again now?"),
-    ])
+    state, outcomes = play(
+        d,
+        [
+            act("record_diagnosis", {"choice": "driver_fault"}),
+            term("Set-DnsClientServerAddress -InterfaceAlias Wi-Fi -ServerAddresses 8.8.8.8"),
+            term("nslookup intranet.corp.local"),
+            term("nslookup google.com"),
+            term("ping intranet.corp.local"),
+            term("ping google.com"),
+            chat("Can you try again now?"),
+        ],
+    )
     assert outcomes[0]["classification"] == "incorrect"
     assert outcomes[1]["classification"] == "incorrect"
     assert "Non-existent domain" in outputs_text(outcomes[2])
@@ -169,23 +195,36 @@ def test_terminal_outputs_depend_on_state(d):
     s, _ = play(d, [term("Set-DnsClientServerAddress -InterfaceAlias Wi-Fi -ResetServerAddresses")], state=s)
     after = step(d, s, None, "nslookup intranet.corp.local", tool="terminal").outcome
     assert "10.20.5.25" in outputs_text(after) and after["branch"] == "validated"
-    for cmd, needle in [("ipconfig /all", "10.20.1.10"), ("Get-DnsClientServerAddress", "10.20.1.10"),
-                        ("ping intranet", "10.20.5.25"), ("tracert 8.8.8.8", "Trace complete"),
-                        ("ipconfig /displaydns", "A (Host) Record"), ("Test-NetConnection intranet.corp.local -Port 443",
-                                                                      "TcpTestSucceeded : True"),
-                        ("nslookup intranet.corp.local 10.0.0.53", "timed out"),
-                        ("nslookup google.com 10.20.1.11", "142.250.70.206"),
-                        ("nslookup intranet.corp.local 9.9.9.9", "Non-existent"),
-                        ("ipconfig", "10.20.30.57"), ("get-netadapter", "Up"), ("hostname", "FIN-LT-0457"),
-                        ("whoami", "pshah"), ("help", "nslookup"), ("set-dnsclientserveraddress", "Specify"),
-                        ("Set-DnsClientServerAddress -InterfaceAlias Wi-Fi -ServerAddresses 10.20.1.10,10.20.1.11",
-                         "completed")]:
+    for cmd, needle in [
+        ("ipconfig /all", "10.20.1.10"),
+        ("Get-DnsClientServerAddress", "10.20.1.10"),
+        ("ping intranet", "10.20.5.25"),
+        ("tracert 8.8.8.8", "Trace complete"),
+        ("ipconfig /displaydns", "A (Host) Record"),
+        ("Test-NetConnection intranet.corp.local -Port 443", "TcpTestSucceeded : True"),
+        ("nslookup intranet.corp.local 10.0.0.53", "timed out"),
+        ("nslookup google.com 10.20.1.11", "142.250.70.206"),
+        ("nslookup intranet.corp.local 9.9.9.9", "Non-existent"),
+        ("ipconfig", "10.20.30.57"),
+        ("get-netadapter", "Up"),
+        ("hostname", "FIN-LT-0457"),
+        ("whoami", "pshah"),
+        ("help", "nslookup"),
+        ("set-dnsclientserveraddress", "Specify"),
+        (
+            "Set-DnsClientServerAddress -InterfaceAlias Wi-Fi -ServerAddresses 10.20.1.10,10.20.1.11",
+            "completed",
+        ),
+    ]:
         o = step(d, s, None, cmd, tool="terminal").outcome
         assert needle in outputs_text(o), (cmd, outputs_text(o))
     broken = start(d, 1)
-    for cmd, needle in [("tracert intranet.corp.local", "Unable to resolve"),
-                        ("Test-NetConnection intranet.corp.local", "Name resolution"),
-                        ("ipconfig /displaydns", "Name does not exist"), ("tnc", "PingSucceeded")]:
+    for cmd, needle in [
+        ("tracert intranet.corp.local", "Unable to resolve"),
+        ("Test-NetConnection intranet.corp.local", "Name resolution"),
+        ("ipconfig /displaydns", "Name does not exist"),
+        ("tnc", "PingSucceeded"),
+    ]:
         o = step(d, broken, None, cmd, tool="terminal").outcome
         assert needle in outputs_text(o), (cmd, outputs_text(o))
 
@@ -261,8 +300,16 @@ def test_repeated_actions_diminish(d):
 
 
 def test_gui_fix_and_diagnosed_branch(d):
-    s, outs = play(d, [term("ipconfig /all"), term("nslookup intranet.corp.local"), act("open_system_info"),
-                       act("gui_set_dns_automatic"), act("gui_set_dns_automatic")])
+    s, outs = play(
+        d,
+        [
+            term("ipconfig /all"),
+            term("nslookup intranet.corp.local"),
+            act("open_system_info"),
+            act("gui_set_dns_automatic"),
+            act("gui_set_dns_automatic"),
+        ],
+    )
     assert outs[3]["branch"] == "diagnosed" and s["variables"]["connectivity_fixed"]
     assert outs[4]["branch"] == "already_fixed"
     view = learner_view(d, s)
@@ -332,7 +379,10 @@ def test_resolve_input(d):
     s = start(d, 0)
     assert resolve_input(d, s, text="PING 8.8.8.8", tool="terminal").action_id == "ping_ip"
     assert resolve_input(d, s, text="ping -n 4 10.20.30.1", tool="terminal").action_id == "ping_gateway"
-    assert resolve_input(d, s, text="what's the error you get?", character="priya").action_id == "ask_error_message"
+    assert (
+        resolve_input(d, s, text="what's the error you get?", character="priya").action_id
+        == "ask_error_message"
+    )
     assert resolve_input(d, s, text="nothing", tool="ticket").kind == "unknown"
 
 

@@ -83,8 +83,8 @@ async def _course_in_org(ctx: Ctx, course_id: uuid.UUID | None) -> None:
 async def _enqueue(ctx: Ctx, gen: AIGeneration) -> None:
     from app.workers import enqueue
 
-    await ctx.db.commit()
-    await enqueue("ai.run_generation", generation_id=str(gen.id), organisation_id=str(ctx.org_id))
+    # Held until the request transaction commits, so the worker always sees the new row.
+    await enqueue("ai.run_generation", db=ctx.db, generation_id=str(gen.id), organisation_id=str(ctx.org_id))
 
 
 async def request_generation(ctx: Ctx, body: GenerationCreate) -> AIGeneration:
@@ -175,6 +175,7 @@ async def edit(ctx: Ctx, gen: AIGeneration, body: EditIn) -> AIGeneration:
         gen.reviewed_by = None
         gen.reviewed_at = None
     await ctx.db.flush()
+    await ctx.db.refresh(gen)  # reload server-side updated_at
     await ctx.audit("ai.generation.edited", "ai_generation", gen.id)
     return gen
 
@@ -187,6 +188,7 @@ async def approve(ctx: Ctx, gen: AIGeneration, notes: str | None) -> AIGeneratio
     gen.reviewed_at = datetime.now(UTC)
     gen.review_notes = notes
     await ctx.db.flush()
+    await ctx.db.refresh(gen)  # reload server-side updated_at
     await ctx.audit("ai.generation.approved", "ai_generation", gen.id)
     return gen
 
@@ -199,6 +201,7 @@ async def reject(ctx: Ctx, gen: AIGeneration, notes: str) -> AIGeneration:
     gen.reviewed_at = datetime.now(UTC)
     gen.review_notes = notes
     await ctx.db.flush()
+    await ctx.db.refresh(gen)  # reload server-side updated_at
     await ctx.audit("ai.generation.rejected", "ai_generation", gen.id, notes=notes[:500])
     return gen
 
@@ -232,6 +235,7 @@ async def apply(ctx: Ctx, gen: AIGeneration, body: ApplyIn) -> ApplyOut:
     if entity_type == "course":
         gen.course_id = entity_id
     await ctx.db.flush()
+    await ctx.db.refresh(gen)  # reload server-side updated_at
     await ctx.audit(
         "ai.generation.applied",
         "ai_generation",

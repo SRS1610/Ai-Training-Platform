@@ -22,11 +22,28 @@ InputType = Literal["none", "free_text", "command", "choice"]
 Classification = Literal["correct", "neutral", "incorrect", "critical"]
 Visibility = Literal["public", "internal", "secret"]
 
-KNOWN_PANEL_TYPES = frozenset({
-    "ticket", "chat", "terminal", "system_info", "knowledge_base", "email_inbox", "email_viewer", "siem_alerts",
-    "url_sandbox", "crm_record", "patient_chart", "dashboard", "document", "log_viewer", "checklist",
-    "admin_console", "case_file", "custom",
-})
+KNOWN_PANEL_TYPES = frozenset(
+    {
+        "ticket",
+        "chat",
+        "terminal",
+        "system_info",
+        "knowledge_base",
+        "email_inbox",
+        "email_viewer",
+        "siem_alerts",
+        "url_sandbox",
+        "crm_record",
+        "patient_chart",
+        "dashboard",
+        "document",
+        "log_viewer",
+        "checklist",
+        "admin_console",
+        "case_file",
+        "custom",
+    }
+)
 
 DEFAULT_PHASE_ORDER = ["INITIAL", "INVESTIGATION", "DIAGNOSIS", "REMEDIATION", "VALIDATION", "RESOLUTION"]
 
@@ -139,12 +156,16 @@ class Phase(_Model):
 
 def default_phases() -> list[Phase]:
     names = {
-        "INITIAL": "Initial", "INVESTIGATION": "Investigation", "DIAGNOSIS": "Diagnosis",
-        "REMEDIATION": "Remediation", "VALIDATION": "Validation", "RESOLUTION": "Resolution",
+        "INITIAL": "Initial",
+        "INVESTIGATION": "Investigation",
+        "DIAGNOSIS": "Diagnosis",
+        "REMEDIATION": "Remediation",
+        "VALIDATION": "Validation",
+        "RESOLUTION": "Resolution",
     }
     out = []
     for i, pid in enumerate(DEFAULT_PHASE_ORDER):
-        nxt = DEFAULT_PHASE_ORDER[i + 1:i + 2]
+        nxt = DEFAULT_PHASE_ORDER[i + 1 : i + 2]
         out.append(Phase(id=pid, name=names[pid], transitions=nxt, terminal=pid == "RESOLUTION"))
     return out
 
@@ -324,8 +345,13 @@ class Band(_Model):
 
 
 def default_bands() -> list[Band]:
-    return [Band(name="Expert", min=95), Band(name="Advanced", min=85), Band(name="Competent", min=70),
-            Band(name="Needs Improvement", min=50), Band(name="Fail", min=0)]
+    return [
+        Band(name="Expert", min=95),
+        Band(name="Advanced", min=85),
+        Band(name="Competent", min=70),
+        Band(name="Needs Improvement", min=50),
+        Band(name="Fail", min=0),
+    ]
 
 
 class Scoring(_Model):
@@ -423,9 +449,15 @@ class SimulationDefinition(_Model):
 def resolve_outcome(action: Action, branch: Branch | None) -> OutcomeSpec:
     """The effective outcome of ``action`` when ``branch`` (or no branch) matched."""
     if branch is None:
-        return OutcomeSpec(effects=action.effects, score=action.score, classification=action.classification,
-                           feedback=action.feedback, outputs=action.outputs, messages=action.messages,
-                           time_cost=action.time_cost)
+        return OutcomeSpec(
+            effects=action.effects,
+            score=action.score,
+            classification=action.classification,
+            feedback=action.feedback,
+            outputs=action.outputs,
+            messages=action.messages,
+            time_cost=action.time_cost,
+        )
     return OutcomeSpec(
         effects=[*action.effects, *branch.effects],
         messages=[*action.messages, *branch.messages],

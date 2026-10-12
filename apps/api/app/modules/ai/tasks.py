@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from sqlalchemy import distinct, select
+from sqlalchemy import select
 
 from app.core.db import system_session
 from app.models.ai import AIConfiguration, AIUsage
@@ -26,9 +26,9 @@ async def budget_check(organisation_id: str | None = None) -> dict[str, list[int
             with_usage = set(
                 (
                     await db.scalars(
-                        select(distinct(AIUsage.organisation_id)).where(
-                            AIUsage.created_at >= gateway.month_start()
-                        )
+                        select(AIUsage.organisation_id)
+                        .distinct()
+                        .where(AIUsage.created_at >= gateway.month_start())
                     )
                 ).all()
             )

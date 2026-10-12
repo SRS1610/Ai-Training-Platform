@@ -11,7 +11,7 @@
 import type { Me, OrgSummary, Permission } from "@praxis/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
-import { api, ApiError } from "./api";
+import { api, type ApiError } from "./api";
 import { applyBranding } from "./branding";
 import { getActiveOrgId, setActiveOrgId } from "./org";
 import { qk } from "./query-keys";

@@ -46,54 +46,136 @@ def to_graph(definition: SimulationDefinition | dict[str, Any]) -> dict[str, Any
     order = _phase_order(d)
     col = {pid: i for i, pid in enumerate(order)}
     for p in d.phases:
-        nodes.append({"id": f"phase:{p.id}", "type": "phase", "position": {"x": col[p.id] * _COL, "y": 0},
-                      "data": p.model_dump(mode="json")})
+        nodes.append(
+            {
+                "id": f"phase:{p.id}",
+                "type": "phase",
+                "position": {"x": col[p.id] * _COL, "y": 0},
+                "data": p.model_dump(mode="json"),
+            }
+        )
         auto_targets = {aa.to for aa in p.auto_advance}
         for t in p.transitions:
             if t not in auto_targets:
-                edges.append({"id": f"t:{p.id}->{t}", "source": f"phase:{p.id}", "target": f"phase:{t}",
-                              "type": "transition", "data": {"auto": False, "when": None}})
+                edges.append(
+                    {
+                        "id": f"t:{p.id}->{t}",
+                        "source": f"phase:{p.id}",
+                        "target": f"phase:{t}",
+                        "type": "transition",
+                        "data": {"auto": False, "when": None},
+                    }
+                )
         for i, aa in enumerate(p.auto_advance):
-            edges.append({"id": f"t:{p.id}->{aa.to}:auto:{i}", "source": f"phase:{p.id}",
-                          "target": f"phase:{aa.to}", "type": "transition", "data": {"auto": True, "when": aa.when}})
+            edges.append(
+                {
+                    "id": f"t:{p.id}->{aa.to}:auto:{i}",
+                    "source": f"phase:{p.id}",
+                    "target": f"phase:{aa.to}",
+                    "type": "transition",
+                    "data": {"auto": True, "when": aa.when},
+                }
+            )
     slots: dict[int, int] = {}
     for a in d.actions:
         c = min((col.get(p, 0) for p in a.phases), default=-1)
         row = slots.get(c, 0)
         slots[c] = row + 1
         x, y = c * _COL, 160 + row * _ROW
-        nodes.append({"id": f"action:{a.id}", "type": "action", "position": {"x": x, "y": y},
-                      "data": a.model_dump(mode="json", exclude={"branches"})})
+        nodes.append(
+            {
+                "id": f"action:{a.id}",
+                "type": "action",
+                "position": {"x": x, "y": y},
+                "data": a.model_dump(mode="json", exclude={"branches"}),
+            }
+        )
         for p in a.phases:
-            edges.append({"id": f"c:{p}:{a.id}", "source": f"phase:{p}", "target": f"action:{a.id}",
-                          "type": "contains"})
+            edges.append(
+                {
+                    "id": f"c:{p}:{a.id}",
+                    "source": f"phase:{p}",
+                    "target": f"action:{a.id}",
+                    "type": "contains",
+                }
+            )
         for t in _transition_targets(a):
-            edges.append({"id": f"x:action:{a.id}->{t}", "source": f"action:{a.id}", "target": f"phase:{t}",
-                          "type": "effect_transition"})
+            edges.append(
+                {
+                    "id": f"x:action:{a.id}->{t}",
+                    "source": f"action:{a.id}",
+                    "target": f"phase:{t}",
+                    "type": "effect_transition",
+                }
+            )
         for i, br in enumerate(a.branches):
             bid = f"branch:{a.id}:{i}"
-            nodes.append({"id": bid, "type": "branch", "position": {"x": x + 180, "y": y + 40 * (i + 1)},
-                          "data": br.model_dump(mode="json")})
-            edges.append({"id": f"b:{a.id}:{i}", "source": f"action:{a.id}", "target": bid, "type": "branch",
-                          "data": {"order": i}})
+            nodes.append(
+                {
+                    "id": bid,
+                    "type": "branch",
+                    "position": {"x": x + 180, "y": y + 40 * (i + 1)},
+                    "data": br.model_dump(mode="json"),
+                }
+            )
+            edges.append(
+                {
+                    "id": f"b:{a.id}:{i}",
+                    "source": f"action:{a.id}",
+                    "target": bid,
+                    "type": "branch",
+                    "data": {"order": i},
+                }
+            )
             for t in _transition_targets(br):
-                edges.append({"id": f"x:{bid}->{t}", "source": bid, "target": f"phase:{t}",
-                              "type": "effect_transition"})
+                edges.append(
+                    {
+                        "id": f"x:{bid}->{t}",
+                        "source": bid,
+                        "target": f"phase:{t}",
+                        "type": "effect_transition",
+                    }
+                )
         for spec in [a, *a.branches]:
             for e in spec.effects:
                 if e.trigger_event:
-                    edges.append({"id": f"tr:{a.id}->{e.trigger_event}", "source": f"action:{a.id}",
-                                  "target": f"event:{e.trigger_event}", "type": "triggers",
-                                  "data": {"kind": "effect"}})
+                    edges.append(
+                        {
+                            "id": f"tr:{a.id}->{e.trigger_event}",
+                            "source": f"action:{a.id}",
+                            "target": f"event:{e.trigger_event}",
+                            "type": "triggers",
+                            "data": {"kind": "effect"},
+                        }
+                    )
     for i, ev in enumerate(d.events):
-        nodes.append({"id": f"event:{ev.id}", "type": "event", "position": {"x": i * 260, "y": -220},
-                      "data": ev.model_dump(mode="json")})
+        nodes.append(
+            {
+                "id": f"event:{ev.id}",
+                "type": "event",
+                "position": {"x": i * 260, "y": -220},
+                "data": ev.model_dump(mode="json"),
+            }
+        )
         if ev.trigger.type == "after_action" and ev.trigger.action:
-            edges.append({"id": f"tr:{ev.trigger.action}->{ev.id}:after", "source": f"action:{ev.trigger.action}",
-                          "target": f"event:{ev.id}", "type": "triggers", "data": {"kind": "after_action"}})
+            edges.append(
+                {
+                    "id": f"tr:{ev.trigger.action}->{ev.id}:after",
+                    "source": f"action:{ev.trigger.action}",
+                    "target": f"event:{ev.id}",
+                    "type": "triggers",
+                    "data": {"kind": "after_action"},
+                }
+            )
         for t in _transition_targets(ev):
-            edges.append({"id": f"x:event:{ev.id}->{t}", "source": f"event:{ev.id}", "target": f"phase:{t}",
-                          "type": "effect_transition"})
+            edges.append(
+                {
+                    "id": f"x:event:{ev.id}->{t}",
+                    "source": f"event:{ev.id}",
+                    "target": f"phase:{t}",
+                    "type": "effect_transition",
+                }
+            )
     # de-duplicate edge ids (an action may trigger the same event from several branches)
     seen: set[str] = set()
     unique = []
@@ -150,8 +232,11 @@ def from_graph(graph: dict[str, Any], base: SimulationDefinition | dict[str, Any
         targets = [target_entity(e) for e in trans]
         existing = [t for t in data.get("transitions", []) if t in targets]
         data["transitions"] = existing + [t for t in dict.fromkeys(targets) if t and t not in existing]
-        data["auto_advance"] = [{"to": target_entity(e), "when": (e.get("data") or {}).get("when")}
-                                for e in trans if (e.get("data") or {}).get("auto") and target_entity(e)]
+        data["auto_advance"] = [
+            {"to": target_entity(e), "when": (e.get("data") or {}).get("when")}
+            for e in trans
+            if (e.get("data") or {}).get("auto") and target_entity(e)
+        ]
         phases.append(data)
     if phases:
         out["phases"] = phases
@@ -164,21 +249,31 @@ def from_graph(graph: dict[str, Any], base: SimulationDefinition | dict[str, Any
             continue
         data = copy.deepcopy(n.get("data") or {})
         data["id"] = ent[n["id"]]
-        containing = [ent[e["source"]] for e in edges
-                      if e.get("type") == "contains" and e.get("target") == n["id"] and e.get("source") in ent]
+        containing = [
+            ent[e["source"]]
+            for e in edges
+            if e.get("type") == "contains" and e.get("target") == n["id"] and e.get("source") in ent
+        ]
         kept = [p for p in data.get("phases", []) if p in containing]
-        added = sorted((p for p in dict.fromkeys(containing) if p not in kept), key=lambda p: phase_rank.get(p, 999))
+        added = sorted(
+            (p for p in dict.fromkeys(containing) if p not in kept), key=lambda p: phase_rank.get(p, 999)
+        )
         data["phases"] = kept + added
-        _apply_transitions(data, [t for e in out_edges(n["id"], "effect_transition") if (t := target_entity(e))])
-        branch_edges = sorted(out_edges(n["id"], "branch"), key=lambda e: (e.get("data") or {}).get("order", 0))
+        _apply_transitions(
+            data, [t for e in out_edges(n["id"], "effect_transition") if (t := target_entity(e))]
+        )
+        branch_edges = sorted(
+            out_edges(n["id"], "branch"), key=lambda e: (e.get("data") or {}).get("order", 0)
+        )
         branches = []
         for be in branch_edges:
             bn = by_node.get(be.get("target"))
             if bn is None:
                 continue
             bdata = copy.deepcopy(bn.get("data") or {})
-            _apply_transitions(bdata, [t for e in out_edges(bn["id"], "effect_transition")
-                                       if (t := target_entity(e))])
+            _apply_transitions(
+                bdata, [t for e in out_edges(bn["id"], "effect_transition") if (t := target_entity(e))]
+            )
             branches.append(bdata)
         data["branches"] = branches
         actions.append(data)
@@ -190,12 +285,20 @@ def from_graph(graph: dict[str, Any], base: SimulationDefinition | dict[str, Any
             continue
         data = copy.deepcopy(n.get("data") or {})
         data["id"] = ent[n["id"]]
-        after = [ent[e["source"]] for e in edges if e.get("type") == "triggers" and e.get("target") == n["id"]
-                 and (e.get("data") or {}).get("kind") == "after_action" and e.get("source") in ent]
+        after = [
+            ent[e["source"]]
+            for e in edges
+            if e.get("type") == "triggers"
+            and e.get("target") == n["id"]
+            and (e.get("data") or {}).get("kind") == "after_action"
+            and e.get("source") in ent
+        ]
         if after:
             data.setdefault("trigger", {})["type"] = "after_action"
             data["trigger"]["action"] = after[0]
-        _apply_transitions(data, [t for e in out_edges(n["id"], "effect_transition") if (t := target_entity(e))])
+        _apply_transitions(
+            data, [t for e in out_edges(n["id"], "effect_transition") if (t := target_entity(e))]
+        )
         events.append(data)
     out["events"] = events
     return out
