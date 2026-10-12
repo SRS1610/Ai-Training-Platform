@@ -195,6 +195,7 @@ def to_pdf(report: ReportData) -> bytes:
     styles = getSampleStyleSheet()
     cell_style = ParagraphStyle("cell", parent=styles["BodyText"], fontSize=7.5, leading=9)
     head_style = ParagraphStyle("head", parent=cell_style, textColor=colors.white, fontName="Helvetica-Bold")
+    kpi_style = ParagraphStyle("kpi", parent=cell_style, leading=17)
     h2 = ParagraphStyle(
         "h2", parent=styles["Heading2"], textColor=primary, fontSize=12, spaceBefore=8, spaceAfter=4
     )
@@ -237,7 +238,7 @@ def to_pdf(report: ReportData) -> bytes:
                 Paragraph(
                     f'<font size="7" color="#6b7280">{esc(label).upper()}</font><br/>'
                     f'<font size="14"><b>{esc(value)}</b></font>',
-                    cell_style,
+                    kpi_style,
                 )
             )
         while len(cells) % per_row:

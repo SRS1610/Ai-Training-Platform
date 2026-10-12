@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import functools
 import uuid
-from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -41,24 +39,6 @@ NOTIFICATION_TYPES: dict[str, str] = {
 }
 
 MAX_PUSH_SUBSCRIPTIONS = 10
-
-
-# ----------------------------------------------------------------------------- event handler safety
-
-
-def safe_handler(fn: Callable[[AsyncSession, dict[str, Any]], Awaitable[None]]):
-    """Run an event handler inside a SAVEPOINT so a failure in a side effect (notification, points) never
-    breaks the business transaction that emitted the event."""
-
-    @functools.wraps(fn)
-    async def wrapper(db: AsyncSession, payload: dict[str, Any]) -> None:
-        try:
-            async with db.begin_nested():
-                await fn(db, payload)
-        except Exception:
-            log.exception("event_handler.failed", handler=fn.__qualname__)
-
-    return wrapper
 
 
 # ----------------------------------------------------------------------------- sending

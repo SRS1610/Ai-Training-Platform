@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import subscribe
 from app.modules.gamification import service as g
-from app.modules.notifications.service import safe_handler
 
 
 def _ids(p: dict[str, Any]) -> tuple[uuid.UUID, uuid.UUID]:
@@ -28,7 +27,6 @@ async def _prepare(db: AsyncSession, p: dict[str, Any]) -> tuple[uuid.UUID, uuid
 
 
 @subscribe("lesson.completed")
-@safe_handler
 async def on_lesson_completed(db: AsyncSession, p: dict[str, Any]) -> None:
     org_id, user_id, enabled = await _prepare(db, p)
     if not enabled:
@@ -40,7 +38,6 @@ async def on_lesson_completed(db: AsyncSession, p: dict[str, Any]) -> None:
 
 
 @subscribe("assessment.attempt_graded")
-@safe_handler
 async def on_attempt_graded(db: AsyncSession, p: dict[str, Any]) -> None:
     org_id, user_id, enabled = await _prepare(db, p)
     if not enabled:
@@ -61,7 +58,6 @@ async def on_attempt_graded(db: AsyncSession, p: dict[str, Any]) -> None:
 
 
 @subscribe("submission.graded")
-@safe_handler
 async def on_submission_graded(db: AsyncSession, p: dict[str, Any]) -> None:
     org_id, user_id, enabled = await _prepare(db, p)
     if not enabled:
@@ -80,7 +76,6 @@ async def on_submission_graded(db: AsyncSession, p: dict[str, Any]) -> None:
 
 
 @subscribe("simulation.completed")
-@safe_handler
 async def on_simulation_completed(db: AsyncSession, p: dict[str, Any]) -> None:
     org_id, user_id, enabled = await _prepare(db, p)
     if not enabled:
@@ -96,7 +91,6 @@ async def on_simulation_completed(db: AsyncSession, p: dict[str, Any]) -> None:
 
 
 @subscribe("course.completed")
-@safe_handler
 async def on_course_completed(db: AsyncSession, p: dict[str, Any]) -> None:
     org_id, user_id, enabled = await _prepare(db, p)
     if not enabled:
@@ -108,7 +102,6 @@ async def on_course_completed(db: AsyncSession, p: dict[str, Any]) -> None:
 
 
 @subscribe("certificate.issued")
-@safe_handler
 async def on_certificate_issued(db: AsyncSession, p: dict[str, Any]) -> None:
     org_id, user_id, enabled = await _prepare(db, p)
     if not enabled:

@@ -30,6 +30,10 @@ celery_app.conf.update(
                             "args": ["ai.budget_check"]},
         "retention-sweep": {"task": "praxis.run", "schedule": crontab(minute=30, hour=3),
                             "args": ["privacy.retention_sweep"]},
+        "push-sweep": {"task": "praxis.run", "schedule": crontab(minute="*/10"),
+                       "args": ["notifications.push_sweep"]},
+        "report-ai-usage": {"task": "praxis.run", "schedule": crontab(minute=5, hour="*/6"),
+                            "args": ["billing.report_ai_usage"]},
     },
 )
 

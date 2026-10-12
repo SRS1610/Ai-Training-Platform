@@ -14,6 +14,7 @@ from app.models.platform import Notification
 from app.modules.notifications import push as push_mod
 from app.modules.notifications import service as nsvc
 from app.modules.notifications.tasks import run_due_reminders
+from app.workers import drain
 from tests.factories import add_member, signup
 from tests.ops_seed import (
     emit_event,
@@ -287,11 +288,13 @@ async def test_push_subscription_and_delivery(client, monkeypatch):
             s, organisation_id=admin.org_id, user_id=admin.user_id, type="system", title="Queued"
         )
         assert n.channels["push"] == "queued"
+    # Delivery is enqueued after commit (eager task); the sweep is the fallback. Either way: delivered once.
+    await drain()
     async with get_sessionmaker()() as s:
         s.info["rls_bypass"] = True
-        assert await nsvc.push_sweep(s) >= 1
+        await nsvc.push_sweep(s)
         await s.commit()
-    assert sent and sent[-1]["title"] == "Queued"
+    assert [p["title"] for p in sent] == ["Queued"]
     rows = await _notifications(admin.user_id)
     assert [r.channels.get("push") for r in rows if r.title == "Queued"] == ["sent"]
 

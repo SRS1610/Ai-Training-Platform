@@ -13,7 +13,7 @@ from app.models.assessment import Assessment
 from app.models.assignment import Assignment
 from app.models.content import Course
 from app.models.simulation import Simulation
-from app.modules.notifications.service import safe_handler, send_notification
+from app.modules.notifications.service import send_notification
 
 
 async def _title(db: AsyncSession, model: Any, entity_id: Any, default: str) -> str:
@@ -31,7 +31,6 @@ def _fmt_score(value: Any) -> str:
 
 
 @subscribe("enrolment.created")
-@safe_handler
 async def on_enrolment_created(db: AsyncSession, p: dict[str, Any]) -> None:
     if not p.get("assigned_by"):
         return
@@ -57,7 +56,6 @@ async def on_enrolment_created(db: AsyncSession, p: dict[str, Any]) -> None:
 
 
 @subscribe("course.completed")
-@safe_handler
 async def on_course_completed(db: AsyncSession, p: dict[str, Any]) -> None:
     course = await _title(db, Course, p.get("course_id"), "your course")
     score = p.get("final_score")
@@ -77,7 +75,6 @@ async def on_course_completed(db: AsyncSession, p: dict[str, Any]) -> None:
 
 
 @subscribe("assessment.attempt_graded")
-@safe_handler
 async def on_attempt_graded(db: AsyncSession, p: dict[str, Any]) -> None:
     title = await _title(db, Assessment, p.get("assessment_id"), "your assessment")
     passed = bool(p.get("passed"))
@@ -107,7 +104,6 @@ async def on_attempt_graded(db: AsyncSession, p: dict[str, Any]) -> None:
 
 
 @subscribe("certificate.issued")
-@safe_handler
 async def on_certificate_issued(db: AsyncSession, p: dict[str, Any]) -> None:
     course = await _title(db, Course, p.get("course_id"), "your course")
     number = p.get("certificate_number")
@@ -124,7 +120,6 @@ async def on_certificate_issued(db: AsyncSession, p: dict[str, Any]) -> None:
 
 
 @subscribe("submission.graded")
-@safe_handler
 async def on_submission_graded(db: AsyncSession, p: dict[str, Any]) -> None:
     title = await _title(db, Assignment, p.get("assignment_id"), "your assignment")
     passed = p.get("passed")
@@ -149,7 +144,6 @@ async def on_submission_graded(db: AsyncSession, p: dict[str, Any]) -> None:
 
 
 @subscribe("simulation.completed")
-@safe_handler
 async def on_simulation_completed(db: AsyncSession, p: dict[str, Any]) -> None:
     title = await _title(db, Simulation, p.get("simulation_id"), "your simulation")
     band = p.get("band")
