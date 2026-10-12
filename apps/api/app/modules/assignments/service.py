@@ -567,7 +567,9 @@ async def submit(ctx: Ctx, assignment_id: uuid.UUID) -> dict[str, Any]:
         },
     )
     if a.grading_mode in AI_MODES:
-        await enqueue("ai.grade_submission", submission_id=str(s.id), organisation_id=str(ctx.org_id))
+        await enqueue(
+            "ai.grade_submission", db=ctx.db, submission_id=str(s.id), organisation_id=str(ctx.org_id)
+        )
     await ctx.db.refresh(s)
     out = await submission_out(ctx.db, s, a, released_only=True)
     out["integrity_flagged"] = signal is not None

@@ -26,11 +26,18 @@ _FONT_CANDIDATES = {
     "sans-bold": ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"],
     "serif": ["/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"],
     "serif-bold": ["/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"],
-    "serif-italic": ["/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf",
-                     "/usr/share/fonts/truetype/dejavu/DejaVuSerifCondensed-Italic.ttf"],
+    "serif-italic": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Italic.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSerifCondensed-Italic.ttf",
+    ],
 }
-_FALLBACK = {"sans": "Helvetica", "sans-bold": "Helvetica-Bold", "serif": "Times-Roman",
-             "serif-bold": "Times-Bold", "serif-italic": "Times-Italic"}
+_FALLBACK = {
+    "sans": "Helvetica",
+    "sans-bold": "Helvetica-Bold",
+    "serif": "Times-Roman",
+    "serif-bold": "Times-Bold",
+    "serif-italic": "Times-Italic",
+}
 _fonts: dict[str, str] | None = None
 
 
@@ -68,8 +75,9 @@ def _colour(value: str | None, default: str) -> colors.Color:
 
 def _tint(c: colors.Color, amount: float) -> colors.Color:
     """Blend towards white (amount 0..1)."""
-    return colors.Color(c.red + (1 - c.red) * amount, c.green + (1 - c.green) * amount,
-                        c.blue + (1 - c.blue) * amount)
+    return colors.Color(
+        c.red + (1 - c.red) * amount, c.green + (1 - c.green) * amount, c.blue + (1 - c.blue) * amount
+    )
 
 
 @dataclass
@@ -90,7 +98,9 @@ class CertificateData:
     certificate_text: str | None = None
 
 
-def _fit(c: canvas.Canvas, text: str, font: str, size: float, max_width: float, min_size: float = 10) -> float:
+def _fit(
+    c: canvas.Canvas, text: str, font: str, size: float, max_width: float, min_size: float = 10
+) -> float:
     while size > min_size and c.stringWidth(text, font, size) > max_width:
         size -= 1
     return size
@@ -140,7 +150,9 @@ def render_certificate_pdf(d: CertificateData) -> bytes:
     c.roundRect(margin, margin, width - 2 * margin, height - 2 * margin, 14, stroke=1, fill=1)
     c.setStrokeColor(accent)
     c.setLineWidth(0.8)
-    c.roundRect(margin + 8, margin + 8, width - 2 * margin - 16, height - 2 * margin - 16, 10, stroke=1, fill=0)
+    c.roundRect(
+        margin + 8, margin + 8, width - 2 * margin - 16, height - 2 * margin - 16, 10, stroke=1, fill=0
+    )
 
     cx = width / 2
     inner = width - 2 * margin - 120
@@ -221,9 +233,13 @@ def render_certificate_pdf(d: CertificateData) -> bytes:
     c.drawString(date_x + 4, base + 24, d.issued_at.strftime("%d %B %Y"))
     c.setFillColor(muted)
     c.setFont(fonts["sans"], 9)
-    c.drawString(date_x, base + 4, "Date issued" + (f"  ·  valid until {d.expires_at:%d %b %Y}" if d.expires_at else ""))
+    c.drawString(
+        date_x,
+        base + 4,
+        "Date issued" + (f"  ·  valid until {d.expires_at:%d %b %Y}" if d.expires_at else ""),
+    )
 
-    _seal(c, width - margin - 250, base + 30, 34, primary, accent, fonts["sans-bold"])
+    _seal(c, width - margin - 235, base + 66, 34, primary, accent, fonts["sans-bold"])
 
     qr_size = 92
     qx, qy = width - margin - 130, margin + 26
@@ -248,8 +264,15 @@ def render_certificate_pdf(d: CertificateData) -> bytes:
     return buf.getvalue()
 
 
-def _skill_chips(c: canvas.Canvas, skills: list[str], cx: float, y: float, font: str, colour: colors.Color,
-                 max_width: float) -> None:
+def _skill_chips(
+    c: canvas.Canvas,
+    skills: list[str],
+    cx: float,
+    y: float,
+    font: str,
+    colour: colors.Color,
+    max_width: float,
+) -> None:
     size = 9
     pad = 8
     labels = [s[:40] for s in skills]
@@ -268,8 +291,9 @@ def _skill_chips(c: canvas.Canvas, skills: list[str], cx: float, y: float, font:
         x += w + 6
 
 
-def _seal(c: canvas.Canvas, x: float, y: float, r: float, primary: colors.Color, accent: colors.Color,
-          font: str) -> None:
+def _seal(
+    c: canvas.Canvas, x: float, y: float, r: float, primary: colors.Color, accent: colors.Color, font: str
+) -> None:
     c.setFillColor(accent)
     points = []
     for i in range(32):

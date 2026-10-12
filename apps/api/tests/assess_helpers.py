@@ -13,17 +13,33 @@ from app.models.learning import Enrolment
 API = "/api/v1"
 
 
-async def make_course(org_id: uuid.UUID, *, title: str = "Network Fundamentals", instructor_id: uuid.UUID | None = None,
-                      **fields: Any) -> tuple[uuid.UUID, uuid.UUID]:
+async def make_course(
+    org_id: uuid.UUID,
+    *,
+    title: str = "Network Fundamentals",
+    instructor_id: uuid.UUID | None = None,
+    **fields: Any,
+) -> tuple[uuid.UUID, uuid.UUID]:
     """Create a published course with one version. Returns (course_id, version_id)."""
     async with get_sessionmaker()() as s:
         s.info["rls_bypass"] = True
-        course = Course(organisation_id=org_id, slug=f"c-{uuid.uuid4().hex[:8]}", title=title, status="published",
-                        instructor_id=instructor_id, **fields)
+        course = Course(
+            organisation_id=org_id,
+            slug=f"c-{uuid.uuid4().hex[:8]}",
+            title=title,
+            status="published",
+            instructor_id=instructor_id,
+            **fields,
+        )
         s.add(course)
         await s.flush()
-        version = CourseVersion(organisation_id=org_id, course_id=course.id, version_number=1,
-                                snapshot={"title": title}, published_at=datetime.now(UTC))
+        version = CourseVersion(
+            organisation_id=org_id,
+            course_id=course.id,
+            version_number=1,
+            snapshot={"title": title},
+            published_at=datetime.now(UTC),
+        )
         s.add(version)
         await s.flush()
         course.current_version_id = version.id
@@ -31,11 +47,19 @@ async def make_course(org_id: uuid.UUID, *, title: str = "Network Fundamentals",
         return course.id, version.id
 
 
-async def enrol(org_id: uuid.UUID, user_id: uuid.UUID, course_id: uuid.UUID, version_id: uuid.UUID) -> uuid.UUID:
+async def enrol(
+    org_id: uuid.UUID, user_id: uuid.UUID, course_id: uuid.UUID, version_id: uuid.UUID
+) -> uuid.UUID:
     async with get_sessionmaker()() as s:
         s.info["rls_bypass"] = True
-        e = Enrolment(organisation_id=org_id, user_id=user_id, course_id=course_id, course_version_id=version_id,
-                      status="in_progress", started_at=datetime.now(UTC))
+        e = Enrolment(
+            organisation_id=org_id,
+            user_id=user_id,
+            course_id=course_id,
+            course_version_id=version_id,
+            status="in_progress",
+            started_at=datetime.now(UTC),
+        )
         s.add(e)
         await s.commit()
         return e.id

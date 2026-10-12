@@ -15,6 +15,9 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import structlog
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 
@@ -49,9 +52,43 @@ async def run_task(name: str, **kwargs: Any) -> Any:
     return await TASKS[name](**kwargs)
 
 
-async def enqueue(name: str, *, inline_await: bool = False, **kwargs: Any) -> None:
-    """Queue a task. In eager mode, tasks run after the current request's transaction via an asyncio task
-    (or awaited immediately when ``inline_await`` is True — used by tests and when ordering matters)."""
+AFTER_COMMIT_KEY = "praxis_after_commit_tasks"
+
+
+@event.listens_for(Session, "after_commit")
+def _dispatch_after_commit(session: Session) -> None:
+    for name, kwargs in session.info.pop(AFTER_COMMIT_KEY, []):
+        _dispatch(name, kwargs)
+
+
+@event.listens_for(Session, "after_rollback")
+def _discard_after_rollback(session: Session) -> None:
+    session.info.pop(AFTER_COMMIT_KEY, None)
+
+
+def _dispatch(name: str, kwargs: dict[str, Any]) -> None:
+    if settings.CELERY_TASK_ALWAYS_EAGER:
+        t = asyncio.get_running_loop().create_task(_safe_run(name, kwargs))
+        _pending.add(t)
+        t.add_done_callback(_pending.discard)
+        return
+    from app.workers.celery_app import celery_app
+
+    celery_app.send_task("praxis.run", args=[name], kwargs=kwargs)
+
+
+async def enqueue(
+    name: str, *, db: AsyncSession | None = None, inline_await: bool = False, **kwargs: Any
+) -> None:
+    """Queue a task.
+
+    Pass ``db`` whenever the task reads rows written in the current transaction: the task is then held
+    until that transaction COMMITS (and dropped on rollback), so workers never race the writer.
+    Without ``db`` the task is dispatched immediately. ``inline_await`` runs it inline in eager mode.
+    """
+    if db is not None and not inline_await:
+        db.sync_session.info.setdefault(AFTER_COMMIT_KEY, []).append((name, kwargs))
+        return
     if settings.CELERY_TASK_ALWAYS_EAGER:
         if inline_await:
             await run_task(name, **kwargs)

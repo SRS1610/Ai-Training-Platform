@@ -94,7 +94,7 @@ async def send_notification(
         elif n.id is not None:
             from app.workers import enqueue
 
-            await enqueue("notifications.deliver_push", notification_id=str(n.id))
+            await enqueue("notifications.deliver_push", db=db, notification_id=str(n.id))
     return n
 
 

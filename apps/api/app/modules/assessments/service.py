@@ -939,7 +939,10 @@ async def submit_attempt(
     await finalize_attempt(db, att)
     if att.status == AttemptStatus.NEEDS_REVIEW and settings_snap.get("grading_mode") in AI_MODES:
         await enqueue(
-            "ai.grade_attempt_answers", attempt_id=str(att.id), organisation_id=str(att.organisation_id)
+            "ai.grade_attempt_answers",
+            db=db,
+            attempt_id=str(att.id),
+            organisation_id=str(att.organisation_id),
         )
     return att
 
