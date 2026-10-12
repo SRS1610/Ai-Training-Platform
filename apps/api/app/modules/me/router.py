@@ -72,16 +72,32 @@ def _user_out(user: User) -> UserOut:
 
 def _org_summary(m: OrganisationUser) -> OrgSummary:
     o = m.organisation
-    return OrgSummary(id=o.id, name=o.name, slug=o.slug, kind=o.kind, logo_url=o.logo_url, branding=o.branding or {},
-                      plan_code=o.plan_code, roles=sorted(r.key for r in m.roles))
+    return OrgSummary(
+        id=o.id,
+        name=o.name,
+        slug=o.slug,
+        kind=o.kind,
+        logo_url=o.logo_url,
+        branding=o.branding or {},
+        plan_code=o.plan_code,
+        roles=sorted(r.key for r in m.roles),
+    )
 
 
 async def _memberships(db: AsyncSession, user_id: uuid.UUID) -> list[OrganisationUser]:
-    rows = (await db.execute(
-        select(OrganisationUser).where(OrganisationUser.user_id == user_id,
-                                       OrganisationUser.status == MembershipStatus.ACTIVE)
-        .order_by(OrganisationUser.created_at)
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(OrganisationUser)
+                .where(
+                    OrganisationUser.user_id == user_id, OrganisationUser.status == MembershipStatus.ACTIVE
+                )
+                .order_by(OrganisationUser.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return [m for m in rows if m.organisation.deleted_at is None]
 
 
@@ -91,9 +107,18 @@ async def me(ctx: Ctx = Depends(get_ctx)) -> MeOut:
     memberships = await _memberships(ctx.db, user.id)
     current = next((m for m in memberships if m.organisation_id == ctx.org_id), None)
     org_summary = (
-        _org_summary(current) if current else OrgSummary(
-            id=ctx.org.id, name=ctx.org.name, slug=ctx.org.slug, kind=ctx.org.kind, logo_url=ctx.org.logo_url,
-            branding=ctx.org.branding or {}, plan_code=ctx.org.plan_code, roles=["super_admin"])
+        _org_summary(current)
+        if current
+        else OrgSummary(
+            id=ctx.org.id,
+            name=ctx.org.name,
+            slug=ctx.org.slug,
+            kind=ctx.org.kind,
+            logo_url=ctx.org.logo_url,
+            branding=ctx.org.branding or {},
+            plan_code=ctx.org.plan_code,
+            roles=["super_admin"],
+        )
     )
     s = ctx.org.settings or {}
     return MeOut(
@@ -101,13 +126,17 @@ async def me(ctx: Ctx = Depends(get_ctx)) -> MeOut:
         organisation=org_summary,
         permissions=sorted(ctx.permissions),
         organisations=[_org_summary(m) for m in memberships],
-        settings={"gamification_enabled": s.get("gamification_enabled", True),
-                  "require_mfa": s.get("require_mfa", False)},
+        settings={
+            "gamification_enabled": s.get("gamification_enabled", True),
+            "require_mfa": s.get("require_mfa", False),
+        },
     )
 
 
 @router.patch("", response_model=UserOut)
-async def update_me(body: MeUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_me(
+    body: MeUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+):
     data = body.model_dump(exclude_unset=True)
     if "default_organisation_id" in data and data["default_organisation_id"]:
         ids = {m.organisation_id for m in await _memberships(db, user.id)}

@@ -11,6 +11,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@hookform/resolvers": "3.10.0",
@@ -18,13 +21,18 @@
     "@praxis/ui": "workspace:*",
     "@tanstack/react-query": "^5.90.0",
     "@tanstack/react-table": "8.21.3",
+    "@xyflow/react": "^12.12.0",
     "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "framer-motion": "^12.43.0",
     "lucide-react": "^0.577.0",
     "next": "15.5.27",
+    "prism-react-renderer": "^2.4.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.63.0",
     "react-markdown": "10.1.0",
+    "recharts": "^3.10.1",
     "rehype-sanitize": "6.0.0",
     "remark-gfm": "4.0.1",
     "zod": "3.25.76"

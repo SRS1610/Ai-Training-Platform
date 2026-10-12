@@ -3577,6 +3577,383 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/simulations/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Templates */
+        get: operations["list_templates_api_v1_simulations_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations/ai-build": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ai Build
+         * @description Generate a DRAFT simulation from a description (AI gateway or deterministic fallback).
+         *     Never publishes.
+         */
+        post: operations["ai_build_api_v1_simulations_ai_build_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Simulations */
+        get: operations["list_simulations_api_v1_simulations_get"];
+        put?: never;
+        /** Create Simulation */
+        post: operations["create_simulation_api_v1_simulations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations/from-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create From Template */
+        post: operations["create_from_template_api_v1_simulations_from_template_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations/{sim_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Simulation */
+        get: operations["get_simulation_api_v1_simulations__sim_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Simulation */
+        delete: operations["delete_simulation_api_v1_simulations__sim_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Simulation */
+        patch: operations["update_simulation_api_v1_simulations__sim_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/simulations/{sim_id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Draft */
+        get: operations["get_draft_api_v1_simulations__sim_id__draft_get"];
+        /**
+         * Save Draft
+         * @description Save the draft definition. Structural (schema) errors are rejected with 422; semantic errors are
+         *     allowed in drafts and returned in ``validation`` (publishing requires a valid definition).
+         */
+        put: operations["save_draft_api_v1_simulations__sim_id__draft_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations/{sim_id}/graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Graph */
+        get: operations["get_graph_api_v1_simulations__sim_id__graph_get"];
+        /** Save Graph */
+        put: operations["save_graph_api_v1_simulations__sim_id__graph_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations/{sim_id}/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate Definition */
+        post: operations["validate_definition_api_v1_simulations__sim_id__validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations/{sim_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish */
+        post: operations["publish_api_v1_simulations__sim_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations/{sim_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Versions */
+        get: operations["list_versions_api_v1_simulations__sim_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations/{sim_id}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Version */
+        get: operations["get_version_api_v1_simulations__sim_id__versions__version__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations/{sim_id}/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Simulation Analytics */
+        get: operations["simulation_analytics_api_v1_simulations__sim_id__analytics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations/{sim_id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Simulation Sessions */
+        get: operations["simulation_sessions_api_v1_simulations__sim_id__sessions_get"];
+        put?: never;
+        /**
+         * Start Session
+         * @description Start (or resume the active) attempt of a published simulation.
+         */
+        post: operations["start_session_api_v1_simulations__sim_id__sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Sessions */
+        get: operations["my_sessions_api_v1_simulation_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation-sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Session */
+        get: operations["get_session_api_v1_simulation_sessions__session_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation-sessions/{session_id}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Perform Action
+         * @description Idempotent by ``client_seq``: re-sending a processed seq returns the stored outcome.
+         */
+        post: operations["perform_action_api_v1_simulation_sessions__session_id__actions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation-sessions/{session_id}/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat */
+        post: operations["chat_api_v1_simulation_sessions__session_id__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation-sessions/{session_id}/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finish Session */
+        post: operations["finish_session_api_v1_simulation_sessions__session_id__finish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation-sessions/{session_id}/abandon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Abandon Session */
+        post: operations["abandon_session_api_v1_simulation_sessions__session_id__abandon_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation-sessions/{session_id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Result */
+        get: operations["get_result_api_v1_simulation_sessions__session_id__result_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulation-sessions/{session_id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Replay */
+        get: operations["replay_api_v1_simulation_sessions__session_id__replay_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/skills": {
         parameters: {
             query?: never;
@@ -4013,6 +4390,38 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AIBuildIn */
+        AIBuildIn: {
+            /** Description */
+            description: string;
+            /** Industry */
+            industry?: string | null;
+            /** Difficulty */
+            difficulty?: ("beginner" | "intermediate" | "advanced" | "expert") | null;
+            /** Learner Role */
+            learner_role?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Course Id */
+            course_id?: string | null;
+        };
+        /** AIBuildOut */
+        AIBuildOut: {
+            simulation: components["schemas"]["SimulationOut"];
+            /**
+             * Scenario Id
+             * Format: uuid
+             */
+            scenario_id: string;
+            validation: components["schemas"]["ValidationOut"];
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "ai" | "fallback";
+            /** Repairs */
+            repairs: string[];
+        };
         /** AIConfigOut */
         AIConfigOut: {
             /** Provider */
@@ -4163,6 +4572,25 @@ export interface components {
             csrf_token?: string | null;
             /** Expires At */
             expires_at?: string | null;
+        };
+        /**
+         * ActionIn
+         * @description Either an explicit ``action_id`` (buttons, choices, documents) or free ``input.text`` resolved
+         *     against ``tool`` (typed commands) / ``character`` (chat).
+         */
+        ActionIn: {
+            /** Action Id */
+            action_id?: string | null;
+            /** Tool */
+            tool?: string | null;
+            /** Character */
+            character?: string | null;
+            /** Input */
+            input?: {
+                [key: string]: unknown;
+            } | string | null;
+            /** Client Seq */
+            client_seq: number;
         };
         /** Activity */
         Activity: {
@@ -5413,6 +5841,15 @@ export interface components {
             /** Push */
             push?: boolean | null;
         };
+        /** ChatIn */
+        ChatIn: {
+            /** Character Id */
+            character_id: string;
+            /** Message */
+            message: string;
+            /** Client Seq */
+            client_seq?: number | null;
+        };
         /** CheckIn */
         CheckIn: {
             /** Answer Ids */
@@ -6070,18 +6507,32 @@ export interface components {
             /** Record Value */
             record_value?: string | null;
         };
-        /** DraftIn */
-        DraftIn: {
-            /** Text Content */
-            text_content?: string | null;
-            /** Code Content */
-            code_content?: string | null;
-            /** Structured Answers */
-            structured_answers?: {
+        /** DraftOut */
+        DraftOut: {
+            /**
+             * Simulation Id
+             * Format: uuid
+             */
+            simulation_id: string;
+            /**
+             * Scenario Id
+             * Format: uuid
+             */
+            scenario_id: string;
+            /** Version */
+            version: number;
+            /** Status */
+            status: string;
+            /** Definition */
+            definition: {
                 [key: string]: unknown;
             };
-            /** File Ids */
-            file_ids?: string[];
+            validation: components["schemas"]["ValidationOut"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** DuplicateIn */
         DuplicateIn: {
@@ -6329,6 +6780,15 @@ export interface components {
             /** Scan Status */
             scan_status: string;
         };
+        /** FromTemplate */
+        FromTemplate: {
+            /** Template Key */
+            template_key: string;
+            /** Title */
+            title?: string | null;
+            /** Course Id */
+            course_id?: string | null;
+        };
         /** GamificationMeOut */
         GamificationMeOut: {
             /** Enabled */
@@ -6566,6 +7026,33 @@ export interface components {
             /** Integrity Signals */
             integrity_signals: components["schemas"]["IntegritySignalOut"][];
             ai_recommendation: components["schemas"]["GradeOut"] | null;
+        };
+        /** GraphIn */
+        GraphIn: {
+            /** Graph */
+            graph: {
+                [key: string]: unknown;
+            };
+        };
+        /** GraphOut */
+        GraphOut: {
+            /**
+             * Simulation Id
+             * Format: uuid
+             */
+            simulation_id: string;
+            /**
+             * Scenario Id
+             * Format: uuid
+             */
+            scenario_id: string;
+            /** Version */
+            version: number;
+            /** Graph */
+            graph: {
+                [key: string]: unknown;
+            };
+            validation: components["schemas"]["ValidationOut"];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -8482,6 +8969,28 @@ export interface components {
             /** Page Size */
             page_size: number;
         };
+        /** Page[SessionSummary] */
+        Page_SessionSummary_: {
+            /** Items */
+            items: components["schemas"]["SessionSummary"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
+        /** Page[SimulationOut] */
+        Page_SimulationOut_: {
+            /** Items */
+            items: components["schemas"]["SimulationOut"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
         /** Page[TeamMemberOut] */
         Page_TeamMemberOut_: {
             /** Items */
@@ -8896,11 +9405,6 @@ export interface components {
             /** Changelog */
             changelog?: string | null;
         };
-        /** PublishOut */
-        PublishOut: {
-            course: components["schemas"]["CourseOut"];
-            version: components["schemas"]["VersionSummary"];
-        };
         /** PushKeys */
         PushKeys: {
             /** P256Dh */
@@ -9299,6 +9803,22 @@ export interface components {
             /** Lessons */
             lessons?: components["schemas"]["ReorderLesson"][];
         };
+        /** ReplayOut */
+        ReplayOut: {
+            session: components["schemas"]["SessionSummary"];
+            /** Actions */
+            actions: {
+                [key: string]: unknown;
+            }[];
+            /** States */
+            states: {
+                [key: string]: unknown;
+            }[];
+            /** Transcript */
+            transcript: {
+                [key: string]: unknown;
+            }[];
+        };
         /** ReportRequest */
         ReportRequest: {
             /** Format */
@@ -9381,6 +9901,52 @@ export interface components {
             url?: string | null;
             /** File Id */
             file_id?: string | null;
+        };
+        /** ResultOut */
+        ResultOut: {
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
+            /**
+             * Simulation Id
+             * Format: uuid
+             */
+            simulation_id: string;
+            /** Status */
+            status: string;
+            /** Attempt Number */
+            attempt_number: number;
+            /** Total Score */
+            total_score: number | null;
+            /** Band */
+            band: string | null;
+            /** Passed */
+            passed: boolean | null;
+            /** Dimensions */
+            dimensions: {
+                [key: string]: unknown;
+            }[];
+            /** Feedback */
+            feedback: {
+                [key: string]: unknown;
+            };
+            /** Narrative */
+            narrative: string | null;
+            /** End Reason */
+            end_reason: string | null;
+            /** Sim Minutes */
+            sim_minutes: number;
+            /** Target Minutes */
+            target_minutes: number | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Completed At */
+            completed_at: string | null;
         };
         /** ResultQuestion */
         ResultQuestion: {
@@ -9904,6 +10470,144 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** SessionStart */
+        SessionStart: {
+            /** Seed */
+            seed?: number | null;
+        };
+        /** SessionSummary */
+        SessionSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Simulation Id
+             * Format: uuid
+             */
+            simulation_id: string;
+            /**
+             * Scenario Id
+             * Format: uuid
+             */
+            scenario_id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Attempt Number */
+            attempt_number: number;
+            /** Status */
+            status: string;
+            /** Phase */
+            phase: string;
+            /** Action Count */
+            action_count: number;
+            /** Sim Minutes Elapsed */
+            sim_minutes_elapsed: number;
+            /** Total Score */
+            total_score: number | null;
+            /** Band */
+            band: string | null;
+            /** Passed */
+            passed: boolean | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Completed At */
+            completed_at: string | null;
+            /** Last Activity At */
+            last_activity_at: string | null;
+        };
+        /**
+         * SimulationCreate
+         * @description Create from scratch (starter definition), from a packaged template, or from a full definition.
+         */
+        SimulationCreate: {
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Industry */
+            industry?: string | null;
+            /** Environment Type */
+            environment_type?: string | null;
+            /** Difficulty */
+            difficulty?: ("beginner" | "intermediate" | "advanced" | "expert") | null;
+            /** Estimated Minutes */
+            estimated_minutes?: number | null;
+            /** Course Id */
+            course_id?: string | null;
+            /**
+             * Is Graded
+             * @default true
+             */
+            is_graded: boolean;
+            /** Max Attempts */
+            max_attempts?: number | null;
+            /** Skill Ids */
+            skill_ids?: string[];
+            /** Template Key */
+            template_key?: string | null;
+            /** Definition */
+            definition?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** SimulationOut */
+        SimulationOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Industry */
+            industry: string;
+            /** Environment Type */
+            environment_type: string;
+            /** Difficulty */
+            difficulty: string;
+            /** Estimated Minutes */
+            estimated_minutes: number;
+            /** Course Id */
+            course_id: string | null;
+            /** Status */
+            status: string;
+            /** Is Graded */
+            is_graded: boolean;
+            /** Max Attempts */
+            max_attempts: number | null;
+            /** Current Scenario Id */
+            current_scenario_id: string | null;
+            /** Skill Ids */
+            skill_ids: unknown[];
+            /** Ai Generated */
+            ai_generated: boolean;
+            /** Created By */
+            created_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Published Version */
+            published_version?: number | null;
+            /** Draft Version */
+            draft_version?: number | null;
+        };
         /** SimulationResult */
         SimulationResult: {
             /**
@@ -9926,6 +10630,29 @@ export interface components {
             passed: boolean | null;
             /** Completed At */
             completed_at: string | null;
+        };
+        /** SimulationUpdate */
+        SimulationUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Industry */
+            industry?: string | null;
+            /** Environment Type */
+            environment_type?: string | null;
+            /** Difficulty */
+            difficulty?: ("beginner" | "intermediate" | "advanced" | "expert") | null;
+            /** Estimated Minutes */
+            estimated_minutes?: number | null;
+            /** Course Id */
+            course_id?: string | null;
+            /** Is Graded */
+            is_graded?: boolean | null;
+            /** Max Attempts */
+            max_attempts?: number | null;
+            /** Skill Ids */
+            skill_ids?: string[] | null;
         };
         /** SkillIn */
         SkillIn: {
@@ -9982,6 +10709,49 @@ export interface components {
             focus: string;
             /** Activities */
             activities: components["schemas"]["Activity"][];
+        };
+        /** StepOut */
+        StepOut: {
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
+            /** Seq */
+            seq: number;
+            /**
+             * Replayed
+             * @default false
+             */
+            replayed: boolean;
+            /** Accepted */
+            accepted: boolean;
+            /** Outcome */
+            outcome: {
+                [key: string]: unknown;
+            };
+            /** Reply */
+            reply?: {
+                [key: string]: unknown;
+            } | null;
+            /** Status */
+            status: string;
+            /** Phase */
+            phase: string;
+            /** Sim Minutes */
+            sim_minutes: number;
+            /** Ended */
+            ended: boolean;
+            /** Next Seq */
+            next_seq: number;
+            /** View */
+            view: {
+                [key: string]: unknown;
+            };
+            /** Result */
+            result?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** StreakOut */
         StreakOut: {
@@ -10271,6 +11041,31 @@ export interface components {
             /** Lead User Id */
             lead_user_id?: string | null;
         };
+        /** TemplateOut */
+        TemplateOut: {
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Industry */
+            industry: string | null;
+            /** Environment Type */
+            environment_type: string | null;
+            /** Difficulty */
+            difficulty: string | null;
+            /** Estimated Minutes */
+            estimated_minutes: number | null;
+            /** Learner Role */
+            learner_role: string;
+            /** Tags */
+            tags: string[];
+            /** Actions */
+            actions: number;
+            /** Phases */
+            phases: string[];
+        };
         /** TextIn */
         TextIn: {
             /** Title */
@@ -10427,6 +11222,13 @@ export interface components {
             /** Full Name */
             full_name: string;
         };
+        /** ValidateIn */
+        ValidateIn: {
+            /** Definition */
+            definition?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -10439,6 +11241,28 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** ValidationIssue */
+        ValidationIssue: {
+            /** Code */
+            code: string;
+            /** Path */
+            path: string;
+            /** Message */
+            message: string;
+        };
+        /** ValidationOut */
+        ValidationOut: {
+            /** Valid */
+            valid: boolean;
+            /** Errors */
+            errors: components["schemas"]["ValidationIssue"][];
+            /** Warnings */
+            warnings: components["schemas"]["ValidationIssue"][];
+            /** Stats */
+            stats?: {
+                [key: string]: unknown;
+            };
         };
         /** VerificationOut */
         VerificationOut: {
@@ -10469,6 +11293,38 @@ export interface components {
             skills: string[];
             /** Revoked At */
             revoked_at: string | null;
+        };
+        /** VersionDetail */
+        VersionDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Version */
+            version: number;
+            /** Status */
+            status: string;
+            /** Published At */
+            published_at: string | null;
+            /** Published By */
+            published_by: string | null;
+            /** Created By */
+            created_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Definition */
+            definition: {
+                [key: string]: unknown;
+            };
         };
         /** VersionInfo */
         VersionInfo: {
@@ -10541,6 +11397,19 @@ export interface components {
             imported: number;
             /** Question Ids */
             question_ids: string[];
+        };
+        /** DraftIn */
+        app__modules__assignments__schemas__DraftIn: {
+            /** Text Content */
+            text_content?: string | null;
+            /** Code Content */
+            code_content?: string | null;
+            /** Structured Answers */
+            structured_answers?: {
+                [key: string]: unknown;
+            };
+            /** File Ids */
+            file_ids?: string[];
         };
         /** VersionOut */
         app__modules__assignments__schemas__VersionOut: {
@@ -10687,6 +11556,11 @@ export interface components {
             /** By Day */
             by_day: components["schemas"]["DayCost"][];
         };
+        /** PublishOut */
+        app__modules__courses__schemas__PublishOut: {
+            course: components["schemas"]["CourseOut"];
+            version: components["schemas"]["VersionSummary"];
+        };
         /** VersionOut */
         app__modules__courses__schemas__VersionOut: {
             /**
@@ -10782,6 +11656,103 @@ export interface components {
             types_searched: string[];
             /** Fuzzy */
             fuzzy: boolean;
+        };
+        /** DraftIn */
+        app__modules__simulations__schemas__DraftIn: {
+            /** Definition */
+            definition: {
+                [key: string]: unknown;
+            };
+        };
+        /** PublishOut */
+        app__modules__simulations__schemas__PublishOut: {
+            simulation: components["schemas"]["SimulationOut"];
+            published: components["schemas"]["app__modules__simulations__schemas__VersionOut"];
+            validation: components["schemas"]["ValidationOut"];
+        };
+        /** SessionOut */
+        app__modules__simulations__schemas__SessionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Simulation Id
+             * Format: uuid
+             */
+            simulation_id: string;
+            /**
+             * Scenario Id
+             * Format: uuid
+             */
+            scenario_id: string;
+            /** Status */
+            status: string;
+            /** Attempt Number */
+            attempt_number: number;
+            /** Is Graded */
+            is_graded: boolean;
+            /** Show Feedback */
+            show_feedback: boolean;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Completed At */
+            completed_at: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /** Phase */
+            phase: string;
+            /** Sim Minutes */
+            sim_minutes: number;
+            /** Action Count */
+            action_count: number;
+            /** Next Seq */
+            next_seq: number;
+            /**
+             * Resumed
+             * @default false
+             */
+            resumed: boolean;
+            /** View */
+            view: {
+                [key: string]: unknown;
+            };
+            /** Result */
+            result?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** VersionOut */
+        app__modules__simulations__schemas__VersionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Version */
+            version: number;
+            /** Status */
+            status: string;
+            /** Published At */
+            published_at: string | null;
+            /** Published By */
+            published_by: string | null;
+            /** Created By */
+            created_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** SkillOut */
         app__modules__skills__schemas__SkillOut: {
@@ -12740,7 +13711,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DraftIn"];
+                "application/json": components["schemas"]["app__modules__assignments__schemas__DraftIn"];
             };
         };
         responses: {
@@ -14932,7 +15903,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PublishOut"];
+                    "application/json": components["schemas"]["app__modules__courses__schemas__PublishOut"];
                 };
             };
             /** @description Validation Error */
@@ -18693,6 +19664,878 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["app__modules__search__router__SearchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_templates_api_v1_simulations_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"][];
+                };
+            };
+        };
+    };
+    ai_build_api_v1_simulations_ai_build_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AIBuildIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIBuildOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_simulations_api_v1_simulations_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                course_id?: string | null;
+                industry?: string | null;
+                search?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_SimulationOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_simulation_api_v1_simulations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_from_template_api_v1_simulations_from_template_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FromTemplate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_simulation_api_v1_simulations__sim_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_simulation_api_v1_simulations__sim_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_simulation_api_v1_simulations__sim_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_draft_api_v1_simulations__sim_id__draft_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_draft_api_v1_simulations__sim_id__draft_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__modules__simulations__schemas__DraftIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_graph_api_v1_simulations__sim_id__graph_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GraphOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_graph_api_v1_simulations__sim_id__graph_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GraphIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GraphOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    validate_definition_api_v1_simulations__sim_id__validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ValidateIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_api_v1_simulations__sim_id__publish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__modules__simulations__schemas__PublishOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_versions_api_v1_simulations__sim_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__modules__simulations__schemas__VersionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_version_api_v1_simulations__sim_id__versions__version__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    simulation_analytics_api_v1_simulations__sim_id__analytics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    simulation_sessions_api_v1_simulations__sim_id__sessions_get: {
+        parameters: {
+            query?: {
+                user_id?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_SessionSummary_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_session_api_v1_simulations__sim_id__sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SessionStart"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__modules__simulations__schemas__SessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_sessions_api_v1_simulation_sessions_get: {
+        parameters: {
+            query?: {
+                simulation_id?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_SessionSummary_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_session_api_v1_simulation_sessions__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__modules__simulations__schemas__SessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    perform_action_api_v1_simulation_sessions__session_id__actions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_api_v1_simulation_sessions__session_id__chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    finish_session_api_v1_simulation_sessions__session_id__finish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    abandon_session_api_v1_simulation_sessions__session_id__abandon_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__modules__simulations__schemas__SessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_result_api_v1_simulation_sessions__session_id__result_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replay_api_v1_simulation_sessions__session_id__replay_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayOut"];
                 };
             };
             /** @description Validation Error */

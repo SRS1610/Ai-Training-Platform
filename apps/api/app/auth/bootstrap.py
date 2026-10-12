@@ -38,7 +38,13 @@ async def ensure_rbac_catalogue(session: AsyncSession) -> None:
     for key, spec in DEFAULT_ROLES.items():
         role = await session.scalar(select(Role).where(Role.organisation_id.is_(None), Role.key == key))
         if role is None:
-            role = Role(organisation_id=None, key=key, name=spec["name"], description=spec["description"], is_system=True)
+            role = Role(
+                organisation_id=None,
+                key=key,
+                name=spec["name"],
+                description=spec["description"],
+                is_system=True,
+            )
             session.add(role)
         role.name, role.description = spec["name"], spec["description"]
         role.permissions = [perms[c] for c in spec["permissions"]]
@@ -101,24 +107,36 @@ async def create_organisation(
 
 
 async def _bootstrap_org(
-    session: AsyncSession, org: Organisation, owner_user_id: uuid.UUID | None, owner_role_keys: tuple[str, ...],
+    session: AsyncSession,
+    org: Organisation,
+    owner_user_id: uuid.UUID | None,
+    owner_role_keys: tuple[str, ...],
     plan_code: str,
 ) -> None:
     roles = await copy_system_roles(session, org.id)
-    session.add(AIConfiguration(
-        organisation_id=org.id,
-        features={"tutor": True, "content_generation": True, "grading": True, "simulation_ai": True,
-                  "recommendations": True},
-        tutor_behaviour={"tone": "encouraging", "socratic": True, "cite_sources": True},
-        monthly_budget_usd=50 if plan_code == "free" else None,
-    ))
+    session.add(
+        AIConfiguration(
+            organisation_id=org.id,
+            features={
+                "tutor": True,
+                "content_generation": True,
+                "grading": True,
+                "simulation_ai": True,
+                "recommendations": True,
+            },
+            tutor_behaviour={"tone": "encouraging", "socratic": True, "cite_sources": True},
+            monthly_budget_usd=None,  # None = use the plan's AI budget (billing/plans.py)
+        )
+    )
     session.add(Subscription(organisation_id=org.id, plan_code=plan_code, status="active", seats=1))
     if owner_user_id:
-        session.add(OrganisationUser(
-            organisation_id=org.id,
-            user_id=owner_user_id,
-            status=MembershipStatus.ACTIVE,
-            joined_at=datetime.now(UTC),
-            roles=[roles[k] for k in owner_role_keys if k in roles],
-        ))
+        session.add(
+            OrganisationUser(
+                organisation_id=org.id,
+                user_id=owner_user_id,
+                status=MembershipStatus.ACTIVE,
+                joined_at=datetime.now(UTC),
+                roles=[roles[k] for k in owner_role_keys if k in roles],
+            )
+        )
     await session.flush()

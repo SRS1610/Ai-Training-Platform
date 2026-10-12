@@ -51,8 +51,18 @@ def password_needs_rehash(password_hash: str) -> bool:
 
 
 COMMON_PASSWORDS = {
-    "password", "password1", "password123", "123456789", "12345678", "qwerty123", "letmein123",
-    "welcome123", "iloveyou1", "admin1234", "passw0rd", "changeme1",
+    "password",
+    "password1",
+    "password123",
+    "123456789",
+    "12345678",
+    "qwerty123",
+    "letmein123",
+    "welcome123",
+    "iloveyou1",
+    "admin1234",
+    "passw0rd",
+    "changeme1",
 }
 
 
@@ -136,7 +146,9 @@ def _fernet() -> Fernet:
     key = settings.ENCRYPTION_KEY
     if not key:
         # Development fallback: derive a stable key from AUTH_SECRET. Production requires ENCRYPTION_KEY.
-        key = base64.urlsafe_b64encode(hashlib.sha256(("enc:" + settings.AUTH_SECRET).encode()).digest()).decode()
+        key = base64.urlsafe_b64encode(
+            hashlib.sha256(("enc:" + settings.AUTH_SECRET).encode()).digest()
+        ).decode()
     return Fernet(key.encode() if isinstance(key, str) else key)
 
 

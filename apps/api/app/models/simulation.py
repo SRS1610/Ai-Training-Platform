@@ -21,7 +21,9 @@ class Simulation(UUIDPk, Timestamps, SoftDelete, TenantScoped, Base):
     environment_type: Mapped[str] = mapped_column(String(64), default="helpdesk")
     difficulty: Mapped[str] = mapped_column(String(16), default="intermediate")
     estimated_minutes: Mapped[int] = mapped_column(Integer, default=20)
-    course_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("courses.id", ondelete="SET NULL"), index=True)
+    course_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("courses.id", ondelete="SET NULL"), index=True
+    )
     status: Mapped[str] = mapped_column(String(16), default="draft")
     is_graded: Mapped[bool] = mapped_column(Boolean, default=True)
     max_attempts: Mapped[int | None] = mapped_column(Integer)
@@ -39,7 +41,9 @@ class SimulationScenario(UUIDPk, Timestamps, TenantScoped, Base):
     __tablename__ = "simulation_scenarios"
     __table_args__ = (UniqueConstraint("simulation_id", "version"),)
 
-    simulation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), index=True)
+    simulation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("simulations.id", ondelete="CASCADE"), index=True
+    )
     version: Mapped[int] = mapped_column(Integer)
     definition: Mapped[dict[str, Any]] = mapped_column()
     builder_graph: Mapped[dict[str, Any]] = mapped_column(default=dict)  # node/flow editor layout
@@ -60,7 +64,9 @@ class SimulationSession(UUIDPk, Timestamps, TenantScoped, Base):
     __tablename__ = "simulation_sessions"
     __table_args__ = (Index("ix_sim_sessions_org_user", "organisation_id", "user_id"),)
 
-    simulation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), index=True)
+    simulation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("simulations.id", ondelete="CASCADE"), index=True
+    )
     scenario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("simulation_scenarios.id", ondelete="RESTRICT"))
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     enrolment_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("enrolments.id", ondelete="SET NULL"))

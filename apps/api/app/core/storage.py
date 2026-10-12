@@ -53,7 +53,22 @@ MAGIC: dict[str, list[bytes]] = {
     ".zip": [b"PK\x03\x04"],
 }
 
-BLOCKED_EXTENSIONS = {".exe", ".dll", ".bat", ".cmd", ".sh", ".ps1", ".msi", ".jar", ".scr", ".com", ".vbs", ".html", ".htm", ".svg"}
+BLOCKED_EXTENSIONS = {
+    ".exe",
+    ".dll",
+    ".bat",
+    ".cmd",
+    ".sh",
+    ".ps1",
+    ".msi",
+    ".jar",
+    ".scr",
+    ".com",
+    ".vbs",
+    ".html",
+    ".htm",
+    ".svg",
+}
 
 
 def validate_upload(filename: str, content_type: str, data: bytes) -> str:
@@ -192,5 +207,7 @@ _storage: StorageBackend | None = None
 def get_storage() -> StorageBackend:
     global _storage
     if _storage is None:
-        _storage = S3Storage() if settings.STORAGE_BACKEND == "s3" else LocalStorage(settings.LOCAL_STORAGE_PATH)
+        _storage = (
+            S3Storage() if settings.STORAGE_BACKEND == "s3" else LocalStorage(settings.LOCAL_STORAGE_PATH)
+        )
     return _storage

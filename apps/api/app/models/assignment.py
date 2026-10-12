@@ -28,7 +28,9 @@ class Rubric(UUIDPk, Timestamps, SoftDelete, TenantScoped, Base):
 class Assignment(UUIDPk, Timestamps, SoftDelete, TenantScoped, Base):
     __tablename__ = "assignments"
 
-    course_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), index=True)
+    course_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("courses.id", ondelete="CASCADE"), index=True
+    )
     title: Mapped[str] = mapped_column(String(255))
     scenario: Mapped[str] = mapped_column(Text, default="")
     objective: Mapped[str] = mapped_column(Text, default="")
@@ -72,7 +74,9 @@ class Submission(UUIDPk, Timestamps, TenantScoped, Base):
         Index("ix_submissions_org_status", "organisation_id", "status"),
     )
 
-    assignment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("assignments.id", ondelete="CASCADE"), index=True)
+    assignment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("assignments.id", ondelete="CASCADE"), index=True
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     enrolment_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("enrolments.id", ondelete="SET NULL"))
     status: Mapped[str] = mapped_column(String(16), default=SubmissionStatus.DRAFT)
@@ -99,7 +103,9 @@ class SubmissionVersion(UUIDPk, Timestamps, TenantScoped, Base):
     __tablename__ = "submission_versions"
     __table_args__ = (UniqueConstraint("submission_id", "version_number"),)
 
-    submission_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("submissions.id", ondelete="CASCADE"), index=True)
+    submission_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("submissions.id", ondelete="CASCADE"), index=True
+    )
     version_number: Mapped[int] = mapped_column(Integer)
     text_content: Mapped[str | None] = mapped_column(Text)
     code_content: Mapped[str | None] = mapped_column(Text)
@@ -157,7 +163,9 @@ class IntegritySignal(UUIDPk, Timestamps, TenantScoped, Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     target_type: Mapped[str] = mapped_column(String(32))  # submission | attempt | simulation_session
     target_id: Mapped[uuid.UUID] = mapped_column()
-    signal_type: Mapped[str] = mapped_column(String(48))  # similarity | ai_text_likelihood | timing | focus_loss
+    signal_type: Mapped[str] = mapped_column(
+        String(48)
+    )  # similarity | ai_text_likelihood | timing | focus_loss
     score: Mapped[float] = mapped_column(Float)
     details: Mapped[dict[str, Any]] = mapped_column(default=dict)
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

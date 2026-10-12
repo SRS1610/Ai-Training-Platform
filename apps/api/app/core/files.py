@@ -13,7 +13,9 @@ from app.core.storage import get_storage, sanitize_filename, scan_bytes, sha256_
 from app.models.content import StoredFile
 
 
-async def store_upload(ctx, upload: UploadFile, purpose: str, *, allowed_ext: set[str] | None = None) -> StoredFile:  # noqa: ANN001
+async def store_upload(
+    ctx, upload: UploadFile, purpose: str, *, allowed_ext: set[str] | None = None
+) -> StoredFile:  # noqa: ANN001
     """Validate and persist an uploaded file for the current tenant. ``ctx`` is ``app.auth.deps.Ctx``."""
     limit = settings.MAX_UPLOAD_MB * 1024 * 1024
     chunks: list[bytes] = []
@@ -24,12 +26,21 @@ async def store_upload(ctx, upload: UploadFile, purpose: str, *, allowed_ext: se
             raise BadRequest(f"File exceeds {settings.MAX_UPLOAD_MB} MB limit")
         chunks.append(chunk)
     data = b"".join(chunks)
-    return await store_bytes(ctx, data, upload.filename or "file", upload.content_type or "", purpose,
-                             allowed_ext=allowed_ext)
+    return await store_bytes(
+        ctx, data, upload.filename or "file", upload.content_type or "", purpose, allowed_ext=allowed_ext
+    )
 
 
-async def store_bytes(ctx, data: bytes, filename: str, content_type: str, purpose: str, *,  # noqa: ANN001
-                      allowed_ext: set[str] | None = None, owner_id: uuid.UUID | None = None) -> StoredFile:
+async def store_bytes(
+    ctx,
+    data: bytes,
+    filename: str,
+    content_type: str,
+    purpose: str,
+    *,  # noqa: ANN001
+    allowed_ext: set[str] | None = None,
+    owner_id: uuid.UUID | None = None,
+) -> StoredFile:
     ext = validate_upload(filename, content_type, data)
     if allowed_ext and ext not in allowed_ext:
         raise BadRequest(f"Only {', '.join(sorted(allowed_ext))} files are allowed here")

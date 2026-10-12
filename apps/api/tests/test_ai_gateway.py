@@ -81,7 +81,9 @@ async def test_config_api_defaults_update_and_permissions(client):
     assert cfg["effective_model"] == "offline-demo"
     assert cfg["server_keys"]["offline"] is True and "api_key" not in json.dumps(cfg).lower()
     # org bootstrap stores an explicit budget override; the plan's own budget is reported alongside
-    assert cfg["plan_budget_usd"] == 5 and cfg["effective_budget_usd"] == cfg["monthly_budget_usd"]
+    # No org override by default: the plan's AI budget applies.
+    assert cfg["monthly_budget_usd"] is None
+    assert cfg["plan_budget_usd"] == 5 and cfg["effective_budget_usd"] == 5
     assert cfg["features"]["tutor"] is True
 
     r = await client.put(

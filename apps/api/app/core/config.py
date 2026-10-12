@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     CELERY_TASK_ALWAYS_EAGER: bool = False
 
     # --- Auth / security ---------------------------------------------------------
-    AUTH_SECRET: str = "change-me-dev-only-secret-change-me-dev-only"
+    AUTH_SECRET: str = "change-me-dev-only-secret-change-me-dev-only"  # noqa: S105 - rejected in production
     ENCRYPTION_KEY: str | None = None  # Fernet key; derived from AUTH_SECRET when unset (dev only)
     ACCESS_TOKEN_TTL_MINUTES: int = 15
     REFRESH_TOKEN_TTL_DAYS: int = 14
@@ -57,7 +57,9 @@ class Settings(BaseSettings):
     MICROSOFT_TENANT: str = "common"
 
     # --- AI ----------------------------------------------------------------------
-    AI_DEFAULT_PROVIDER: Literal["openai", "anthropic", "azure_openai", "local", "offline"] = "offline"
+    AI_DEFAULT_PROVIDER: Literal["openai", "anthropic", "azure_openai", "google", "local", "offline"] = (
+        "offline"
+    )
     AI_DEFAULT_MODEL: str = "gpt-4o-mini"
     AI_EMBEDDING_MODEL: str = "text-embedding-3-small"
     AI_EMBEDDING_DIM: int = 1536
@@ -69,6 +71,7 @@ class Settings(BaseSettings):
     AZURE_OPENAI_API_KEY: str | None = None
     AZURE_OPENAI_ENDPOINT: str | None = None
     AZURE_OPENAI_API_VERSION: str = "2024-10-21"
+    GOOGLE_API_KEY: str | None = None  # Gemini
     LOCAL_MODEL_BASE_URL: str | None = None  # any OpenAI-compatible endpoint (vLLM, Ollama, LM Studio)
 
     # --- Storage -----------------------------------------------------------------

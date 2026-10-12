@@ -23,6 +23,7 @@ from app.models.ai import KnowledgeDocument
 from app.models.assignment import Assignment
 from app.models.content import Course, CourseStatus, Lesson
 from app.models.identity import User
+from app.models.learning import Enrolment
 from app.models.simulation import Simulation
 from app.models.tenancy import OrganisationUser
 
@@ -340,10 +341,24 @@ async def _semantic(ctx: Ctx, q: str, limit: int) -> list[dict[str, Any]]:
     except Exception:
         log.warning("search.semantic_failed", exc_info=True)
         return []
+    # Learners only see organisation-wide knowledge plus documents scoped to courses they are enrolled in.
+    staff = ctx.can_any("knowledge.manage", "ai.manage")
+    enrolled: set[str] = set()
+    if not staff and ctx.principal.user is not None:
+        rows = await ctx.db.execute(
+            select(Enrolment.course_id).where(
+                Enrolment.organisation_id == ctx.org_id,
+                Enrolment.user_id == ctx.user_id,
+                Enrolment.status != "withdrawn",
+            )
+        )
+        enrolled = {str(r) for r in rows.scalars()}
     out = []
     for hit in hits or []:
         doc_id = _field(hit, "document_id", "id")
         course_id = _field(hit, "course_id")
+        if not staff and course_id and str(course_id) not in enrolled:
+            continue
         content = _field(hit, "content", "snippet", "text")
         out.append(
             {

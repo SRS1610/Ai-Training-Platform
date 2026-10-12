@@ -130,7 +130,7 @@ NON_COUNTED_FEATURES = {"embedding", "knowledge", "search"}  # not counted again
 
 def google_api_key() -> str | None:
     # app.core.config has no Gemini key setting yet; read the conventional env vars.
-    return os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    return settings.GOOGLE_API_KEY or os.environ.get("GEMINI_API_KEY")
 
 
 def server_keys() -> dict[str, bool]:
@@ -966,6 +966,7 @@ async def semantic_search(
                 "title": c.title,
                 "snippet": c.snippet,
                 "document_id": str(c.document_id),
+                "course_id": str(c.course_id) if c.course_id else None,
                 "score": c.score,
                 "link": f"/app/instructor/knowledge?document={c.document_id}",
             }

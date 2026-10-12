@@ -3,10 +3,10 @@ from __future__ import annotations
 import re
 
 import pyotp
-from sqlalchemy import select, text
+from sqlalchemy import select
 
-from app.core.email import ConsoleEmailProvider
 from app.core import security
+from app.core.email import ConsoleEmailProvider
 from app.models.identity import User
 from tests.factories import PASSWORD, signup, unique_email
 
@@ -37,17 +37,23 @@ async def test_individual_signup_gets_personal_workspace(client):
 
 async def test_duplicate_and_weak_password(client):
     email = unique_email()
-    r = await client.post("/api/v1/auth/register", json={"email": email, "password": "short", "full_name": "X"})
+    r = await client.post(
+        "/api/v1/auth/register", json={"email": email, "password": "short", "full_name": "X"}
+    )
     assert r.status_code == 400 and r.json()["error"]["code"] == "weak_password"
     await signup(client, email=email)
-    r = await client.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD, "full_name": "X"})
+    r = await client.post(
+        "/api/v1/auth/register", json={"email": email, "password": PASSWORD, "full_name": "X"}
+    )
     assert r.status_code == 409
 
 
 async def test_wrong_password_and_lockout(client):
     acct = await signup(client)
     for _ in range(5):
-        r = await client.post("/api/v1/auth/login", json={"email": acct.email, "password": "wrong-password-1"})
+        r = await client.post(
+            "/api/v1/auth/login", json={"email": acct.email, "password": "wrong-password-1"}
+        )
         assert r.status_code == 401
     r = await client.post("/api/v1/auth/login", json={"email": acct.email, "password": PASSWORD})
     assert r.status_code == 401 and r.json()["error"]["code"] == "account_locked"
@@ -61,8 +67,10 @@ async def test_unauthenticated_and_bad_token(client):
 
 async def test_refresh_rotation_and_reuse_detection(client):
     email = unique_email()
-    r = await client.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD, "full_name": "R",
-                                                         "include_refresh_token": True})
+    r = await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": PASSWORD, "full_name": "R", "include_refresh_token": True},
+    )
     rt1 = r.json()["refresh_token"]
     client.cookies.clear()
     r2 = await client.post("/api/v1/auth/refresh", json={"refresh_token": rt1, "include_refresh_token": True})
@@ -89,15 +97,19 @@ async def test_mfa_enrol_and_login(client):
     recovery = r.json()["recovery_codes"][0]
     r = await client.post("/api/v1/auth/login", json={"email": acct.email, "password": PASSWORD})
     assert r.json()["mfa_required"] is True and r.json()["tokens"] is None
-    bad = await client.post("/api/v1/auth/mfa/verify", json={"mfa_token": r.json()["mfa_token"], "code": "000000"})
+    bad = await client.post(
+        "/api/v1/auth/mfa/verify", json={"mfa_token": r.json()["mfa_token"], "code": "000000"}
+    )
     assert bad.status_code == 401
-    ok = await client.post("/api/v1/auth/mfa/verify", json={"mfa_token": r.json()["mfa_token"],
-                                                           "recovery_code": recovery})
+    ok = await client.post(
+        "/api/v1/auth/mfa/verify", json={"mfa_token": r.json()["mfa_token"], "recovery_code": recovery}
+    )
     assert ok.status_code == 200
     # recovery codes are single use
     r = await client.post("/api/v1/auth/login", json={"email": acct.email, "password": PASSWORD})
-    again = await client.post("/api/v1/auth/mfa/verify", json={"mfa_token": r.json()["mfa_token"],
-                                                              "recovery_code": recovery})
+    again = await client.post(
+        "/api/v1/auth/mfa/verify", json={"mfa_token": r.json()["mfa_token"], "recovery_code": recovery}
+    )
     assert again.status_code == 401
 
 
@@ -109,10 +121,14 @@ async def test_password_reset_and_email_verification(client, db):
 
     assert (await client.post("/api/v1/auth/password/forgot", json={"email": acct.email})).status_code == 202
     # unknown emails get the same response (no enumeration)
-    assert (await client.post("/api/v1/auth/password/forgot", json={"email": unique_email()})).status_code == 202
+    assert (
+        await client.post("/api/v1/auth/password/forgot", json={"email": unique_email()})
+    ).status_code == 202
     token = _last_token(acct.email, "reset-password")
     new_pw = "Another-Strong-Passphrase-7"
-    assert (await client.post("/api/v1/auth/password/reset", json={"token": token, "password": new_pw})).status_code == 200
+    assert (
+        await client.post("/api/v1/auth/password/reset", json={"token": token, "password": new_pw})
+    ).status_code == 200
     # Existing sessions are revoked after a reset
     assert (await client.get("/api/v1/me", headers=acct.headers)).status_code == 401
     r = await client.post("/api/v1/auth/login", json={"email": acct.email, "password": new_pw})
@@ -123,7 +139,9 @@ async def test_password_reset_and_email_verification(client, db):
 
 async def test_cookie_auth_requires_csrf(client):
     email = unique_email()
-    r = await client.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD, "full_name": "C"})
+    r = await client.post(
+        "/api/v1/auth/register", json={"email": email, "password": PASSWORD, "full_name": "C"}
+    )
     csrf = r.json()["csrf_token"]
     assert client.cookies.get("praxis_access")
     assert (await client.get("/api/v1/me")).status_code == 200  # safe method, cookie auth

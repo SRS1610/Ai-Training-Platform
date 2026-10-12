@@ -79,10 +79,33 @@ async def issue_session(
 
 def _device_label(user_agent: str | None) -> str:
     ua = (user_agent or "").lower()
-    os_name = next((n for k, n in [("windows", "Windows"), ("mac os", "macOS"), ("iphone", "iPhone"),
-                                    ("android", "Android"), ("linux", "Linux")] if k in ua), "Unknown OS")
-    browser = next((n for k, n in [("edg/", "Edge"), ("chrome/", "Chrome"), ("firefox/", "Firefox"),
-                                    ("safari/", "Safari")] if k in ua), "Unknown client")
+    os_name = next(
+        (
+            n
+            for k, n in [
+                ("windows", "Windows"),
+                ("mac os", "macOS"),
+                ("iphone", "iPhone"),
+                ("android", "Android"),
+                ("linux", "Linux"),
+            ]
+            if k in ua
+        ),
+        "Unknown OS",
+    )
+    browser = next(
+        (
+            n
+            for k, n in [
+                ("edg/", "Edge"),
+                ("chrome/", "Chrome"),
+                ("firefox/", "Firefox"),
+                ("safari/", "Safari"),
+            ]
+            if k in ua
+        ),
+        "Unknown client",
+    )
     return f"{browser} on {os_name}"
 
 
@@ -106,33 +129,62 @@ async def register(
     db.add(user)
     await db.flush()
     if organisation_name:
-        org = await create_organisation(db, name=organisation_name, owner_user_id=user.id, kind=OrgKind.BUSINESS)
+        org = await create_organisation(
+            db, name=organisation_name, owner_user_id=user.id, kind=OrgKind.BUSINESS
+        )
     else:
         org = await create_organisation(
             db, name=f"{full_name.strip()}'s workspace", owner_user_id=user.id, kind=OrgKind.PERSONAL
         )
     user.default_organisation_id = org.id
     for purpose, granted in (("terms", True), ("privacy_policy", True), ("marketing", marketing_opt_in)):
-        db.add(Consent(user_id=user.id, organisation_id=org.id, purpose=purpose, policy_version="2026-01",
-                       granted=granted, ip_address=ip))
-    await write_audit(db, action="user.registered", organisation_id=org.id, actor_user_id=user.id,
-                      actor_label=email, entity_type="user", entity_id=user.id, ip_address=ip)
+        db.add(
+            Consent(
+                user_id=user.id,
+                organisation_id=org.id,
+                purpose=purpose,
+                policy_version="2026-01",
+                granted=granted,
+                ip_address=ip,
+            )
+        )
+    await write_audit(
+        db,
+        action="user.registered",
+        organisation_id=org.id,
+        actor_user_id=user.id,
+        actor_label=email,
+        entity_type="user",
+        entity_id=user.id,
+        ip_address=ip,
+    )
     await send_verification_email(db, user)
     return user
 
 
-async def _create_email_token(db: AsyncSession, user: User | None, purpose: str, ttl: timedelta,
-                              data: dict | None = None) -> str:
+async def _create_email_token(
+    db: AsyncSession, user: User | None, purpose: str, ttl: timedelta, data: dict | None = None
+) -> str:
     raw = security.generate_token(32)
-    db.add(EmailToken(user_id=user.id if user else None, purpose=purpose, token_hash=security.hash_token(raw),
-                      expires_at=_now() + ttl, data=data or {}))
+    db.add(
+        EmailToken(
+            user_id=user.id if user else None,
+            purpose=purpose,
+            token_hash=security.hash_token(raw),
+            expires_at=_now() + ttl,
+            data=data or {},
+        )
+    )
     await db.flush()
     return raw
 
 
 async def _consume_email_token(db: AsyncSession, raw: str, purpose: str) -> EmailToken:
-    token = await db.scalar(select(EmailToken).where(EmailToken.token_hash == security.hash_token(raw),
-                                                     EmailToken.purpose == purpose))
+    token = await db.scalar(
+        select(EmailToken).where(
+            EmailToken.token_hash == security.hash_token(raw), EmailToken.purpose == purpose
+        )
+    )
     if not token or token.used_at or token.expires_at < _now():
         raise BadRequest("This link is invalid or has expired", code="token_invalid")
     token.used_at = _now()
@@ -140,11 +192,16 @@ async def _consume_email_token(db: AsyncSession, raw: str, purpose: str) -> Emai
 
 
 async def send_verification_email(db: AsyncSession, user: User) -> None:
-    raw = await _create_email_token(db, user, TokenPurpose.VERIFY_EMAIL,
-                                    timedelta(hours=settings.EMAIL_TOKEN_TTL_HOURS))
-    await send_email(user.email, "Verify your email address",
-                     [f"Hi {user.full_name},", "Please confirm your email address to secure your account."],
-                     f"{settings.PUBLIC_WEB_URL}/verify-email?token={raw}", "Verify email")
+    raw = await _create_email_token(
+        db, user, TokenPurpose.VERIFY_EMAIL, timedelta(hours=settings.EMAIL_TOKEN_TTL_HOURS)
+    )
+    await send_email(
+        user.email,
+        "Verify your email address",
+        [f"Hi {user.full_name},", "Please confirm your email address to secure your account."],
+        f"{settings.PUBLIC_WEB_URL}/verify-email?token={raw}",
+        "Verify email",
+    )
 
 
 async def verify_email(db: AsyncSession, raw: str) -> User:
@@ -166,8 +223,14 @@ async def authenticate(db: AsyncSession, email: str, password: str, ip: str | No
             if user.failed_login_count >= MAX_FAILED_LOGINS:
                 user.locked_until = _now() + timedelta(minutes=LOCKOUT_MINUTES)
                 user.failed_login_count = 0
-            await write_audit(db, action="auth.login_failed", organisation_id=None, actor_user_id=user.id,
-                              actor_label=user.email, ip_address=ip)
+            await write_audit(
+                db,
+                action="auth.login_failed",
+                organisation_id=None,
+                actor_user_id=user.id,
+                actor_label=user.email,
+                ip_address=ip,
+            )
             await db.commit()  # persist lockout counters even though the request fails
         raise Unauthorized("Invalid email or password", code="invalid_credentials")
     if user.status != UserStatus.ACTIVE or user.deleted_at:
@@ -182,13 +245,18 @@ async def authenticate(db: AsyncSession, email: str, password: str, ip: str | No
 
 
 async def create_mfa_challenge(db: AsyncSession, user: User, device_label: str | None) -> str:
-    return await _create_email_token(db, user, TokenPurpose.MFA_CHALLENGE,
-                                     timedelta(minutes=settings.MFA_CHALLENGE_TTL_MINUTES),
-                                     {"device_label": device_label})
+    return await _create_email_token(
+        db,
+        user,
+        TokenPurpose.MFA_CHALLENGE,
+        timedelta(minutes=settings.MFA_CHALLENGE_TTL_MINUTES),
+        {"device_label": device_label},
+    )
 
 
-async def complete_mfa_challenge(db: AsyncSession, raw: str, code: str | None, recovery_code: str | None
-                                 ) -> tuple[User, EmailToken]:
+async def complete_mfa_challenge(
+    db: AsyncSession, raw: str, code: str | None, recovery_code: str | None
+) -> tuple[User, EmailToken]:
     token = await _consume_email_token(db, raw, TokenPurpose.MFA_CHALLENGE)
     user = await db.get(User, token.user_id)
     if not user or not user.mfa_enabled or not user.mfa_secret_encrypted:
@@ -219,8 +287,14 @@ async def rotate_refresh(db: AsyncSession, raw: str) -> tuple[AuthSession, User,
         if reused and not reused.revoked_at:
             # Refresh token reuse => likely theft. Kill the session family.
             reused.revoked_at, reused.revoked_reason = _now(), "refresh_token_reuse"
-            await write_audit(db, action="auth.refresh_reuse_detected", organisation_id=None,
-                              actor_user_id=reused.user_id, entity_type="auth_session", entity_id=reused.id)
+            await write_audit(
+                db,
+                action="auth.refresh_reuse_detected",
+                organisation_id=None,
+                actor_user_id=reused.user_id,
+                entity_type="auth_session",
+                entity_id=reused.id,
+            )
             await db.commit()
         raise Unauthorized("Invalid refresh token", code="refresh_invalid")
     if session.revoked_at or session.expires_at < _now():
@@ -236,14 +310,16 @@ async def rotate_refresh(db: AsyncSession, raw: str) -> tuple[AuthSession, User,
 
 
 async def revoke_session(db: AsyncSession, session_id: uuid.UUID, user_id: uuid.UUID, reason: str) -> None:
-    await db.execute(update(AuthSession)
-                     .where(AuthSession.id == session_id, AuthSession.user_id == user_id,
-                            AuthSession.revoked_at.is_(None))
-                     .values(revoked_at=_now(), revoked_reason=reason))
+    await db.execute(
+        update(AuthSession)
+        .where(AuthSession.id == session_id, AuthSession.user_id == user_id, AuthSession.revoked_at.is_(None))
+        .values(revoked_at=_now(), revoked_reason=reason)
+    )
 
 
-async def revoke_all_sessions(db: AsyncSession, user_id: uuid.UUID, reason: str,
-                              except_id: uuid.UUID | None = None) -> None:
+async def revoke_all_sessions(
+    db: AsyncSession, user_id: uuid.UUID, reason: str, except_id: uuid.UUID | None = None
+) -> None:
     stmt = update(AuthSession).where(AuthSession.user_id == user_id, AuthSession.revoked_at.is_(None))
     if except_id:
         stmt = stmt.where(AuthSession.id != except_id)
@@ -254,13 +330,20 @@ async def request_password_reset(db: AsyncSession, email: str) -> None:
     user = await get_user_by_email(db, email)
     if not user or user.status != UserStatus.ACTIVE:
         return  # never reveal whether an account exists
-    raw = await _create_email_token(db, user, TokenPurpose.RESET_PASSWORD,
-                                    timedelta(minutes=settings.PASSWORD_RESET_TTL_MINUTES))
-    await send_email(user.email, "Reset your password",
-                     ["We received a request to reset your password.",
-                      f"This link expires in {settings.PASSWORD_RESET_TTL_MINUTES} minutes. "
-                      "If you didn't request it, you can ignore this email."],
-                     f"{settings.PUBLIC_WEB_URL}/reset-password?token={raw}", "Reset password")
+    raw = await _create_email_token(
+        db, user, TokenPurpose.RESET_PASSWORD, timedelta(minutes=settings.PASSWORD_RESET_TTL_MINUTES)
+    )
+    await send_email(
+        user.email,
+        "Reset your password",
+        [
+            "We received a request to reset your password.",
+            f"This link expires in {settings.PASSWORD_RESET_TTL_MINUTES} minutes. "
+            "If you didn't request it, you can ignore this email.",
+        ],
+        f"{settings.PUBLIC_WEB_URL}/reset-password?token={raw}",
+        "Reset password",
+    )
 
 
 async def reset_password(db: AsyncSession, raw: str, password: str) -> User:
@@ -275,12 +358,21 @@ async def reset_password(db: AsyncSession, raw: str, password: str) -> User:
     user.failed_login_count, user.locked_until = 0, None
     user.email_verified_at = user.email_verified_at or _now()  # proved control of the mailbox
     await revoke_all_sessions(db, user.id, "password_reset")
-    await write_audit(db, action="auth.password_reset", organisation_id=None, actor_user_id=user.id,
-                      actor_label=user.email, entity_type="user", entity_id=user.id)
+    await write_audit(
+        db,
+        action="auth.password_reset",
+        organisation_id=None,
+        actor_user_id=user.id,
+        actor_label=user.email,
+        entity_type="user",
+        entity_id=user.id,
+    )
     return user
 
 
-async def change_password(db: AsyncSession, user: User, current: str, new: str, keep_session: uuid.UUID | None) -> None:
+async def change_password(
+    db: AsyncSession, user: User, current: str, new: str, keep_session: uuid.UUID | None
+) -> None:
     if not security.verify_password(current, user.password_hash):
         raise BadRequest("Current password is incorrect", code="invalid_credentials")
     problems = security.validate_password_strength(new)
@@ -288,8 +380,15 @@ async def change_password(db: AsyncSession, user: User, current: str, new: str, 
         raise BadRequest(problems[0], details={"password": problems}, code="weak_password")
     user.password_hash = security.hash_password(new)
     await revoke_all_sessions(db, user.id, "password_changed", except_id=keep_session)
-    await write_audit(db, action="auth.password_changed", organisation_id=None, actor_user_id=user.id,
-                      actor_label=user.email, entity_type="user", entity_id=user.id)
+    await write_audit(
+        db,
+        action="auth.password_changed",
+        organisation_id=None,
+        actor_user_id=user.id,
+        actor_label=user.email,
+        entity_type="user",
+        entity_id=user.id,
+    )
 
 
 def mfa_setup(user: User) -> tuple[str, str, str]:
@@ -311,29 +410,48 @@ async def mfa_enable(db: AsyncSession, user: User, code: str) -> list[str]:
     codes = security.generate_recovery_codes()
     user.mfa_recovery_codes = [security.hash_password(c) for c in codes]
     user.mfa_enabled = True
-    await write_audit(db, action="auth.mfa_enabled", organisation_id=None, actor_user_id=user.id,
-                      actor_label=user.email, entity_type="user", entity_id=user.id)
+    await write_audit(
+        db,
+        action="auth.mfa_enabled",
+        organisation_id=None,
+        actor_user_id=user.id,
+        actor_label=user.email,
+        entity_type="user",
+        entity_id=user.id,
+    )
     return codes
 
 
 async def mfa_disable(db: AsyncSession, user: User, password: str, code: str) -> None:
     if not security.verify_password(password, user.password_hash):
         raise BadRequest("Password is incorrect", code="invalid_credentials")
-    if not user.mfa_secret_encrypted or not security.verify_totp(security.decrypt_str(user.mfa_secret_encrypted), code):
+    if not user.mfa_secret_encrypted or not security.verify_totp(
+        security.decrypt_str(user.mfa_secret_encrypted), code
+    ):
         raise BadRequest("Invalid verification code", code="mfa_invalid")
     user.mfa_enabled = False
     user.mfa_secret_encrypted = None
     user.mfa_recovery_codes = None
-    await write_audit(db, action="auth.mfa_disabled", organisation_id=None, actor_user_id=user.id,
-                      actor_label=user.email, entity_type="user", entity_id=user.id)
+    await write_audit(
+        db,
+        action="auth.mfa_disabled",
+        organisation_id=None,
+        actor_user_id=user.id,
+        actor_label=user.email,
+        entity_type="user",
+        entity_id=user.id,
+    )
 
 
 async def find_or_create_federated_user(
     db: AsyncSession, *, provider: str, subject: str, email: str, email_verified: bool, full_name: str
 ) -> tuple[User, bool]:
-    """Returns (user, created). Links by verified email; never links unverified emails to existing accounts."""
-    identity = await db.scalar(select(UserIdentity).where(UserIdentity.provider == provider,
-                                                          UserIdentity.subject == subject))
+    """Returns (user, created).
+
+    Links by verified email only; never links an unverified email to an existing account."""
+    identity = await db.scalar(
+        select(UserIdentity).where(UserIdentity.provider == provider, UserIdentity.subject == subject)
+    )
     if identity:
         user = await db.get(User, identity.user_id)
         assert user is not None
@@ -342,12 +460,18 @@ async def find_or_create_federated_user(
     user = await get_user_by_email(db, email)
     if user:
         if not email_verified:
-            raise Forbidden("Sign in with your password and link this provider from your profile.",
-                            code="identity_link_required")
+            raise Forbidden(
+                "Sign in with your password and link this provider from your profile.",
+                code="identity_link_required",
+            )
         db.add(UserIdentity(user_id=user.id, provider=provider, subject=subject, email=email))
         return user, False
-    user = User(email=email, full_name=full_name or email.split("@")[0], password_hash=None,
-                email_verified_at=_now() if email_verified else None)
+    user = User(
+        email=email,
+        full_name=full_name or email.split("@")[0],
+        password_hash=None,
+        email_verified_at=_now() if email_verified else None,
+    )
     db.add(user)
     await db.flush()
     db.add(UserIdentity(user_id=user.id, provider=provider, subject=subject, email=email))

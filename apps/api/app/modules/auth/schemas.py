@@ -37,7 +37,7 @@ class RefreshIn(BaseModel):
 
 class TokenOut(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105
     expires_at: datetime
     refresh_token: str | None = None
     csrf_token: str

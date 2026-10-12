@@ -14,7 +14,6 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -122,7 +121,9 @@ class Badge(UUIDPk, Timestamps, TenantScoped, Base):
     name: Mapped[str] = mapped_column(String(120))
     description: Mapped[str] = mapped_column(Text, default="")
     icon: Mapped[str] = mapped_column(String(64), default="award")
-    criteria: Mapped[dict[str, Any]] = mapped_column(default=dict)  # {"type": "courses_completed", "count": 1}
+    criteria: Mapped[dict[str, Any]] = mapped_column(
+        default=dict
+    )  # {"type": "courses_completed", "count": 1}
 
 
 class UserBadge(UUIDPk, TenantScoped, Base):
@@ -245,8 +246,12 @@ class Consent(UUIDPk, Base):
     __table_args__ = (Index("ix_consents_user_purpose", "user_id", "purpose"),)
 
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    organisation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("organisations.id", ondelete="CASCADE"))
-    purpose: Mapped[str] = mapped_column(String(64))  # terms | privacy_policy | marketing | ai_processing | analytics
+    organisation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organisations.id", ondelete="CASCADE")
+    )
+    purpose: Mapped[str] = mapped_column(
+        String(64)
+    )  # terms | privacy_policy | marketing | ai_processing | analytics
     policy_version: Mapped[str] = mapped_column(String(32))
     granted: Mapped[bool] = mapped_column(Boolean)
     ip_address: Mapped[str | None] = mapped_column(String(64))
@@ -260,7 +265,9 @@ class DataRequest(UUIDPk, Timestamps, Base):
 
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     kind: Mapped[str] = mapped_column(String(16))  # export | deletion
-    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | processing | completed | failed
+    status: Mapped[str] = mapped_column(
+        String(16), default="pending"
+    )  # pending | processing | completed | failed
     file_storage_key: Mapped[str | None] = mapped_column(String(512))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error: Mapped[str | None] = mapped_column(Text)

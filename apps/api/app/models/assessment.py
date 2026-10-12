@@ -53,7 +53,9 @@ class QuestionBank(UUIDPk, Timestamps, SoftDelete, TenantScoped, Base):
 
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
-    course_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("courses.id", ondelete="SET NULL"), index=True)
+    course_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("courses.id", ondelete="SET NULL"), index=True
+    )
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
     questions: Mapped[list[Question]] = relationship(back_populates="bank")
@@ -95,7 +97,9 @@ class AssessmentKind(StrEnum):
 class Assessment(UUIDPk, Timestamps, SoftDelete, TenantScoped, Base):
     __tablename__ = "assessments"
 
-    course_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), index=True)
+    course_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("courses.id", ondelete="CASCADE"), index=True
+    )
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text)
     kind: Mapped[str] = mapped_column(String(16), default=AssessmentKind.QUIZ)
@@ -107,7 +111,9 @@ class Assessment(UUIDPk, Timestamps, SoftDelete, TenantScoped, Base):
     negative_marking: Mapped[bool] = mapped_column(Boolean, default=False)
     grading_mode: Mapped[str] = mapped_column(String(32), default=GradingMode.AUTO)
     high_stakes: Mapped[bool] = mapped_column(Boolean, default=False)
-    show_feedback: Mapped[str] = mapped_column(String(16), default="after_submit")  # after_submit|after_close|never
+    show_feedback: Mapped[str] = mapped_column(
+        String(16), default="after_submit"
+    )  # after_submit|after_close|never
     status: Mapped[str] = mapped_column(String(16), default="draft")  # draft | published | archived
     weight_in_course: Mapped[float] = mapped_column(Float, default=1.0)
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
@@ -122,7 +128,9 @@ class AssessmentItem(UUIDPk, TenantScoped, Base):
 
     __tablename__ = "assessment_items"
 
-    assessment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("assessments.id", ondelete="CASCADE"), index=True)
+    assessment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("assessments.id", ondelete="CASCADE"), index=True
+    )
     position: Mapped[int] = mapped_column(Integer, default=0)
     question_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"))
     bank_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("question_banks.id", ondelete="CASCADE"))
@@ -148,7 +156,9 @@ class AssessmentAttempt(UUIDPk, Timestamps, TenantScoped, Base):
         Index("ix_attempts_org_user", "organisation_id", "user_id"),
     )
 
-    assessment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("assessments.id", ondelete="CASCADE"), index=True)
+    assessment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("assessments.id", ondelete="CASCADE"), index=True
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     enrolment_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("enrolments.id", ondelete="SET NULL"))
     attempt_number: Mapped[int] = mapped_column(Integer)
@@ -168,7 +178,9 @@ class AssessmentAttempt(UUIDPk, Timestamps, TenantScoped, Base):
     graded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     integrity: Mapped[dict[str, Any]] = mapped_column(default=dict)  # focus losses, timing signals
 
-    answers: Mapped[list[AttemptAnswer]] = relationship(back_populates="attempt", cascade="all, delete-orphan")
+    answers: Mapped[list[AttemptAnswer]] = relationship(
+        back_populates="attempt", cascade="all, delete-orphan"
+    )
 
 
 class AttemptAnswer(UUIDPk, Timestamps, TenantScoped, Base):

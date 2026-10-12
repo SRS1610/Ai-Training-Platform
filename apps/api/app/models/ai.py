@@ -1,4 +1,5 @@
-"""AI: configuration, tutor sessions/messages, generations (approval workflow), usage ledger, knowledge base."""
+"""AI: configuration, tutor sessions/messages, generations (approval workflow), usage ledger,
+knowledge base."""
 
 from __future__ import annotations
 
@@ -7,7 +8,18 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.config import settings
@@ -23,13 +35,16 @@ class AIConfiguration(UUIDPk, Timestamps, TenantScoped, Base):
     embedding_model: Mapped[str] = mapped_column(String(100), default="")
     temperature: Mapped[float] = mapped_column(Float, default=0.3)
     max_output_tokens: Mapped[int] = mapped_column(Integer, default=1500)
-    # {"tutor": true, "content_generation": true, "grading": true, "simulation_ai": true, "recommendations": true}
+    # {"tutor": true, "content_generation": true, "grading": true, "simulation_ai": true,
+    #  "recommendations": true}
     features: Mapped[dict[str, Any]] = mapped_column(default=dict)
     monthly_budget_usd: Mapped[float | None] = mapped_column(Numeric(12, 2))
     hard_limit: Mapped[bool] = mapped_column(Boolean, default=True)
     alert_thresholds: Mapped[list[Any]] = mapped_column(default=lambda: [50, 75, 90, 100])
     per_user_daily_requests: Mapped[int | None] = mapped_column(Integer, default=200)
-    tutor_behaviour: Mapped[dict[str, Any]] = mapped_column(default=dict)  # tone, socratic, citations, language
+    tutor_behaviour: Mapped[dict[str, Any]] = mapped_column(
+        default=dict
+    )  # tone, socratic, citations, language
     grading_mode: Mapped[str] = mapped_column(String(32), default="ai_assisted")
     knowledge_only: Mapped[bool] = mapped_column(Boolean, default=False)  # answer only from approved sources
     updated_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
@@ -56,7 +71,9 @@ class AISession(UUIDPk, Timestamps, TenantScoped, Base):
 class AIMessage(UUIDPk, Timestamps, TenantScoped, Base):
     __tablename__ = "ai_messages"
 
-    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ai_sessions.id", ondelete="CASCADE"), index=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("ai_sessions.id", ondelete="CASCADE"), index=True
+    )
     role: Mapped[str] = mapped_column(String(16))  # user | assistant | system
     content: Mapped[str] = mapped_column(Text)
     mode: Mapped[str | None] = mapped_column(String(16))  # explain | hint (graded context) | refuse
@@ -82,7 +99,9 @@ class AIGeneration(UUIDPk, Timestamps, TenantScoped, Base):
     __tablename__ = "ai_generations"
     __table_args__ = (Index("ix_ai_generations_org_status", "organisation_id", "status"),)
 
-    kind: Mapped[str] = mapped_column(String(48))  # course | lesson | quiz | assignment | simulation | rubric | ...
+    kind: Mapped[str] = mapped_column(
+        String(48)
+    )  # course | lesson | quiz | assignment | simulation | rubric | ...
     status: Mapped[str] = mapped_column(String(16), default=GenerationStatus.PENDING)
     input: Mapped[dict[str, Any]] = mapped_column(default=dict)
     output: Mapped[dict[str, Any] | None] = mapped_column()
@@ -114,7 +133,9 @@ class AIUsage(UUIDPk, TenantScoped, Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     course_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("courses.id", ondelete="SET NULL"))
-    feature: Mapped[str] = mapped_column(String(48))  # tutor | generation | grading | simulation | embedding ...
+    feature: Mapped[str] = mapped_column(
+        String(48)
+    )  # tutor | generation | grading | simulation | embedding ...
     provider: Mapped[str] = mapped_column(String(32))
     model: Mapped[str] = mapped_column(String(100))
     tokens_in: Mapped[int] = mapped_column(Integer, default=0)
@@ -138,12 +159,16 @@ class KnowledgeDocument(UUIDPk, Timestamps, SoftDelete, TenantScoped, Base):
     __tablename__ = "knowledge_documents"
 
     title: Mapped[str] = mapped_column(String(255))
-    course_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("courses.id", ondelete="SET NULL"), index=True)
+    course_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("courses.id", ondelete="SET NULL"), index=True
+    )
     source_type: Mapped[str] = mapped_column(String(16))  # pdf | docx | pptx | url | text | markdown
     source_url: Mapped[str | None] = mapped_column(String(2048))
     file_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("files.id", ondelete="SET NULL"))
     category: Mapped[str | None] = mapped_column(String(64))  # policy | sop | manual | training ...
-    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | processing | ready | failed
+    status: Mapped[str] = mapped_column(
+        String(16), default="pending"
+    )  # pending | processing | ready | failed
     approved: Mapped[bool] = mapped_column(Boolean, default=False)
     approved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

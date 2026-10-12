@@ -93,7 +93,9 @@ class Ctx:
         if missing:
             raise Forbidden("Missing permission", details={"missing": missing})
 
-    async def audit(self, action: str, entity_type: str | None = None, entity_id: Any = None, **meta: Any) -> None:
+    async def audit(
+        self, action: str, entity_type: str | None = None, entity_id: Any = None, **meta: Any
+    ) -> None:
         await write_audit(
             self.db,
             action=action,
@@ -175,7 +177,9 @@ async def get_current_user(principal: Principal = Depends(get_principal)) -> Use
     return principal.user
 
 
-async def _permissions_for(db: AsyncSession, membership: OrganisationUser | None, principal: Principal) -> set[str]:
+async def _permissions_for(
+    db: AsyncSession, membership: OrganisationUser | None, principal: Principal
+) -> set[str]:
     if principal.api_key:
         return set(principal.api_key.scopes or []) & ALL_CODES - {"system.manage"}
     perms: set[str] = set()
@@ -267,7 +271,9 @@ def require_permission(*codes: str, any_of: bool = False) -> Callable[..., Await
     async def _dep(ctx: Ctx = Depends(get_ctx)) -> Ctx:
         ok = ctx.can_any(*codes) if any_of else ctx.can(*codes)
         if not ok:
-            raise Forbidden("You do not have permission to perform this action", details={"required": list(codes)})
+            raise Forbidden(
+                "You do not have permission to perform this action", details={"required": list(codes)}
+            )
         return ctx
 
     return _dep

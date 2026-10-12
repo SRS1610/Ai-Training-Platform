@@ -90,7 +90,9 @@ def get_email_provider() -> EmailProvider:
     return ConsoleEmailProvider()
 
 
-def render_basic_html(title: str, paragraphs: list[str], action_url: str | None = None, action_label: str = "Open") -> str:
+def render_basic_html(
+    title: str, paragraphs: list[str], action_url: str | None = None, action_label: str = "Open"
+) -> str:
     parts = "".join(f"<p>{escape(p)}</p>" for p in paragraphs)
     button = (
         f'<p><a href="{escape(action_url)}" style="background:#4f46e5;color:#fff;padding:10px 16px;'
@@ -105,12 +107,18 @@ def render_basic_html(title: str, paragraphs: list[str], action_url: str | None 
     )
 
 
-async def send_email(to: str, subject: str, paragraphs: list[str], action_url: str | None = None,
-                     action_label: str = "Open") -> None:
+async def send_email(
+    to: str, subject: str, paragraphs: list[str], action_url: str | None = None, action_label: str = "Open"
+) -> None:
     text = "\n\n".join(paragraphs + ([f"{action_label}: {action_url}"] if action_url else []))
     try:
         await get_email_provider().send(
-            Email(to=to, subject=subject, text=text, html=render_basic_html(subject, paragraphs, action_url, action_label))
+            Email(
+                to=to,
+                subject=subject,
+                text=text,
+                html=render_basic_html(subject, paragraphs, action_url, action_label),
+            )
         )
     except Exception:  # email failure must never break the business transaction
         log.exception("email.send_failed", to=to, subject=subject)

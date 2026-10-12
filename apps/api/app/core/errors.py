@@ -101,7 +101,12 @@ def register_error_handlers(app: FastAPI) -> None:
             {"loc": list(e.get("loc", [])), "msg": e.get("msg"), "type": e.get("type")} for e in exc.errors()
         ]
         return JSONResponse(
-            _body("validation_error", "Request validation failed", details, getattr(request.state, "request_id", None)),
+            _body(
+                "validation_error",
+                "Request validation failed",
+                details,
+                getattr(request.state, "request_id", None),
+            ),
             status_code=422,
         )
 
@@ -120,6 +125,11 @@ def register_error_handlers(app: FastAPI) -> None:
     async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
         log.exception("unhandled_error", path=request.url.path)
         return JSONResponse(
-            _body("internal_error", "An unexpected error occurred", None, getattr(request.state, "request_id", None)),
+            _body(
+                "internal_error",
+                "An unexpected error occurred",
+                None,
+                getattr(request.state, "request_id", None),
+            ),
             status_code=500,
         )

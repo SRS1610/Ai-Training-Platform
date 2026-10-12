@@ -66,12 +66,16 @@ def builtin_provider(name: str) -> ProviderConfig:
 
 async def oidc_connection_provider(conn: SSOConnection) -> ProviderConfig:
     if conn.protocol != "oidc":
-        raise BadRequest("SAML connections require the SAML adapter (see docs/SECURITY.md)", code="saml_adapter")
+        raise BadRequest(
+            "SAML connections require the SAML adapter (see docs/SECURITY.md)", code="saml_adapter"
+        )
     cfg = conn.config or {}
     issuer = cfg.get("issuer", "").rstrip("/")
     async with httpx.AsyncClient(timeout=10) as client:
         discovery = (await client.get(f"{issuer}/.well-known/openid-configuration")).json()
-    secret = security.decrypt_str(cfg["client_secret_encrypted"]) if cfg.get("client_secret_encrypted") else ""
+    secret = (
+        security.decrypt_str(cfg["client_secret_encrypted"]) if cfg.get("client_secret_encrypted") else ""
+    )
     return ProviderConfig(
         f"oidc:{conn.id}",
         discovery["authorization_endpoint"],
@@ -94,20 +98,30 @@ def _pkce_pair() -> tuple[str, str]:
 
 
 async def build_authorize_redirect(
-    db: AsyncSession, provider: ProviderConfig, provider_key: str, *, connection_id: uuid.UUID | None,
+    db: AsyncSession,
+    provider: ProviderConfig,
+    provider_key: str,
+    *,
+    connection_id: uuid.UUID | None,
     return_to: str | None,
 ) -> str:
     state = secrets.token_urlsafe(32)
     verifier, challenge = _pkce_pair()
     nonce = secrets.token_urlsafe(16)
-    db.add(EmailToken(
-        user_id=None,
-        purpose=TokenPurpose.OAUTH_STATE,
-        token_hash=security.hash_token(state),
-        expires_at=datetime.now(UTC) + timedelta(minutes=10),
-        data={"verifier": verifier, "provider": provider_key, "connection_id": str(connection_id or ""),
-              "return_to": return_to if (return_to or "").startswith("/") else "/app/dashboard"},
-    ))
+    db.add(
+        EmailToken(
+            user_id=None,
+            purpose=TokenPurpose.OAUTH_STATE,
+            token_hash=security.hash_token(state),
+            expires_at=datetime.now(UTC) + timedelta(minutes=10),
+            data={
+                "verifier": verifier,
+                "provider": provider_key,
+                "connection_id": str(connection_id or ""),
+                "return_to": return_to if (return_to or "").startswith("/") else "/app/dashboard",
+            },
+        )
+    )
     await db.flush()
     params = {
         "client_id": provider.client_id,
@@ -124,8 +138,12 @@ async def build_authorize_redirect(
 
 
 async def consume_state(db: AsyncSession, state: str) -> EmailToken:
-    token = await db.scalar(select(EmailToken).where(EmailToken.token_hash == security.hash_token(state),
-                                                     EmailToken.purpose == TokenPurpose.OAUTH_STATE))
+    token = await db.scalar(
+        select(EmailToken).where(
+            EmailToken.token_hash == security.hash_token(state),
+            EmailToken.purpose == TokenPurpose.OAUTH_STATE,
+        )
+    )
     if not token or token.used_at or token.expires_at < datetime.now(UTC):
         raise BadRequest("Login session expired, please try again", code="oauth_state_invalid")
     token.used_at = datetime.now(UTC)
@@ -134,20 +152,27 @@ async def consume_state(db: AsyncSession, state: str) -> EmailToken:
 
 async def exchange_code(provider: ProviderConfig, provider_key: str, code: str, verifier: str) -> dict:
     async with httpx.AsyncClient(timeout=15) as client:
-        token_resp = await client.post(provider.token_url, data={
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": callback_url(provider_key),
-            "client_id": provider.client_id,
-            "client_secret": provider.client_secret,
-            "code_verifier": verifier,
-        })
+        token_resp = await client.post(
+            provider.token_url,
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": callback_url(provider_key),
+                "client_id": provider.client_id,
+                "client_secret": provider.client_secret,
+                "code_verifier": verifier,
+            },
+        )
         if token_resp.status_code != 200:
-            raise BadRequest("Could not complete sign-in with the identity provider", code="oauth_exchange_failed")
+            raise BadRequest(
+                "Could not complete sign-in with the identity provider", code="oauth_exchange_failed"
+            )
         access = token_resp.json().get("access_token")
         info = await client.get(provider.userinfo_url, headers={"Authorization": f"Bearer {access}"})
         if info.status_code != 200:
-            raise BadRequest("Could not read your profile from the identity provider", code="oauth_userinfo_failed")
+            raise BadRequest(
+                "Could not read your profile from the identity provider", code="oauth_userinfo_failed"
+            )
         claims = info.json()
     if not claims.get("sub") or not claims.get("email"):
         raise BadRequest("The identity provider did not return an email address", code="oauth_no_email")

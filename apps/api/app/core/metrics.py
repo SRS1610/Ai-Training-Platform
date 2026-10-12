@@ -54,7 +54,11 @@ class Metrics:
                 "uptime_seconds": int(time.time() - self.started_at),
                 "requests_total": sum(self.requests.values()),
                 "status_counts": dict(self.status),
-                "latency_ms": {"p50": self._pct(lat, 50), "p95": self._pct(lat, 95), "p99": self._pct(lat, 99)},
+                "latency_ms": {
+                    "p50": self._pct(lat, 50),
+                    "p95": self._pct(lat, 95),
+                    "p99": self._pct(lat, 99),
+                },
                 "slowest_routes_p95": [{"route": k, "p95_ms": v} for k, v in slow],
                 "ai_calls": dict(self.ai_calls),
                 "ai_errors": self.ai_errors,

@@ -64,7 +64,9 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=f"{settings.APP_NAME} API",
         version="1.0.0",
-        description="AI-powered Training Management System: learn → practice → simulate → perform → assess → improve.",
+        description=(
+            "AI-powered Training Management System: learn → practice → simulate → perform → assess → improve."
+        ),
         openapi_url=f"{settings.API_PREFIX}/openapi.json",
         docs_url="/api/docs",
         redoc_url="/api/redoc",
@@ -80,8 +82,14 @@ def create_app() -> FastAPI:
         allow_origins=settings.CORS_ORIGINS,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Organisation-Id", "X-API-Key",
-                       "X-Request-Id"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "X-CSRF-Token",
+            "X-Organisation-Id",
+            "X-API-Key",
+            "X-Request-Id",
+        ],
     )
     app.add_middleware(RequestContextMiddleware)
 
@@ -100,7 +108,12 @@ def create_app() -> FastAPI:
         except Exception as exc:
             checks["redis"] = f"degraded: {type(exc).__name__}"
         status = "ok" if checks["database"] == "ok" else "error"
-        return {"status": status, "checks": checks, "environment": settings.ENVIRONMENT, "version": app.version}
+        return {
+            "status": status,
+            "checks": checks,
+            "environment": settings.ENVIRONMENT,
+            "version": app.version,
+        }
 
     @app.get(f"{settings.API_PREFIX}/metrics", include_in_schema=False)
     async def prometheus_metrics() -> PlainTextResponse:

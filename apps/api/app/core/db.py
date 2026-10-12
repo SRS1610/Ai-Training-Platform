@@ -101,7 +101,9 @@ async def system_session(org_id: uuid.UUID | None = None) -> AsyncIterator[Async
 
 
 @asynccontextmanager
-async def tenant_scope(session: AsyncSession, org_id: uuid.UUID | None, *, bypass: bool = False) -> AsyncIterator[None]:
+async def tenant_scope(
+    session: AsyncSession, org_id: uuid.UUID | None, *, bypass: bool = False
+) -> AsyncIterator[None]:
     """Temporarily bind the session to another tenant (or bypass), restoring the previous binding."""
     prev_org, prev_bypass = session.info.get(TENANT_KEY), session.info.get(BYPASS_KEY, False)
     await bind_tenant(session, org_id, bypass=bypass)
