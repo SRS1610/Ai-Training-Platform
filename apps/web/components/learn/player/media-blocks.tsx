@@ -254,6 +254,29 @@ export function AudioBlock({ content, onPosition }: { content: Content; onPositi
 
 /* ------------------------------------------------------------------ documents (pdf / slides / files) */
 
+const MIME_LABELS: [RegExp, string][] = [
+  [/pdf/i, "PDF"],
+  [/presentation|powerpoint/i, "PowerPoint deck"],
+  [/spreadsheet|excel|csv/i, "Spreadsheet"],
+  [/wordprocessing|msword|rtf/i, "Word document"],
+  [/zip|compressed|tar/i, "Archive"],
+  [/^image\//i, "Image"],
+  [/^video\//i, "Video"],
+  [/^audio\//i, "Audio"],
+  [/^text\/plain/i, "Text file"],
+  [/markdown/i, "Markdown"],
+  [/json/i, "JSON"],
+];
+
+/** Human-friendly file type from a MIME type ("application/vnd…presentation" → "PowerPoint deck"). */
+export function friendlyFileType(contentType: string | null | undefined, filename?: string | null): string {
+  const ct = contentType ?? "";
+  const hit = MIME_LABELS.find(([re]) => re.test(ct));
+  if (hit) return hit[1];
+  const ext = (filename ?? "").split(".").pop();
+  return ext && ext.length <= 5 && ext !== filename ? `${ext.toUpperCase()} file` : "File";
+}
+
 export function DocumentBlock({ content, kind = "pdf" }: { content: Content; kind?: "pdf" | "powerpoint" | "file" }) {
   const fileId = str(content.file_id);
   const url = str(content.url);
@@ -311,7 +334,7 @@ export function DocumentBlock({ content, kind = "pdf" }: { content: Content; kin
             <p className="mt-1 break-words font-display text-lg font-semibold text-slate-900">{name}</p>
             {meta.data && (
               <p className="mt-0.5 text-xs text-slate-500">
-                {formatBytes(meta.data.size_bytes)} · {meta.data.content_type}
+                {formatBytes(meta.data.size_bytes)} · {friendlyFileType(meta.data.content_type, meta.data.filename)}
               </p>
             )}
             {placeholder ? (

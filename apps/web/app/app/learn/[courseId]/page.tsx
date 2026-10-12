@@ -28,7 +28,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
-import { lessonMeta } from "@/components/learn/meta";
+import { lessonCountLabel, lessonMeta } from "@/components/learn/meta";
 import { StatusIcon, lessonStatus } from "@/components/learn/player/outline";
 import { lk } from "@/components/learn/query-keys";
 import type { LearnCourse } from "@/components/learn/types";
@@ -120,7 +120,7 @@ export default function CourseOverviewPage() {
                   return (
                     <li key={type} className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-sm">
                       <m.icon className={cn("size-3.5", colorClasses(m.color).icon)} aria-hidden />
-                      {n} {m.label.toLowerCase()}
+                      {lessonCountLabel(type, n)}
                     </li>
                   );
                 })}

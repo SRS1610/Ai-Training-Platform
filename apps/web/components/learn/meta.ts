@@ -22,32 +22,51 @@ import {
 } from "lucide-react";
 
 export interface LessonMeta {
+  /** Type label shown on a single lesson ("Flashcards", "Reading"). */
   label: string;
+  /** Count nouns: [singular, plural] — "1 flashcard deck", "3 quizzes". */
+  nouns: [string, string];
   icon: LucideIcon;
   color: CategoryColor;
 }
 
 const LESSON_META: Record<string, LessonMeta> = {
-  video: { label: "Video", icon: PlayCircle, color: "rose" },
-  audio: { label: "Audio", icon: AudioLines, color: "orange" },
-  text: { label: "Reading", icon: FileText, color: "sky" },
-  pdf: { label: "PDF", icon: FileType2, color: "rose" },
-  powerpoint: { label: "Slides", icon: Presentation, color: "orange" },
-  image: { label: "Image", icon: ImageIcon, color: "teal" },
-  infographic: { label: "Infographic", icon: LayoutGrid, color: "teal" },
-  interactive_html: { label: "Interactive", icon: MousePointerClick, color: "fuchsia" },
-  code: { label: "Code", icon: Code2, color: "indigo" },
-  flashcards: { label: "Flashcards", icon: Layers, color: "amber" },
-  scenario: { label: "Scenario", icon: Theater, color: "violet" },
-  quiz: { label: "Quiz", icon: HelpCircle, color: "emerald" },
-  assignment: { label: "Assignment", icon: ClipboardCheck, color: "amber" },
-  simulation: { label: "Simulation", icon: MonitorPlay, color: "violet" },
-  ai_tutor: { label: "AI tutor", icon: Bot, color: "fuchsia" },
-  mixed: { label: "Lesson", icon: Shapes, color: "indigo" },
+  video: { label: "Video", nouns: ["video", "videos"], icon: PlayCircle, color: "rose" },
+  audio: { label: "Audio", nouns: ["audio lesson", "audio lessons"], icon: AudioLines, color: "orange" },
+  text: { label: "Reading", nouns: ["reading", "readings"], icon: FileText, color: "sky" },
+  pdf: { label: "PDF", nouns: ["PDF", "PDFs"], icon: FileType2, color: "rose" },
+  powerpoint: { label: "Slides", nouns: ["slide deck", "slide decks"], icon: Presentation, color: "orange" },
+  image: { label: "Image", nouns: ["image", "images"], icon: ImageIcon, color: "teal" },
+  infographic: { label: "Infographic", nouns: ["infographic", "infographics"], icon: LayoutGrid, color: "teal" },
+  interactive_html: { label: "Interactive", nouns: ["interactive activity", "interactive activities"], icon: MousePointerClick, color: "fuchsia" },
+  code: { label: "Code", nouns: ["code lab", "code labs"], icon: Code2, color: "indigo" },
+  flashcards: { label: "Flashcards", nouns: ["flashcard deck", "flashcard decks"], icon: Layers, color: "amber" },
+  scenario: { label: "Scenario", nouns: ["scenario", "scenarios"], icon: Theater, color: "violet" },
+  quiz: { label: "Quiz", nouns: ["quiz", "quizzes"], icon: HelpCircle, color: "emerald" },
+  assignment: { label: "Assignment", nouns: ["assignment", "assignments"], icon: ClipboardCheck, color: "amber" },
+  simulation: { label: "Simulation", nouns: ["simulation", "simulations"], icon: MonitorPlay, color: "violet" },
+  ai_tutor: { label: "AI tutor", nouns: ["AI tutor session", "AI tutor sessions"], icon: Bot, color: "fuchsia" },
+  mixed: { label: "Lesson", nouns: ["mixed-media lesson", "mixed-media lessons"], icon: Shapes, color: "indigo" },
 };
 
+const FALLBACK_META: LessonMeta = { label: "Lesson", nouns: ["lesson", "lessons"], icon: BookOpen, color: "indigo" };
+
 export function lessonMeta(type: string | null | undefined): LessonMeta {
-  return LESSON_META[(type ?? "").toLowerCase()] ?? { label: "Lesson", icon: BookOpen, color: "indigo" };
+  return LESSON_META[(type ?? "").toLowerCase()] ?? FALLBACK_META;
+}
+
+/** "1 quiz", "8 quizzes", "1 flashcard deck". */
+export function lessonCountLabel(type: string | null | undefined, n: number): string {
+  const { nouns } = lessonMeta(type);
+  return `${n} ${n === 1 ? nouns[0] : nouns[1]}`;
+}
+
+/** Capitalised plural-aware type name for "This course includes" lists: "Quiz" / "Quizzes". */
+export function lessonTypeName(type: string | null | undefined, n: number): string {
+  const m = lessonMeta(type);
+  if (n === 1) return m.label;
+  const p = m.nouns[1];
+  return p.charAt(0).toUpperCase() + p.slice(1);
 }
 
 export const DIFFICULTIES = ["beginner", "intermediate", "advanced", "expert"] as const;

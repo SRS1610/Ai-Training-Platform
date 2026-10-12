@@ -83,7 +83,7 @@ function Row({ q }: { q: QuestionStat }) {
       <TableCell className="tabular-nums text-slate-700">{q.mean_score_pct === null ? "—" : `${Math.round(q.mean_score_pct)}%`}</TableCell>
       <TableCell>
         <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold ring-1 ring-inset tabular-nums", dt.cls)}>
-          {q.discrimination === null ? "n/a" : q.discrimination.toFixed(2)} · {dt.label}
+          {q.discrimination === null ? "Needs more data" : `${q.discrimination.toFixed(2)} · ${dt.label}`}
         </span>
       </TableCell>
       <TableCell>

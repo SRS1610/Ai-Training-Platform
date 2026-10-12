@@ -265,11 +265,11 @@ export default function LessonPage() {
         </section>
       )}
 
-      <nav aria-label="Lesson navigation" className="mt-8 grid gap-3 border-t border-slate-200 pt-6 sm:grid-cols-2">
+      <nav aria-label="Lesson navigation" className="mt-8 grid grid-cols-1 gap-3 border-t border-slate-200 pt-6 sm:grid-cols-2">
         {data.previous_lesson_id ? (
           <Link
             href={`/app/learn/${courseId}/lesson/${data.previous_lesson_id}`}
-            className="group flex items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:focus-ring"
+            className="group flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:focus-ring"
           >
             <ArrowLeft className="size-5 shrink-0 text-slate-400 transition group-hover:-translate-x-0.5" aria-hidden />
             <span className="min-w-0">
@@ -282,7 +282,7 @@ export default function LessonPage() {
         )}
         {data.next_lesson_id ? (
           next?.locked && next.progress.status !== "completed" ? (
-            <span className="flex items-center justify-end gap-3 rounded-2xl border border-dashed border-slate-200 p-4 text-right opacity-70" aria-disabled="true">
+            <span className="flex min-w-0 items-center justify-end gap-3 rounded-2xl border border-dashed border-slate-200 p-4 text-right opacity-70" aria-disabled="true">
               <span className="min-w-0">
                 <span className="block text-xs font-medium text-slate-500">Next · locked</span>
                 <span className="block truncate text-sm font-semibold text-slate-700">{next.title}</span>
@@ -292,7 +292,7 @@ export default function LessonPage() {
           ) : (
             <Link
               href={`/app/learn/${courseId}/lesson/${data.next_lesson_id}`}
-              className="group flex items-center justify-end gap-3 rounded-2xl border border-brand-200 bg-brand-50/50 p-4 text-right transition hover:border-brand-300 hover:bg-brand-50 focus-visible:focus-ring"
+              className="group flex min-w-0 items-center justify-end gap-3 rounded-2xl border border-brand-200 bg-brand-50/50 p-4 text-right transition hover:border-brand-300 hover:bg-brand-50 focus-visible:focus-ring"
             >
               <span className="min-w-0">
                 <span className="block text-xs font-medium text-brand-700">Next</span>
@@ -304,7 +304,7 @@ export default function LessonPage() {
         ) : (
           <Link
             href={`/app/learn/${courseId}`}
-            className="flex items-center justify-end gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-right transition hover:bg-emerald-50 focus-visible:focus-ring"
+            className="flex min-w-0 items-center justify-end gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-right transition hover:bg-emerald-50 focus-visible:focus-ring"
           >
             <span>
               <span className="block text-xs font-medium text-emerald-700">End of course</span>

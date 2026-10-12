@@ -186,8 +186,9 @@ export function SectionTitle({
 }) {
   const c = colorClasses(color);
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex min-w-0 items-center gap-3">
+    // The action wraps underneath the title on narrow screens instead of squeezing the heading column.
+    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+      <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
         <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", c.soft, c.icon)}>
           <Icon className="size-[18px]" aria-hidden />
         </span>

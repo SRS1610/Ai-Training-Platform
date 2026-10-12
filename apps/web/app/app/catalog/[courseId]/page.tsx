@@ -41,7 +41,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ErrorState } from "@/components/common/error-state";
 import { Markdown } from "@/components/common/markdown";
-import { lessonMeta } from "@/components/learn/meta";
+import { lessonCountLabel, lessonMeta, lessonTypeName } from "@/components/learn/meta";
 import { lk } from "@/components/learn/query-keys";
 import type { CatalogDetail, EnrolmentOut } from "@/components/learn/types";
 import { CourseCover, DifficultyMeter, DueChip, SectionTitle, SkillPills } from "@/components/learn/visuals";
@@ -206,8 +206,7 @@ export default function CourseDetailPage() {
                 return (
                   <span key={type} className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-sm">
                     <m.icon className={cn("size-3.5", colorClasses(m.color).icon)} aria-hidden />
-                    {n} {m.label.toLowerCase()}
-                    {n === 1 || m.label.endsWith("s") ? "" : "s"}
+                    {lessonCountLabel(type, n)}
                   </span>
                 );
               })}
@@ -322,7 +321,7 @@ export default function CourseDetailPage() {
                     <span className={cn("grid size-7 place-items-center rounded-lg", mc.soft, mc.icon)}>
                       <m.icon className="size-3.5" aria-hidden />
                     </span>
-                    <span className="flex-1">{m.label}</span>
+                    <span className="flex-1">{lessonTypeName(type, n)}</span>
                     <span className="font-semibold tabular-nums text-slate-900">{n}</span>
                   </li>
                 );

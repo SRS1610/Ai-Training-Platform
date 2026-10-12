@@ -53,11 +53,15 @@ const LETTERS = "ABCDEFGHIJ";
 
 /** Branching scenario: the situation, then choices that reveal consequences and (optionally) lead to further scenes. */
 export function ScenarioBlock({ content }: { content: Record<string, unknown> }) {
-  const situation = str(content.scenario);
+  // `scenario` is the situation; `body_markdown` is then a debrief revealed once the learner has played through
+  // (an interactive scenario shouldn't spoil its own answer). Without `scenario`, `body_markdown` is the situation.
+  const situation = str(content.scenario) ?? str(content.body_markdown);
+  const debrief = str(content.scenario) ? str(content.body_markdown) : undefined;
   const { start, nodes } = React.useMemo(() => readScenes(content), [content]);
   const [path, setPath] = React.useState<{ node: string; choice: Choice }[]>([]);
   const current = path.length ? path[path.length - 1]!.choice.next : start;
   const node = current ? nodes[current] : undefined;
+  const interactive = Object.values(nodes).some((n) => n.choices.length > 0);
   const finished = path.length > 0 && (!node || node.choices.length === 0);
   const liveRef = React.useRef<HTMLDivElement>(null);
 
@@ -137,9 +141,9 @@ export function ScenarioBlock({ content }: { content: Record<string, unknown> })
         )}
       </div>
 
-      {str(content.body_markdown) && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <Markdown>{str(content.body_markdown)!}</Markdown>
+      {debrief && (finished || !interactive) && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 motion-safe:animate-fade-up" aria-label="Debrief">
+          <Markdown>{debrief}</Markdown>
         </section>
       )}
     </div>
