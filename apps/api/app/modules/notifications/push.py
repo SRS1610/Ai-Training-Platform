@@ -39,7 +39,8 @@ class WebPushProvider(ABC):
 
     @abstractmethod
     async def send(self, subscription: dict[str, Any], payload: dict[str, Any]) -> str:
-        """Return ``sent`` | ``expired`` (subscription gone; caller should drop it) | ``failed`` | ``skipped``."""
+        """Return ``sent`` | ``expired`` (subscription gone; caller should drop it) | ``failed`` |
+        ``skipped``."""
 
 
 class NullWebPushProvider(WebPushProvider):

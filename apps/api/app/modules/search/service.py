@@ -1,8 +1,10 @@
 """Global search across courses, lessons, assignments, simulations, knowledge documents and users.
 
-Ranking combines ILIKE matches (prefix > substring) with ``pg_trgm`` similarity when the extension is installed,
+Ranking combines ILIKE matches (prefix > substring) with ``pg_trgm`` similarity when the extension is
+installed,
 so typos still match. Visibility follows permissions: drafts need ``courses.edit`` (or the matching manage
-permission), users need ``users.view`` and knowledge documents need ``knowledge.manage``/``ai.manage``. Semantic
+permission), users need ``users.view`` and knowledge documents need ``knowledge.manage``/``ai.manage``.
+Semantic
 results from the AI gateway (``app.modules.ai.gateway.semantic_search``) are merged in as type ``knowledge``.
 """
 

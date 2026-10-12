@@ -24,6 +24,7 @@ from simulation_engine.schema import (
     RepeatPolicy,
     SimulationDefinition,
     parse_definition,
+    resolve_outcome,
 )
 
 STATE_VERSION = 1
@@ -358,17 +359,18 @@ def _action_step(
 
     count = st["action_counts"].get(a.id, 0)
     pre_ctx = _ctx(st, inp)
-    spec: OutcomeSpec = a
+    matched = None
     branch_id = None
     for idx, br in enumerate(a.branches):
         if truthy(br.when, pre_ctx):
-            spec, branch_id = br, br.id or str(idx)
+            matched, branch_id = br, br.id or str(idx)
             break
+    spec: OutcomeSpec = resolve_outcome(a, matched)
     # Repeats are counted per outcome (action + branch): a validation run of the same command after the
     # fix is a different outcome than the diagnostic run before it.
     outcome_key = f"{a.id}#{branch_id}" if branch_id is not None else a.id
     repeats = st.setdefault("outcome_counts", {}).get(outcome_key, 0)
-    time_cost = spec.time_cost if spec.time_cost is not None else (a.time_cost or 0.0)
+    time_cost = spec.time_cost or 0.0
 
     deltas = dict(spec.score)
     policy = _repeat_policy(d, a)
@@ -464,14 +466,16 @@ def _unknown_step(
     t = d.tool(tool) if tool else None
     st["transcript"].append(_learner_text_entry(st, text, "message" if character else "command", tool, character))
     ctx = _ctx(st, inp)
-    deltas = dict(policy.penalty) if st["unknown_inputs"] <= policy.max_penalised else {}
+    deltas: dict[str, float] = {}
     if character:
+        if st.get("unknown_penalised", 0) < policy.max_penalised:
+            deltas = dict(policy.penalty)
+            st["unknown_penalised"] = st.get("unknown_penalised", 0) + 1
         char = d.character(character)
         out = _msg_out(d, character, render(char.fallback_reply if char else policy.reply, ctx))
         outcome["messages"].append(out)
         st["transcript"].append(_message_entry(d, st, character, out["text"]))
-    else:
-        deltas = {}  # an unknown terminal command is realistic noise, not a communication failure
+    else:  # an unknown terminal command is realistic noise, not a communication failure
         txt = render(t.unknown_input_output, ctx) if t and t.unknown_input_output else render(policy.reply, ctx)
         entry = {"tool": tool, "panel": t.panel if t else None, "format": "terminal" if t else "text", "text": txt}
         outcome["outputs"].append(entry)

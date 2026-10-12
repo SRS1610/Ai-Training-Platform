@@ -132,7 +132,7 @@ def _check(d: SimulationDefinition, r: ValidationReport) -> None:  # noqa: C901 
                 walk_text(v, f"{path}.{k}")
 
     def outcome(spec: Any, path: str) -> None:
-        for k in spec.score:
+        for k in spec.score or {}:
             if k not in dims:
                 r.error("unknown_ref", f"{path}.score", f"Unknown scoring dimension '{k}'")
         for i, eff in enumerate(spec.effects):
@@ -153,7 +153,7 @@ def _check(d: SimulationDefinition, r: ValidationReport) -> None:  # noqa: C901 
                 r.warn("unknown_ref", p, f"Effect removes problem '{eff.remove_problem}' that is never added")
             if eff.add_problem:
                 text(eff.add_problem.text, p)
-        for i, o in enumerate(spec.outputs):
+        for i, o in enumerate(spec.outputs or []):
             cond(o.when, f"{path}.outputs[{i}].when")
             text(o.text, f"{path}.outputs[{i}]")
             if o.panel and o.panel not in panels:
@@ -356,7 +356,7 @@ def _reachability_checks(d: SimulationDefinition, r: ValidationReport) -> None:
     for a in d.actions:
         best: dict[str, float] = {}
         for spec in [a, *a.branches]:
-            for k, v in spec.score.items():
+            for k, v in (spec.score or {}).items():
                 if v > 0:
                     best[k] = max(best.get(k, 0.0), v)
         for k, v in best.items():

@@ -56,7 +56,9 @@ async def _enrolment_reminders(db: AsyncSession, today: date) -> dict[str, int]:
                 user_id=enrolment.user_id,
                 type="assignment_overdue",
                 title=f"Overdue: {course_title}",
-                body=f'"{course_title}" was due on {due.isoformat()}. Please complete it as soon as possible.',
+                body=(
+                    f'"{course_title}" was due on {due.isoformat()}. Please complete it as soon as possible.'
+                ),
                 link=f"/app/learn/{enrolment.course_id}",
                 data={
                     "enrolment_id": str(enrolment.id),
@@ -76,7 +78,9 @@ async def _enrolment_reminders(db: AsyncSession, today: date) -> dict[str, int]:
                 user_id=enrolment.user_id,
                 type="assignment_due",
                 title=f"Due {_days_word(days)}: {course_title}",
-                body=f'"{course_title}" is due on {due.isoformat()} ({enrolment.progress_pct:.0f}% complete).',
+                body=(
+                    f'"{course_title}" is due on {due.isoformat()} ({enrolment.progress_pct:.0f}% complete).'
+                ),
                 link=f"/app/learn/{enrolment.course_id}",
                 data={
                     "enrolment_id": str(enrolment.id),

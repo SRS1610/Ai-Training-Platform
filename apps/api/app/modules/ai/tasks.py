@@ -23,9 +23,18 @@ async def budget_check(organisation_id: str | None = None) -> dict[str, list[int
         org_ids = [uuid.UUID(organisation_id)]
     else:
         async with system_session() as db:
-            with_usage = set((await db.scalars(select(distinct(AIUsage.organisation_id)).where(
-                AIUsage.created_at >= gateway.month_start()))).all())
-            org_ids = sorted(with_usage | set((await db.scalars(select(AIConfiguration.organisation_id))).all()))
+            with_usage = set(
+                (
+                    await db.scalars(
+                        select(distinct(AIUsage.organisation_id)).where(
+                            AIUsage.created_at >= gateway.month_start()
+                        )
+                    )
+                ).all()
+            )
+            org_ids = sorted(
+                with_usage | set((await db.scalars(select(AIConfiguration.organisation_id))).all())
+            )
     out: dict[str, list[int]] = {}
     for oid in org_ids:
         try:

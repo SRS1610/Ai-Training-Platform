@@ -1,0 +1,3999 @@
+{
+  "schema_version": "1.0",
+  "key": "it-helpdesk-network",
+  "meta": {
+    "title": "Corporate Laptop Cannot Connect to Network",
+    "description": "Level 1/2 IT helpdesk: a finance analyst's laptop can't reach the intranet or the internet after a VPN client update. Talk to the customer, diagnose with real Windows networking commands, fix the root cause, validate and document.",
+    "industry": "it",
+    "environment_type": "helpdesk",
+    "difficulty": "intermediate",
+    "estimated_minutes": 25,
+    "learner_role": "Level 2 Service Desk Analyst",
+    "briefing": "You are on the Service Desk at Northwind Corp. Ticket INC0042317 has just been assigned to you: Priya Shah in Finance can't reach the intranet or any websites from her laptop. She is waiting on Teams chat and has a month-end deadline. You have remote PowerShell access to her laptop, the knowledge base and the directory admin console. Diagnose, fix, validate and close the ticket professionally.",
+    "objectives": [
+      "Gather a clear problem history from the customer",
+      "Isolate the fault with layered network diagnostics",
+      "Identify and fix the root cause with the least disruption",
+      "Validate the fix technically and with the customer",
+      "Document the resolution and close the ticket"
+    ],
+    "tags": [
+      "networking",
+      "dns",
+      "windows",
+      "customer-service",
+      "flagship"
+    ]
+  },
+  "environment": {
+    "layout": "workspace",
+    "panels": [
+      {
+        "id": "ticket",
+        "type": "ticket",
+        "title": "INC0042317",
+        "data": {
+          "number": "INC0042317",
+          "title": "Laptop cannot connect to intranet or internet",
+          "priority": "P3 - Moderate",
+          "status": "{{ticket_status}}",
+          "caller": "Priya Shah, Finance Analyst (Finance, Level 4)",
+          "contact": "ext. 4471 · Teams chat",
+          "asset": "FIN-LT-0457 · Dell Latitude 7440 · Windows 11 Enterprise 23H2",
+          "opened": "Today 09:12",
+          "assignment_group": "Service Desk L1/L2",
+          "sla": "Respond 30 min · Resolve 8 h",
+          "description": "Since yesterday I can't open the intranet or any websites on my laptop. Wi-Fi says connected but Outlook says disconnected. I need this fixed today, my month-end report is due at 3pm."
+        }
+      },
+      {
+        "id": "chat",
+        "type": "chat",
+        "title": "Teams chat: Priya Shah",
+        "data": {
+          "channel": "Microsoft Teams (mobile)",
+          "participants": [
+            "priya"
+          ]
+        }
+      },
+      {
+        "id": "terminal",
+        "type": "terminal",
+        "title": "Remote PowerShell: FIN-LT-0457",
+        "data": {
+          "host": "FIN-LT-0457",
+          "shell": "PowerShell 7.4 (Quick Assist remote session)",
+          "banner": "Connected to FIN-LT-0457 as CORP\\svc-helpdesk (elevated)."
+        }
+      },
+      {
+        "id": "system_info",
+        "type": "system_info",
+        "title": "System Information",
+        "visible_when": {
+          "action_taken": "open_system_info"
+        },
+        "data": {
+          "hostname": "FIN-LT-0457",
+          "os": "Windows 11 Enterprise 23H2 (build 22631.3880)",
+          "domain": "corp.local",
+          "network_adapter": "{{adapter_name}}",
+          "interface": "{{interface_alias}}",
+          "media_state": "Connected",
+          "ipv4": "10.20.30.57 (DHCP)",
+          "default_gateway": "10.20.30.1",
+          "dns_assignment": "Manual (static)",
+          "dns_servers": "{{stale_dns}}",
+          "driver": {
+            "provider": "Intel",
+            "version": "23.40.0.4",
+            "date": "2024-03-11",
+            "status": "This device is working properly."
+          },
+          "recent_software": [
+            {
+              "name": "GlobalConnect VPN Client",
+              "version": "5.2.1",
+              "installed": "Yesterday 08:41 (auto-update)"
+            },
+            {
+              "name": "Microsoft Teams",
+              "version": "24215.1007",
+              "installed": "6 days ago"
+            },
+            {
+              "name": "Cumulative Update KB5040442",
+              "version": "",
+              "installed": "12 days ago"
+            }
+          ]
+        },
+        "variants": [
+          {
+            "when": {
+              "==": [
+                {
+                  "var": "dns_mode"
+                },
+                "dhcp"
+              ]
+            },
+            "data": {
+              "dns_assignment": "Automatic (DHCP)",
+              "dns_servers": "10.20.1.10, 10.20.1.11"
+            }
+          },
+          {
+            "when": {
+              "==": [
+                {
+                  "var": "dns_mode"
+                },
+                "public"
+              ]
+            },
+            "data": {
+              "dns_servers": "8.8.8.8"
+            }
+          },
+          {
+            "when": {
+              "==": [
+                {
+                  "var": "dns_mode"
+                },
+                "static_corp"
+              ]
+            },
+            "data": {
+              "dns_servers": "10.20.1.10, 10.20.1.11"
+            }
+          }
+        ]
+      },
+      {
+        "id": "knowledge_base",
+        "type": "knowledge_base",
+        "title": "Knowledge Base",
+        "data": {
+          "articles": [
+            {
+              "id": "KB-0988",
+              "title": "GlobalConnect VPN 5.2.x: known issues",
+              "updated": "2 days ago"
+            },
+            {
+              "id": "KB-1043",
+              "title": "DNS troubleshooting checklist",
+              "updated": "3 months ago"
+            },
+            {
+              "id": "KB-0201",
+              "title": "Password reset procedure",
+              "updated": "1 year ago"
+            },
+            {
+              "id": "KB-0750",
+              "title": "Wireless driver reinstall",
+              "updated": "8 months ago"
+            }
+          ]
+        }
+      },
+      {
+        "id": "directory",
+        "type": "admin_console",
+        "title": "Directory Admin: pshah",
+        "data": {
+          "user": "Priya Shah (pshah)",
+          "department": "Finance",
+          "manager": "Helen Ortiz"
+        }
+      }
+    ]
+  },
+  "tools": [
+    {
+      "id": "ticket",
+      "name": "Ticket",
+      "panel": "ticket",
+      "icon": "ticket",
+      "description": "Review, diagnose, document, escalate or close the ticket."
+    },
+    {
+      "id": "chat",
+      "name": "Chat with Priya",
+      "panel": "chat",
+      "icon": "message",
+      "description": "Talk to the customer in Teams."
+    },
+    {
+      "id": "terminal",
+      "name": "Remote PowerShell",
+      "panel": "terminal",
+      "icon": "terminal",
+      "prompt": "PS C:\\Users\\pshah>",
+      "description": "Run diagnostic and configuration commands.",
+      "unknown_input_output": "{{$input.text}} : The term '{{$input.text}}' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+    },
+    {
+      "id": "system_info",
+      "name": "System Information",
+      "panel": "system_info",
+      "icon": "monitor",
+      "description": "Adapter configuration, drivers and installed software."
+    },
+    {
+      "id": "knowledge_base",
+      "name": "Knowledge Base",
+      "panel": "knowledge_base",
+      "icon": "book"
+    },
+    {
+      "id": "directory",
+      "name": "Directory Admin",
+      "panel": "directory",
+      "icon": "users",
+      "description": "User account administration."
+    }
+  ],
+  "characters": [
+    {
+      "id": "priya",
+      "name": "Priya Shah",
+      "role": "Finance Analyst",
+      "avatar": "PS",
+      "persona": "Polite, busy and slightly stressed finance analyst. Not technical: describes what she sees in plain language. Has a month-end report due at 3pm and gets curt if things drag on or if changes disrupt her work.",
+      "tone": "friendly but under time pressure",
+      "facts": [
+        {
+          "id": "f_error",
+          "text": "Chrome shows DNS_PROBE_FINISHED_NXDOMAIN for every site; Outlook shows 'Disconnected'."
+        },
+        {
+          "id": "f_started",
+          "text": "It started yesterday morning, right after the GlobalConnect VPN update and restart."
+        },
+        {
+          "id": "f_other",
+          "text": "Her phone works on the same Wi-Fi and her neighbour Raj is unaffected."
+        },
+        {
+          "id": "f_changes",
+          "text": "The only change was the GlobalConnect VPN update yesterday morning."
+        },
+        {
+          "id": "f_connection",
+          "text": "She is {{connection_desc}}."
+        },
+        {
+          "id": "f_vpn",
+          "text": "She is in the office and not connected to the VPN."
+        },
+        {
+          "id": "f_restart",
+          "text": "She has already restarted three times without improvement."
+        },
+        {
+          "id": "f_password",
+          "intents": [
+            "password"
+          ],
+          "text": "My password's fine. I can log into the laptop and Teams works on my phone."
+        },
+        {
+          "id": "f_impact",
+          "intents": [
+            "impact"
+          ],
+          "text": "I can't get to the finance share or the reporting tool, and the month-end report is due at 3pm."
+        }
+      ],
+      "fallback_reply": "Sorry, I'm not sure what you mean. I'm not very technical. What do you need me to check?",
+      "patience_var": "customer_patience",
+      "patience_decay_per_minute": 0.8
+    },
+    {
+      "id": "mark",
+      "name": "Mark Ellis",
+      "role": "Service Desk Manager",
+      "avatar": "ME",
+      "persona": "Service desk manager focused on SLAs and customer satisfaction.",
+      "fallback_reply": "I'm in a meeting. Message me if it's urgent."
+    }
+  ],
+  "intents": [
+    {
+      "id": "greeting",
+      "patterns": [
+        "hello",
+        "good morning",
+        "good afternoon",
+        "my name",
+        "introduce",
+        "service desk",
+        "it support"
+      ],
+      "examples": [
+        "Hi Priya, this is the service desk",
+        "Hello, I'm from IT support"
+      ]
+    },
+    {
+      "id": "remote_permission",
+      "patterns": [
+        "permission",
+        "remote session",
+        "remote access",
+        "remote into",
+        "connect remotely",
+        "quick assist",
+        "take control",
+        "access computer",
+        "connect to computer"
+      ]
+    },
+    {
+      "id": "error_message",
+      "patterns": [
+        "error",
+        "what see",
+        "what happen",
+        "exact wording",
+        "screen",
+        "what does it say",
+        "what do get"
+      ],
+      "examples": [
+        "What do you see when you try to open a website?",
+        "What error do you get?"
+      ]
+    },
+    {
+      "id": "when_started",
+      "patterns": [
+        "when start",
+        "how long",
+        "since when",
+        "when notice",
+        "when happen",
+        "first notice",
+        "last work",
+        "when first"
+      ],
+      "examples": [
+        "When did this start?",
+        "How long has this been happening?"
+      ]
+    },
+    {
+      "id": "other_devices",
+      "patterns": [
+        "other computer",
+        "anyone other",
+        "other people",
+        "other user",
+        "only you",
+        "just you",
+        "only computer",
+        "other work",
+        "someone other",
+        "affected"
+      ],
+      "examples": [
+        "Does your phone work on the same network?",
+        "Are your colleagues having the same problem?"
+      ]
+    },
+    {
+      "id": "recent_changes",
+      "patterns": [
+        "change",
+        "anything different",
+        "recently",
+        "lately"
+      ],
+      "examples": [
+        "Have there been any recent changes?",
+        "Did you install any updates recently?"
+      ]
+    },
+    {
+      "id": "connection_type",
+      "patterns": [
+        "wireless",
+        "wired",
+        "how connect",
+        "connection type",
+        "which network"
+      ],
+      "examples": [
+        "Are you on Wi-Fi or plugged in with a cable?"
+      ]
+    },
+    {
+      "id": "vpn_status",
+      "patterns": [
+        "vpn",
+        "work from home",
+        "in office",
+        "at home",
+        "remote work"
+      ]
+    },
+    {
+      "id": "restart",
+      "patterns": [
+        "restart",
+        "reboot",
+        "turn off",
+        "switch off",
+        "power cycle"
+      ]
+    },
+    {
+      "id": "ask_test",
+      "patterns": [
+        "try again",
+        "try now",
+        "test",
+        "work now",
+        "load now",
+        "check now",
+        "refresh",
+        "try open",
+        "try intranet",
+        "try outlook"
+      ],
+      "examples": [
+        "Can you try opening the intranet now?",
+        "Could you check if it works now?"
+      ]
+    },
+    {
+      "id": "explain_fix",
+      "patterns": [
+        "dns setting",
+        "dns server",
+        "explain",
+        "caused",
+        "root cause",
+        "fixed",
+        "resolved",
+        "reset dns",
+        "left old setting",
+        "what was wrong"
+      ],
+      "examples": [
+        "The problem was an old DNS setting left behind by the VPN update, I've reset it."
+      ]
+    },
+    {
+      "id": "close_confirm",
+      "patterns": [
+        "anything else",
+        "close ticket",
+        "close this",
+        "ok close",
+        "happy close",
+        "can close",
+        "mark resolved"
+      ]
+    },
+    {
+      "id": "thanks",
+      "patterns": [
+        "thank",
+        "appreciate"
+      ]
+    },
+    {
+      "id": "password",
+      "patterns": [
+        "password",
+        "locked out",
+        "log in",
+        "login",
+        "sign in"
+      ]
+    },
+    {
+      "id": "impact",
+      "patterns": [
+        "urgent",
+        "deadline",
+        "impact",
+        "priority",
+        "affect work",
+        "how bad",
+        "blocking"
+      ]
+    }
+  ],
+  "synonyms": {
+    "intranet": [
+      "sharepoint",
+      "portal"
+    ],
+    "dns": [
+      "nameserver",
+      "resolver"
+    ],
+    "test": [
+      "check",
+      "verify",
+      "try"
+    ]
+  },
+  "phases": [
+    {
+      "id": "INITIAL",
+      "name": "Initial",
+      "description": "Pick up the ticket and make contact.",
+      "transitions": [
+        "INVESTIGATION",
+        "ESCALATED"
+      ],
+      "auto_advance": [
+        {
+          "to": "INVESTIGATION",
+          "when": {
+            ">=": [
+              {
+                "var": "$actions_count"
+              },
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INVESTIGATION",
+      "name": "Investigation",
+      "description": "Gather information and run diagnostics.",
+      "transitions": [
+        "DIAGNOSIS",
+        "REMEDIATION",
+        "ESCALATED"
+      ],
+      "auto_advance": [
+        {
+          "to": "DIAGNOSIS",
+          "when": {
+            "and": [
+              {
+                "var": "ev_dns_fail"
+              },
+              {
+                "var": "ev_dns_config"
+              }
+            ]
+          }
+        },
+        {
+          "to": "REMEDIATION",
+          "when": {
+            "or": [
+              {
+                "var": "connectivity_fixed"
+              },
+              {
+                "var": "root_cause_identified"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DIAGNOSIS",
+      "name": "Diagnosis",
+      "description": "Isolate and record the root cause.",
+      "transitions": [
+        "REMEDIATION",
+        "ESCALATED"
+      ],
+      "auto_advance": [
+        {
+          "to": "REMEDIATION",
+          "when": {
+            "or": [
+              {
+                "var": "root_cause_identified"
+              },
+              {
+                "var": "connectivity_fixed"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "REMEDIATION",
+      "name": "Remediation",
+      "description": "Apply the fix with minimal disruption.",
+      "transitions": [
+        "VALIDATION",
+        "ESCALATED"
+      ],
+      "auto_advance": [
+        {
+          "to": "VALIDATION",
+          "when": {
+            "var": "connectivity_fixed"
+          }
+        }
+      ]
+    },
+    {
+      "id": "VALIDATION",
+      "name": "Validation",
+      "description": "Prove the fix works, technically and for the user.",
+      "transitions": [
+        "RESOLUTION"
+      ],
+      "auto_advance": [
+        {
+          "to": "RESOLUTION",
+          "when": {
+            "and": [
+              {
+                "or": [
+                  {
+                    "var": "validated"
+                  },
+                  {
+                    "var": "validated_ping"
+                  }
+                ]
+              },
+              {
+                "var": "customer_confirmed"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "RESOLUTION",
+      "name": "Resolution",
+      "description": "Document and close the ticket.",
+      "terminal": true
+    },
+    {
+      "id": "ESCALATED",
+      "name": "Escalated",
+      "description": "Handed to another team.",
+      "terminal": true
+    }
+  ],
+  "initial_phase": "INITIAL",
+  "variables": {
+    "root_cause": {
+      "type": "str",
+      "initial": "stale_static_dns_after_vpn_update",
+      "visibility": "secret",
+      "description": "Ground truth used for authoring and AI guardrails. Never shown to learners."
+    },
+    "ticket_status": {
+      "type": "str",
+      "initial": "Assigned",
+      "visibility": "public",
+      "label": "Ticket status"
+    },
+    "customer_patience": {
+      "type": "float",
+      "initial": 100,
+      "visibility": "public",
+      "label": "Customer patience",
+      "min": 0,
+      "max": 100
+    },
+    "stale_dns": {
+      "type": "str",
+      "initial": "10.0.0.53"
+    },
+    "interface_alias": {
+      "type": "str",
+      "initial": "Wi-Fi"
+    },
+    "adapter_label": {
+      "type": "str",
+      "initial": "Wireless LAN"
+    },
+    "adapter_name": {
+      "type": "str",
+      "initial": "Intel(R) Wi-Fi 6E AX211 160MHz"
+    },
+    "connection_desc": {
+      "type": "str",
+      "initial": "on Wi-Fi, the CORP-SECURE network. It shows full bars"
+    },
+    "dns_mode": {
+      "type": "str",
+      "initial": "static",
+      "description": "static | dhcp | public | static_corp"
+    },
+    "dns_servers": {
+      "type": "str",
+      "initial": "10.0.0.53"
+    },
+    "dns_servers_ps": {
+      "type": "str",
+      "initial": "10.0.0.53"
+    },
+    "ticket_reviewed": {
+      "type": "bool",
+      "initial": false
+    },
+    "remote_permission": {
+      "type": "bool",
+      "initial": false
+    },
+    "ev_ipconfig": {
+      "type": "bool",
+      "initial": false
+    },
+    "ev_dns_config": {
+      "type": "bool",
+      "initial": false
+    },
+    "ev_ping_gw": {
+      "type": "bool",
+      "initial": false
+    },
+    "ev_ping_ip": {
+      "type": "bool",
+      "initial": false
+    },
+    "ev_dns_fail": {
+      "type": "bool",
+      "initial": false
+    },
+    "ev_corp_dns_ok": {
+      "type": "bool",
+      "initial": false
+    },
+    "ev_sysinfo": {
+      "type": "bool",
+      "initial": false
+    },
+    "ev_kb": {
+      "type": "bool",
+      "initial": false
+    },
+    "root_cause_identified": {
+      "type": "bool",
+      "initial": false
+    },
+    "wrong_diagnosis": {
+      "type": "bool",
+      "initial": false
+    },
+    "connectivity_fixed": {
+      "type": "bool",
+      "initial": false
+    },
+    "dns_flushed": {
+      "type": "bool",
+      "initial": false
+    },
+    "validated": {
+      "type": "bool",
+      "initial": false
+    },
+    "validated_ping": {
+      "type": "bool",
+      "initial": false
+    },
+    "customer_confirmed": {
+      "type": "bool",
+      "initial": false
+    },
+    "close_agreed": {
+      "type": "bool",
+      "initial": false
+    },
+    "documented": {
+      "type": "bool",
+      "initial": false
+    },
+    "escalated": {
+      "type": "bool",
+      "initial": false
+    },
+    "escalated_by_customer": {
+      "type": "bool",
+      "initial": false
+    },
+    "network_reset": {
+      "type": "bool",
+      "initial": false
+    },
+    "driver_reinstalled": {
+      "type": "bool",
+      "initial": false
+    },
+    "password_reset": {
+      "type": "bool",
+      "initial": false
+    },
+    "rebooted": {
+      "type": "bool",
+      "initial": false
+    },
+    "public_dns_set": {
+      "type": "bool",
+      "initial": false
+    },
+    "doc_quality": {
+      "type": "str",
+      "initial": "none"
+    },
+    "resolution_notes": {
+      "type": "str",
+      "initial": ""
+    }
+  },
+  "variations": [
+    {
+      "id": "wifi_53",
+      "label": "Wi-Fi, stale DNS 10.0.0.53",
+      "weight": 2,
+      "set": {
+        "stale_dns": "10.0.0.53",
+        "dns_servers": "10.0.0.53",
+        "dns_servers_ps": "10.0.0.53"
+      }
+    },
+    {
+      "id": "wifi_54",
+      "label": "Wi-Fi, stale DNS 10.0.0.54",
+      "weight": 1,
+      "set": {
+        "stale_dns": "10.0.0.54",
+        "dns_servers": "10.0.0.54",
+        "dns_servers_ps": "10.0.0.54"
+      }
+    },
+    {
+      "id": "ethernet_53",
+      "label": "Docked Ethernet, stale DNS 10.0.0.53",
+      "weight": 1,
+      "set": {
+        "stale_dns": "10.0.0.53",
+        "dns_servers": "10.0.0.53",
+        "dns_servers_ps": "10.0.0.53",
+        "interface_alias": "Ethernet",
+        "adapter_label": "Ethernet",
+        "adapter_name": "Intel(R) Ethernet Connection (16) I219-LM",
+        "connection_desc": "plugged into the docking station with a network cable"
+      }
+    }
+  ],
+  "opening_messages": [
+    {
+      "text": "Ticket INC0042317 assigned to you by the dispatcher."
+    },
+    {
+      "character": "priya",
+      "text": "Hi, is this IT? My laptop can't get to anything since yesterday and I have a report due at 3. Can you help?"
+    }
+  ],
+  "actions": [
+    {
+      "id": "review_ticket",
+      "tool": "ticket",
+      "label": "Review ticket details",
+      "kind": "inspect",
+      "description": "Read the ticket, caller details, asset and SLA.",
+      "time_cost": 1,
+      "effects": [
+        {
+          "set": {
+            "ticket_reviewed": true
+          }
+        }
+      ],
+      "score": {
+        "troubleshooting_process": 3,
+        "communication": 1
+      },
+      "classification": "correct",
+      "feedback": "Good: always read the ticket before contacting the user.",
+      "outputs": [
+        {
+          "text": "INC0042317 · P3 · Priya Shah (Finance) · FIN-LT-0457 · 'Since yesterday I can't open the intranet or any websites. Wi-Fi says connected, Outlook says disconnected.' SLA: resolve within 8 hours.",
+          "format": "text"
+        }
+      ]
+    },
+    {
+      "id": "acknowledge_ticket",
+      "tool": "ticket",
+      "label": "Acknowledge ticket (set In Progress)",
+      "kind": "submit",
+      "time_cost": 0.5,
+      "effects": [
+        {
+          "set": {
+            "ticket_status": "In Progress"
+          }
+        }
+      ],
+      "score": {
+        "communication": 1,
+        "troubleshooting_process": 1
+      },
+      "classification": "correct",
+      "repeat": {
+        "mode": "block"
+      },
+      "precondition_message": "The ticket is already in progress.",
+      "outputs": [
+        {
+          "text": "Ticket INC0042317 set to In Progress and assigned to you.",
+          "format": "text"
+        }
+      ]
+    },
+    {
+      "id": "record_diagnosis",
+      "tool": "ticket",
+      "label": "Record diagnosis",
+      "kind": "select",
+      "description": "Record the root cause in the ticket's diagnosis field.",
+      "time_cost": 1,
+      "input": {
+        "type": "choice",
+        "choices": [
+          {
+            "id": "stale_static_dns",
+            "label": "Adapter uses a stale, manually configured DNS server (left by the VPN client update)"
+          },
+          {
+            "id": "driver_fault",
+            "label": "Faulty or outdated wireless network driver"
+          },
+          {
+            "id": "dhcp_failure",
+            "label": "DHCP failure: the laptop has no valid IP address"
+          },
+          {
+            "id": "account_issue",
+            "label": "User account or password problem"
+          },
+          {
+            "id": "site_outage",
+            "label": "Office network / ISP outage"
+          },
+          {
+            "id": "proxy_config",
+            "label": "Browser proxy misconfiguration"
+          }
+        ]
+      },
+      "branches": [
+        {
+          "id": "correct",
+          "when": {
+            "==": [
+              {
+                "var": "$input.choice"
+              },
+              "stale_static_dns"
+            ]
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "root_cause_identified": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 6,
+            "decision_making": 6
+          },
+          "outputs": [
+            {
+              "text": "Diagnosis recorded: stale static DNS server on the adapter after the GlobalConnect VPN 5.2.1 update.",
+              "format": "text"
+            }
+          ],
+          "feedback": "Correct. IP connectivity works, name resolution fails, and the adapter points at a decommissioned DNS server."
+        },
+        {
+          "id": "wrong",
+          "when": true,
+          "classification": "incorrect",
+          "effects": [
+            {
+              "set": {
+                "wrong_diagnosis": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": -3,
+            "decision_making": -4
+          },
+          "outputs": [
+            {
+              "text": "Diagnosis recorded.",
+              "format": "text"
+            }
+          ],
+          "feedback": "The evidence doesn't support this: the laptop has a valid DHCP address, can ping the gateway and 8.8.8.8, but every name lookup times out against the configured DNS server."
+        }
+      ]
+    },
+    {
+      "id": "write_resolution_notes",
+      "tool": "ticket",
+      "label": "Write resolution notes",
+      "kind": "document",
+      "time_cost": 3,
+      "input": {
+        "type": "free_text",
+        "min_length": 30,
+        "placeholder": "Symptoms, root cause, fix applied and how you verified it…"
+      },
+      "branches": [
+        {
+          "id": "thorough",
+          "classification": "correct",
+          "when": {
+            ">=": [
+              {
+                "count_keywords": [
+                  {
+                    "var": "$input.text"
+                  },
+                  [
+                    [
+                      "dns"
+                    ],
+                    [
+                      "static",
+                      "manual",
+                      "manually",
+                      "hard-coded",
+                      "hardcoded"
+                    ],
+                    [
+                      "dhcp",
+                      "automatic",
+                      "automatically",
+                      "obtain"
+                    ],
+                    [
+                      "flush",
+                      "flushdns",
+                      "cache"
+                    ],
+                    [
+                      "vpn",
+                      "globalconnect"
+                    ],
+                    [
+                      "nslookup",
+                      "verified",
+                      "validated",
+                      "tested",
+                      "confirmed"
+                    ]
+                  ]
+                ]
+              },
+              5
+            ]
+          },
+          "effects": [
+            {
+              "set": {
+                "documented": true,
+                "doc_quality": "thorough",
+                "resolution_notes": "{{$input.text}}"
+              }
+            }
+          ],
+          "score": {
+            "communication": 4,
+            "troubleshooting_process": 2
+          },
+          "feedback": "Clear notes: cause, fix and verification are all recorded for the next engineer."
+        },
+        {
+          "id": "partial",
+          "classification": "neutral",
+          "when": {
+            ">=": [
+              {
+                "count_keywords": [
+                  {
+                    "var": "$input.text"
+                  },
+                  [
+                    [
+                      "dns"
+                    ],
+                    [
+                      "static",
+                      "manual",
+                      "manually"
+                    ],
+                    [
+                      "dhcp",
+                      "automatic",
+                      "automatically",
+                      "obtain"
+                    ],
+                    [
+                      "flush",
+                      "flushdns",
+                      "cache"
+                    ],
+                    [
+                      "vpn",
+                      "globalconnect"
+                    ],
+                    [
+                      "nslookup",
+                      "verified",
+                      "validated",
+                      "tested",
+                      "confirmed"
+                    ]
+                  ]
+                ]
+              },
+              2
+            ]
+          },
+          "effects": [
+            {
+              "set": {
+                "documented": true,
+                "doc_quality": "partial",
+                "resolution_notes": "{{$input.text}}"
+              }
+            }
+          ],
+          "score": {
+            "communication": 2,
+            "troubleshooting_process": 1
+          },
+          "feedback": "Notes are missing detail: record root cause, the exact fix and how you verified it."
+        },
+        {
+          "id": "poor",
+          "when": true,
+          "classification": "incorrect",
+          "effects": [
+            {
+              "set": {
+                "documented": true,
+                "doc_quality": "poor",
+                "resolution_notes": "{{$input.text}}"
+              }
+            }
+          ],
+          "score": {
+            "communication": -1
+          },
+          "feedback": "These notes would not help anyone facing the same issue. Describe cause, fix and verification."
+        }
+      ],
+      "outputs": [
+        {
+          "text": "Work notes saved to INC0042317.",
+          "format": "text"
+        }
+      ]
+    },
+    {
+      "id": "escalate_ticket",
+      "tool": "ticket",
+      "label": "Escalate to Network Operations (L3)",
+      "kind": "escalate",
+      "time_cost": 1,
+      "branches": [
+        {
+          "id": "after_fix",
+          "when": {
+            "var": "connectivity_fixed"
+          },
+          "classification": "incorrect",
+          "score": {
+            "decision_making": -5
+          },
+          "messages": [
+            {
+              "text": "L3 Network Ops: 'This already looks resolved. Please close it yourself.'"
+            }
+          ],
+          "feedback": "Escalating an issue you've already fixed wastes L3 time."
+        },
+        {
+          "id": "diagnosed",
+          "when": {
+            "var": "root_cause_identified"
+          },
+          "classification": "incorrect",
+          "score": {
+            "decision_making": -4
+          },
+          "messages": [
+            {
+              "text": "L3 Network Ops: 'You've identified a client DNS setting. That's an L1/L2 fix, please action it and close.'"
+            }
+          ],
+          "feedback": "A client-side DNS setting is within Level 1/2 scope. Fix it rather than escalating."
+        },
+        {
+          "id": "too_early",
+          "when": {
+            "<": [
+              {
+                "var": "$minutes"
+              },
+              15
+            ]
+          },
+          "classification": "incorrect",
+          "effects": [
+            {
+              "set": {
+                "escalated": true,
+                "ticket_status": "Escalated"
+              }
+            },
+            {
+              "transition": "ESCALATED"
+            },
+            {
+              "complete": "escalated"
+            }
+          ],
+          "score": {
+            "decision_making": -8,
+            "troubleshooting_process": -4
+          },
+          "messages": [
+            {
+              "text": "L3 Network Ops: 'Accepted, but there's no diagnostic information in this ticket. Queue time is about 4 hours.'"
+            }
+          ],
+          "feedback": "You escalated before doing basic diagnostics. A Level 2 analyst must gather evidence (ipconfig, ping, nslookup) first."
+        },
+        {
+          "id": "late",
+          "when": true,
+          "classification": "incorrect",
+          "effects": [
+            {
+              "set": {
+                "escalated": true,
+                "ticket_status": "Escalated"
+              }
+            },
+            {
+              "transition": "ESCALATED"
+            },
+            {
+              "complete": "escalated"
+            }
+          ],
+          "score": {
+            "decision_making": -3
+          },
+          "messages": [
+            {
+              "text": "L3 Network Ops: 'Accepted into our queue.'"
+            }
+          ],
+          "feedback": "This issue was solvable at Level 2. Escalation should follow a clear diagnostic dead end."
+        }
+      ]
+    },
+    {
+      "id": "close_ticket",
+      "tool": "ticket",
+      "label": "Resolve & close ticket",
+      "kind": "submit",
+      "time_cost": 0.5,
+      "branches": [
+        {
+          "id": "not_fixed",
+          "when": {
+            "!": {
+              "var": "connectivity_fixed"
+            }
+          },
+          "classification": "critical",
+          "effects": [
+            {
+              "set": {
+                "ticket_status": "Closed"
+              }
+            },
+            {
+              "complete": "failure"
+            }
+          ],
+          "score": {
+            "communication": -5,
+            "decision_making": -5
+          },
+          "messages": [
+            {
+              "character": "priya",
+              "text": "Wait, I just got an email saying my ticket is closed? Nothing works! I'm raising a complaint."
+            }
+          ],
+          "feedback": "You closed the ticket while the user still could not work. Never close an incident before the fix is applied and validated."
+        },
+        {
+          "id": "not_validated",
+          "when": {
+            "!": {
+              "or": [
+                {
+                  "var": "validated"
+                },
+                {
+                  "var": "customer_confirmed"
+                }
+              ]
+            }
+          },
+          "classification": "critical",
+          "effects": [
+            {
+              "set": {
+                "ticket_status": "Closed"
+              }
+            },
+            {
+              "complete": "failure"
+            }
+          ],
+          "score": {
+            "troubleshooting_process": -5
+          },
+          "feedback": "You closed the ticket without validating the fix, either technically (nslookup / Test-NetConnection) or with the customer."
+        },
+        {
+          "id": "partly_validated",
+          "when": {
+            "!": {
+              "and": [
+                {
+                  "var": "validated"
+                },
+                {
+                  "var": "customer_confirmed"
+                }
+              ]
+            }
+          },
+          "classification": "incorrect",
+          "effects": [
+            {
+              "set": {
+                "ticket_status": "Resolved"
+              }
+            },
+            {
+              "transition": "RESOLUTION"
+            },
+            {
+              "complete": "success"
+            }
+          ],
+          "score": {
+            "troubleshooting_process": -2
+          },
+          "feedback": "Validate both ways before closing: a technical test AND confirmation from the user."
+        },
+        {
+          "id": "undocumented",
+          "when": {
+            "!": {
+              "var": "documented"
+            }
+          },
+          "classification": "incorrect",
+          "effects": [
+            {
+              "set": {
+                "ticket_status": "Resolved"
+              }
+            },
+            {
+              "transition": "RESOLUTION"
+            },
+            {
+              "complete": "success"
+            }
+          ],
+          "score": {
+            "communication": -3,
+            "troubleshooting_process": 1
+          },
+          "feedback": "The fix was validated but the ticket has no resolution notes."
+        },
+        {
+          "id": "complete",
+          "when": true,
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "ticket_status": "Resolved"
+              }
+            },
+            {
+              "transition": "RESOLUTION"
+            },
+            {
+              "complete": "success"
+            }
+          ],
+          "score": {
+            "troubleshooting_process": 3,
+            "communication": 2,
+            "decision_making": 4
+          },
+          "messages": [
+            {
+              "character": "priya",
+              "text": "Got the resolution email. Thanks again, really appreciated!"
+            }
+          ],
+          "feedback": "Ticket closed with a validated fix, customer confirmation and clear notes."
+        }
+      ],
+      "outputs": [
+        {
+          "text": "INC0042317 status: {{ticket_status}}.",
+          "format": "text"
+        }
+      ]
+    },
+    {
+      "id": "greet_customer",
+      "tool": "chat",
+      "label": "Greet the customer",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "greeting"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [
+        {
+          "inc": {
+            "customer_patience": 5
+          }
+        }
+      ],
+      "score": {
+        "communication": 2
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 0.5,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "Hi! Thanks for picking this up so quickly. I've got the month-end report due at 3pm and I can't get to anything."
+        }
+      ]
+    },
+    {
+      "id": "ask_permission",
+      "tool": "chat",
+      "label": "Ask permission to connect remotely",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "remote_permission"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [
+        {
+          "set": {
+            "remote_permission": true
+          }
+        }
+      ],
+      "score": {
+        "communication": 2,
+        "troubleshooting_process": 1
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 1.0,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "Sure, go ahead. I'll accept the Quick Assist prompt."
+        }
+      ]
+    },
+    {
+      "id": "ask_error_message",
+      "tool": "chat",
+      "label": "Ask about the error message",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "error_message"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_error"
+          ]
+        }
+      ],
+      "score": {
+        "communication": 2,
+        "technical_accuracy": 2,
+        "troubleshooting_process": 2
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 1.0,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "Chrome says \"This site can't be reached\" with DNS_PROBE_FINISHED_NXDOMAIN, for the intranet and for Google. Outlook just says 'Disconnected'."
+        }
+      ]
+    },
+    {
+      "id": "ask_when_started",
+      "tool": "chat",
+      "label": "Ask when it started",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "when_started"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_started"
+          ]
+        }
+      ],
+      "score": {
+        "communication": 2,
+        "troubleshooting_process": 2,
+        "technical_accuracy": 1
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 1.0,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "It started yesterday morning, right after a 'GlobalConnect VPN update' pop-up made me restart. Nothing has loaded since."
+        }
+      ]
+    },
+    {
+      "id": "ask_other_devices",
+      "tool": "chat",
+      "label": "Ask whether other devices or users are affected",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "other_devices"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_other"
+          ]
+        }
+      ],
+      "score": {
+        "communication": 1,
+        "troubleshooting_process": 2,
+        "technical_accuracy": 2
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 1.0,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "My phone works fine on the same Wi-Fi, and Raj next to me has no problems at all."
+        }
+      ]
+    },
+    {
+      "id": "ask_recent_changes",
+      "tool": "chat",
+      "label": "Ask about recent changes",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "recent_changes"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_changes"
+          ]
+        }
+      ],
+      "score": {
+        "communication": 1,
+        "troubleshooting_process": 2,
+        "technical_accuracy": 2
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 1.0,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "Only that VPN update yesterday morning. I haven't installed anything myself."
+        }
+      ]
+    },
+    {
+      "id": "ask_connection_type",
+      "tool": "chat",
+      "label": "Ask whether she is on Wi-Fi or wired",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "connection_type"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_connection"
+          ]
+        }
+      ],
+      "score": {
+        "communication": 1,
+        "troubleshooting_process": 1,
+        "technical_accuracy": 1
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 1.0,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "I'm {{connection_desc}}."
+        }
+      ]
+    },
+    {
+      "id": "ask_vpn_status",
+      "tool": "chat",
+      "label": "Ask whether the VPN is connected",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "vpn_status"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_vpn"
+          ]
+        }
+      ],
+      "score": {
+        "technical_accuracy": 1
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 1.0,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "No, I'm in the office today so I'm not on the VPN."
+        }
+      ]
+    },
+    {
+      "id": "ask_restart",
+      "tool": "chat",
+      "label": "Ask the customer to restart",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "restart"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_restart"
+          ]
+        },
+        {
+          "inc": {
+            "customer_patience": -3
+          }
+        }
+      ],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "She had already restarted. Asking again costs goodwill without adding information.",
+      "time_cost": 1.0,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "I've restarted twice yesterday and once this morning. It made no difference."
+        }
+      ]
+    },
+    {
+      "id": "ask_customer_test",
+      "tool": "chat",
+      "label": "Ask the customer to test",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "ask_test"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 1.0,
+      "messages": [],
+      "branches": [
+        {
+          "id": "works",
+          "when": {
+            "var": "connectivity_fixed"
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "customer_confirmed": true
+              }
+            }
+          ],
+          "score": {
+            "communication": 3,
+            "troubleshooting_process": 3
+          },
+          "messages": [
+            {
+              "character": "priya",
+              "text": "Let me try… yes! The intranet loads and Outlook just switched to 'Connected'. Thank you so much!"
+            }
+          ],
+          "feedback": "Good: the customer confirmed the fix from her side."
+        },
+        {
+          "id": "public_dns",
+          "when": {
+            "==": [
+              {
+                "var": "dns_mode"
+              },
+              "public"
+            ]
+          },
+          "classification": "neutral",
+          "messages": [
+            {
+              "character": "priya",
+              "text": "Google works now, but the intranet and Outlook still can't connect."
+            }
+          ]
+        },
+        {
+          "id": "still_broken",
+          "when": true,
+          "classification": "neutral",
+          "effects": [
+            {
+              "inc": {
+                "customer_patience": -5
+              }
+            }
+          ],
+          "messages": [
+            {
+              "character": "priya",
+              "text": "No, still the same DNS_PROBE_FINISHED_NXDOMAIN error."
+            }
+          ],
+          "feedback": "Ask the customer to test only after you have applied a fix."
+        }
+      ]
+    },
+    {
+      "id": "explain_fix",
+      "tool": "chat",
+      "label": "Explain the cause and fix to the customer",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "explain_fix"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [],
+      "score": {
+        "communication": 3
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 1.0,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "That makes sense. So the VPN update left an old setting behind? Good to know, thanks for explaining."
+        }
+      ],
+      "preconditions": {
+        "var": "connectivity_fixed"
+      },
+      "precondition_message": "Sorry, I'm not sure what that means. I'm not very technical!"
+    },
+    {
+      "id": "ask_close_permission",
+      "tool": "chat",
+      "label": "Ask if the ticket can be closed",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "close_confirm"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [
+        {
+          "set": {
+            "close_agreed": true
+          }
+        }
+      ],
+      "score": {
+        "communication": 2
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 1.0,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "Yes, everything's working. Happy for you to close it. Thanks again!"
+        }
+      ],
+      "preconditions": {
+        "var": "customer_confirmed"
+      },
+      "precondition_message": "Hang on, it still isn't working for me, so please don't close it yet."
+    },
+    {
+      "id": "thank_customer",
+      "tool": "chat",
+      "label": "Thank the customer",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "thanks"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [],
+      "score": {
+        "communication": 1
+      },
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.25,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "No problem!"
+        }
+      ]
+    },
+    {
+      "id": "open_system_info",
+      "tool": "system_info",
+      "label": "Open System Information (network adapter)",
+      "kind": "inspect",
+      "time_cost": 1,
+      "classification": "correct",
+      "effects": [
+        {
+          "set": {
+            "ev_sysinfo": true,
+            "ev_dns_config": true
+          }
+        }
+      ],
+      "score": {
+        "technical_accuracy": 3,
+        "troubleshooting_process": 2
+      },
+      "outputs": [
+        {
+          "text": "System Information for FIN-LT-0457 loaded (adapter, IP configuration, installed software, driver status).",
+          "format": "text"
+        }
+      ],
+      "feedback": "The adapter shows DHCP addressing but a manually configured DNS server, and the VPN client updated yesterday."
+    },
+    {
+      "id": "gui_set_dns_automatic",
+      "tool": "system_info",
+      "label": "Set DNS to 'Obtain automatically' (DHCP)",
+      "kind": "command",
+      "listed": true,
+      "time_cost": 1.5,
+      "preconditions": {
+        "action_taken": "open_system_info"
+      },
+      "precondition_message": "Open System Information first.",
+      "branches": [
+        {
+          "id": "already_fixed",
+          "when": {
+            "==": [
+              {
+                "var": "dns_mode"
+              },
+              "dhcp"
+            ]
+          },
+          "classification": "neutral",
+          "feedback": "DNS was already set to obtain automatically.",
+          "effects": [],
+          "score": {}
+        },
+        {
+          "id": "diagnosed",
+          "when": {
+            "and": [
+              {
+                "var": "ev_dns_config"
+              },
+              {
+                "var": "ev_dns_fail"
+              }
+            ]
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "dns_mode": "dhcp",
+                "dns_servers": "10.20.1.10\n                                       10.20.1.11",
+                "dns_servers_ps": "10.20.1.10, 10.20.1.11",
+                "connectivity_fixed": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 8,
+            "decision_making": 5,
+            "troubleshooting_process": 2
+          },
+          "feedback": "Correct fix: the adapter now takes its DNS servers from DHCP (10.20.1.10/11)."
+        },
+        {
+          "id": "guessed",
+          "when": true,
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "dns_mode": "dhcp",
+                "dns_servers": "10.20.1.10\n                                       10.20.1.11",
+                "dns_servers_ps": "10.20.1.10, 10.20.1.11",
+                "connectivity_fixed": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 5,
+            "decision_making": 2,
+            "troubleshooting_process": -2
+          },
+          "feedback": "Right fix, but you applied it before gathering evidence that DNS was the cause."
+        }
+      ],
+      "outputs": [
+        {
+          "text": "Adapter {{interface_alias}}: DNS server assignment changed to Automatic (DHCP).",
+          "format": "text"
+        }
+      ]
+    },
+    {
+      "id": "reinstall_driver",
+      "tool": "system_info",
+      "label": "Reinstall network adapter driver",
+      "kind": "command",
+      "listed": true,
+      "time_cost": 20,
+      "classification": "incorrect",
+      "preconditions": {
+        "action_taken": "open_system_info"
+      },
+      "precondition_message": "Open System Information first.",
+      "effects": [
+        {
+          "set": {
+            "driver_reinstalled": true
+          }
+        },
+        {
+          "inc": {
+            "customer_patience": -15
+          }
+        }
+      ],
+      "score": {
+        "decision_making": -6,
+        "technical_accuracy": -2,
+        "efficiency": -3
+      },
+      "outputs": [
+        {
+          "text": "Uninstalling {{adapter_name}}… Restarting adapter… Installing driver 23.40.0.4… Device status: This device is working properly. (20 minutes elapsed)",
+          "format": "text"
+        }
+      ],
+      "messages": [
+        {
+          "character": "priya",
+          "text": "I've been offline for another twenty minutes and it STILL doesn't work?"
+        }
+      ],
+      "feedback": "The driver was healthy (device working properly; ping by IP succeeded). Reinstalling it wasted 20 minutes."
+    },
+    {
+      "id": "read_kb_vpn",
+      "tool": "knowledge_base",
+      "label": "Read KB-0988: GlobalConnect VPN 5.2 known issues",
+      "kind": "inspect",
+      "time_cost": 2,
+      "classification": "correct",
+      "effects": [
+        {
+          "set": {
+            "ev_kb": true
+          }
+        }
+      ],
+      "score": {
+        "troubleshooting_process": 2,
+        "technical_accuracy": 2
+      },
+      "outputs": [
+        {
+          "format": "markdown",
+          "text": "**KB-0988 · GlobalConnect VPN 5.2.x: known issues**\n\n*Symptom:* after the automatic upgrade to 5.2.0/5.2.1 some laptops cannot resolve internal or external names while in the office. Ping by IP address works.\n\n*Cause:* the installer migrates the legacy split-tunnel profile and leaves the decommissioned DNS server 10.0.0.53/10.0.0.54 configured **statically** on the physical adapter.\n\n*Resolution:* set the adapter's DNS to obtain automatically (DHCP), e.g. `Set-DnsClientServerAddress -InterfaceAlias <adapter> -ResetServerAddresses`, then `ipconfig /flushdns` and verify with `nslookup`. Do **not** reinstall drivers or reset the TCP/IP stack; neither removes the setting."
+        }
+      ]
+    },
+    {
+      "id": "read_kb_dns",
+      "tool": "knowledge_base",
+      "label": "Read KB-1043: DNS troubleshooting checklist",
+      "kind": "inspect",
+      "time_cost": 1.5,
+      "classification": "correct",
+      "score": {
+        "troubleshooting_process": 2
+      },
+      "outputs": [
+        {
+          "format": "markdown",
+          "text": "**KB-1043 · DNS troubleshooting checklist**\n\n1. `ipconfig /all`: confirm IP, gateway and DNS servers (corporate DNS: 10.20.1.10 and 10.20.1.11, assigned by DHCP).\n2. `ping` the gateway and a public IP (8.8.8.8) to prove IP connectivity.\n3. `ping`/`nslookup` a name. If IP works but names fail, it's DNS.\n4. `nslookup <name> 10.20.1.10` to test the corporate server directly.\n5. Fix the client configuration, `ipconfig /flushdns`, re-test, confirm with the user, document."
+        }
+      ]
+    },
+    {
+      "id": "read_kb_password",
+      "tool": "knowledge_base",
+      "label": "Read KB-0201: Password reset procedure",
+      "kind": "inspect",
+      "time_cost": 1,
+      "classification": "neutral",
+      "outputs": [
+        {
+          "format": "markdown",
+          "text": "**KB-0201 · Password reset**\n\nVerify identity, reset in Directory Admin, force change at next logon. Resets sign the user out of every device."
+        }
+      ]
+    },
+    {
+      "id": "read_kb_driver",
+      "tool": "knowledge_base",
+      "label": "Read KB-0750: Wireless driver reinstall",
+      "kind": "inspect",
+      "time_cost": 1,
+      "classification": "neutral",
+      "outputs": [
+        {
+          "format": "markdown",
+          "text": "**KB-0750 · Wireless driver reinstall**\n\nOnly when Device Manager reports an error code or the adapter cannot associate. Takes 15-25 minutes."
+        }
+      ]
+    },
+    {
+      "id": "view_user_account",
+      "tool": "directory",
+      "label": "View Priya's account status",
+      "kind": "inspect",
+      "time_cost": 0.5,
+      "classification": "neutral",
+      "outputs": [
+        {
+          "text": "pshah · Enabled · Not locked · Password last set 12 days ago · MFA registered · Last logon today 08:03 (FIN-LT-0457)",
+          "format": "text"
+        }
+      ]
+    },
+    {
+      "id": "reset_password",
+      "tool": "directory",
+      "label": "Reset user's password",
+      "kind": "command",
+      "listed": true,
+      "time_cost": 3,
+      "classification": "incorrect",
+      "effects": [
+        {
+          "set": {
+            "password_reset": true
+          }
+        },
+        {
+          "inc": {
+            "customer_patience": -25
+          }
+        }
+      ],
+      "score": {
+        "decision_making": -6,
+        "communication": -4
+      },
+      "outputs": [
+        {
+          "text": "Password for pshah reset. User must change password at next logon. All sessions signed out.",
+          "format": "text"
+        }
+      ],
+      "messages": [
+        {
+          "character": "priya",
+          "text": "Why did you reset my password?! Now Teams on my phone has logged me out too. My password was never the problem."
+        }
+      ],
+      "feedback": "Nothing pointed to an account problem: she can log on and her account isn't locked. The reset disrupted her and solved nothing."
+    },
+    {
+      "id": "unlock_account",
+      "tool": "directory",
+      "label": "Unlock user's account",
+      "kind": "command",
+      "listed": true,
+      "time_cost": 1,
+      "classification": "neutral",
+      "score": {
+        "decision_making": -1
+      },
+      "outputs": [
+        {
+          "text": "Account pshah is not locked. No changes made.",
+          "format": "text"
+        }
+      ]
+    },
+    {
+      "id": "ipconfig_all",
+      "tool": "terminal",
+      "label": "ipconfig /all",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "ipconfig\\s*/all"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "ev_ipconfig": true,
+            "ev_dns_config": true
+          }
+        }
+      ],
+      "score": {
+        "technical_accuracy": 3,
+        "troubleshooting_process": 2
+      },
+      "classification": "correct",
+      "feedback": "ipconfig /all shows DHCP is enabled for the address, but the DNS server is a single unexpected address.",
+      "time_cost": 0.5,
+      "outputs": [
+        {
+          "text": "Windows IP Configuration\n\n   Host Name . . . . . . . . . . . . : FIN-LT-0457\n   Primary Dns Suffix  . . . . . . . : corp.local\n   Node Type . . . . . . . . . . . . : Hybrid\n   IP Routing Enabled. . . . . . . . : No\n   WINS Proxy Enabled. . . . . . . . : No\n   DNS Suffix Search List. . . . . . : corp.local\n\n{{adapter_label}} adapter {{interface_alias}}:\n\n   Connection-specific DNS Suffix  . : corp.local\n   Description . . . . . . . . . . . : {{adapter_name}}\n   Physical Address. . . . . . . . . : 3C-21-9C-4E-77-A1\n   DHCP Enabled. . . . . . . . . . . : Yes\n   Autoconfiguration Enabled . . . . : Yes\n   Link-local IPv6 Address . . . . . : fe80::4c1a:2b7e:91d3:5f20%12(Preferred)\n   IPv4 Address. . . . . . . . . . . : 10.20.30.57(Preferred)\n   Subnet Mask . . . . . . . . . . . : 255.255.255.0\n   Lease Obtained. . . . . . . . . . : Today 08:02:11\n   Lease Expires . . . . . . . . . . : Tomorrow 08:02:11\n   Default Gateway . . . . . . . . . : 10.20.30.1\n   DHCP Server . . . . . . . . . . . : 10.20.1.5\n   DNS Servers . . . . . . . . . . . : {{dns_servers}}\n   NetBIOS over Tcpip. . . . . . . . : Enabled\n\nEthernet adapter GlobalConnect VPN:\n\n   Media State . . . . . . . . . . . : Media disconnected\n   Description . . . . . . . . . . . : GlobalConnect Virtual Ethernet Adapter",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": []
+    },
+    {
+      "id": "ipconfig",
+      "tool": "terminal",
+      "label": "ipconfig",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "ipconfig"
+        ]
+      },
+      "effects": [],
+      "score": {
+        "technical_accuracy": 1
+      },
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.5,
+      "outputs": [
+        {
+          "text": "Windows IP Configuration\n\n{{adapter_label}} adapter {{interface_alias}}:\n\n   Connection-specific DNS Suffix  . : corp.local\n   IPv4 Address. . . . . . . . . . . : 10.20.30.57\n   Subnet Mask . . . . . . . . . . . : 255.255.255.0\n   Default Gateway . . . . . . . . . : 10.20.30.1",
+          "format": "terminal"
+        }
+      ],
+      "hint": "Add /all to see DHCP and DNS server details.",
+      "messages": []
+    },
+    {
+      "id": "ping_gateway",
+      "tool": "terminal",
+      "label": "ping default gateway",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "ping\\s+(?:-[nt](?:\\s+\\d+)?\\s+)?(?P<host>10\\.20\\.30\\.1)(?:\\s+-[nt](?:\\s+\\d+)?)?"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "ev_ping_gw": true
+          }
+        }
+      ],
+      "score": {
+        "technical_accuracy": 2,
+        "troubleshooting_process": 2
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 0.5,
+      "outputs": [
+        {
+          "text": "\nPinging 10.20.30.1 with 32 bytes of data:\nReply from 10.20.30.1: bytes=32 time=2ms TTL=128\nReply from 10.20.30.1: bytes=32 time=2ms TTL=128\nReply from 10.20.30.1: bytes=32 time=2ms TTL=128\nReply from 10.20.30.1: bytes=32 time=2ms TTL=128\n\nPing statistics for 10.20.30.1:\n    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),\nApproximate round trip times in milli-seconds:\n    Minimum = 2ms, Maximum = 2ms, Average = 2ms",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": []
+    },
+    {
+      "id": "ping_ip",
+      "tool": "terminal",
+      "label": "ping an external IP",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "ping\\s+(?:-[nt](?:\\s+\\d+)?\\s+)?(?P<host>8\\.8\\.8\\.8|8\\.8\\.4\\.4|1\\.1\\.1\\.1|10\\.20\\.5\\.25|10\\.20\\.1\\.1[01])(?:\\s+-[nt](?:\\s+\\d+)?)?"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "ev_ping_ip": true
+          }
+        }
+      ],
+      "score": {
+        "technical_accuracy": 3,
+        "troubleshooting_process": 2
+      },
+      "classification": "correct",
+      "feedback": "Pinging by IP proves routing and the network adapter work.",
+      "time_cost": 0.5,
+      "outputs": [
+        {
+          "text": "\nPinging {{$input.named.host}} with 32 bytes of data:\nReply from {{$input.named.host}}: bytes=32 time=14ms TTL=117\nReply from {{$input.named.host}}: bytes=32 time=14ms TTL=117\nReply from {{$input.named.host}}: bytes=32 time=14ms TTL=117\nReply from {{$input.named.host}}: bytes=32 time=14ms TTL=117\n\nPing statistics for {{$input.named.host}}:\n    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": []
+    },
+    {
+      "id": "ping_name",
+      "tool": "terminal",
+      "label": "ping a host name",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "ping\\s+(?:-[nt](?:\\s+\\d+)?\\s+)?(?P<host>[a-z][a-z0-9-]*(?:\\.[a-z0-9-]+)*)(?:\\s+-[nt](?:\\s+\\d+)?)?"
+        ]
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.5,
+      "outputs": [],
+      "hint": "",
+      "messages": [],
+      "branches": [
+        {
+          "id": "dns_broken",
+          "when": {
+            "==": [
+              {
+                "var": "dns_mode"
+              },
+              "static"
+            ]
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "ev_dns_fail": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 3,
+            "troubleshooting_process": 1
+          },
+          "outputs": [
+            {
+              "text": "Ping request could not find host {{$input.named.host}}. Please check the name and try again.",
+              "format": "terminal"
+            }
+          ]
+        },
+        {
+          "id": "public_dns",
+          "when": {
+            "==": [
+              {
+                "var": "dns_mode"
+              },
+              "public"
+            ]
+          },
+          "classification": "neutral",
+          "outputs": [
+            {
+              "text": "Ping request could not find host {{$input.named.host}}. Please check the name and try again.",
+              "format": "terminal",
+              "when": {
+                "or": [
+                  {
+                    "contains": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      "corp.local"
+                    ]
+                  },
+                  {
+                    "in": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      [
+                        "intranet",
+                        "dc01",
+                        "fileserver",
+                        "sharepoint"
+                      ]
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "text": "\nPinging {{$input.named.host}} [142.250.70.206] with 32 bytes of data:\nReply from 142.250.70.206: bytes=32 time=15ms TTL=117",
+              "format": "terminal"
+            }
+          ]
+        },
+        {
+          "id": "dns_ok",
+          "when": true,
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "validated_ping": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 1,
+            "troubleshooting_process": 1
+          },
+          "outputs": [
+            {
+              "text": "\nPinging intranet.corp.local [10.20.5.25] with 32 bytes of data:\nReply from 10.20.5.25: bytes=32 time=1ms TTL=127\nReply from 10.20.5.25: bytes=32 time=1ms TTL=127\nReply from 10.20.5.25: bytes=32 time=1ms TTL=127\nReply from 10.20.5.25: bytes=32 time=1ms TTL=127",
+              "format": "terminal",
+              "when": {
+                "or": [
+                  {
+                    "contains": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      "corp.local"
+                    ]
+                  },
+                  {
+                    "in": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      [
+                        "intranet",
+                        "dc01",
+                        "fileserver",
+                        "sharepoint"
+                      ]
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "text": "\nPinging {{$input.named.host}} [142.250.70.206] with 32 bytes of data:\nReply from 142.250.70.206: bytes=32 time=15ms TTL=117\nReply from 142.250.70.206: bytes=32 time=15ms TTL=117\nReply from 142.250.70.206: bytes=32 time=15ms TTL=117\nReply from 142.250.70.206: bytes=32 time=15ms TTL=117",
+              "format": "terminal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nslookup_server",
+      "tool": "terminal",
+      "label": "nslookup against a specific DNS server",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "nslookup\\s+(?P<host>[a-z0-9.-]+)\\s+(?P<server>\\d{1,3}(?:\\.\\d{1,3}){3})"
+        ]
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.5,
+      "outputs": [],
+      "hint": "",
+      "messages": [],
+      "branches": [
+        {
+          "id": "corp_server",
+          "when": {
+            "in": [
+              {
+                "var": "$input.named.server"
+              },
+              [
+                "10.20.1.10",
+                "10.20.1.11"
+              ]
+            ]
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "ev_corp_dns_ok": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 4,
+            "troubleshooting_process": 2
+          },
+          "outputs": [
+            {
+              "text": "Server:  dc01.corp.local\nAddress:  {{$input.named.server}}\n\nName:    intranet.corp.local\nAddress:  10.20.5.25",
+              "format": "terminal",
+              "when": {
+                "or": [
+                  {
+                    "contains": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      "corp.local"
+                    ]
+                  },
+                  {
+                    "in": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      [
+                        "intranet",
+                        "dc01",
+                        "fileserver",
+                        "sharepoint"
+                      ]
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "text": "Server:  dc01.corp.local\nAddress:  {{$input.named.server}}\n\nNon-authoritative answer:\nName:    {{$input.named.host}}\nAddress:  142.250.70.206",
+              "format": "terminal"
+            }
+          ],
+          "feedback": "Querying the corporate DNS server directly proves the servers are healthy and the client is pointed at the wrong one."
+        },
+        {
+          "id": "stale_server",
+          "when": {
+            "==": [
+              {
+                "var": "$input.named.server"
+              },
+              {
+                "var": "stale_dns"
+              }
+            ]
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "ev_dns_fail": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 2
+          },
+          "outputs": [
+            {
+              "text": "DNS request timed out.\n    timeout was 2 seconds.\nServer:  UnKnown\nAddress:  {{stale_dns}}\n\nDNS request timed out.\n    timeout was 2 seconds.\nDNS request timed out.\n    timeout was 2 seconds.\n*** Request to UnKnown timed-out",
+              "format": "terminal"
+            }
+          ]
+        },
+        {
+          "id": "other",
+          "when": true,
+          "classification": "neutral",
+          "outputs": [
+            {
+              "text": "Server:  UnKnown\nAddress:  {{$input.named.server}}\n\n*** UnKnown can't find {{$input.named.host}}: Non-existent domain",
+              "format": "terminal",
+              "when": {
+                "or": [
+                  {
+                    "contains": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      "corp.local"
+                    ]
+                  },
+                  {
+                    "in": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      [
+                        "intranet",
+                        "dc01",
+                        "fileserver",
+                        "sharepoint"
+                      ]
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "text": "Server:  UnKnown\nAddress:  {{$input.named.server}}\n\nNon-authoritative answer:\nName:    {{$input.named.host}}\nAddress:  142.250.70.206",
+              "format": "terminal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nslookup",
+      "tool": "terminal",
+      "label": "nslookup a host name",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "nslookup\\s+(?P<host>[a-z0-9.-]+)"
+        ]
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.5,
+      "outputs": [],
+      "hint": "",
+      "messages": [],
+      "branches": [
+        {
+          "id": "dns_broken",
+          "when": {
+            "==": [
+              {
+                "var": "dns_mode"
+              },
+              "static"
+            ]
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "ev_dns_fail": true,
+                "ev_dns_config": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 4,
+            "troubleshooting_process": 3
+          },
+          "outputs": [
+            {
+              "text": "DNS request timed out.\n    timeout was 2 seconds.\nServer:  UnKnown\nAddress:  {{stale_dns}}\n\nDNS request timed out.\n    timeout was 2 seconds.\nDNS request timed out.\n    timeout was 2 seconds.\n*** Request to UnKnown timed-out",
+              "format": "terminal"
+            }
+          ],
+          "feedback": "nslookup shows every query timing out against the configured DNS server."
+        },
+        {
+          "id": "public_dns",
+          "when": {
+            "==": [
+              {
+                "var": "dns_mode"
+              },
+              "public"
+            ]
+          },
+          "classification": "neutral",
+          "outputs": [
+            {
+              "text": "Server:  dns.google\nAddress:  8.8.8.8\n\n*** dns.google can't find {{$input.named.host}}: Non-existent domain",
+              "format": "terminal",
+              "when": {
+                "or": [
+                  {
+                    "contains": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      "corp.local"
+                    ]
+                  },
+                  {
+                    "in": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      [
+                        "intranet",
+                        "dc01",
+                        "fileserver",
+                        "sharepoint"
+                      ]
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "text": "Server:  dns.google\nAddress:  8.8.8.8\n\nNon-authoritative answer:\nName:    {{$input.named.host}}\nAddress:  142.250.70.206",
+              "format": "terminal"
+            }
+          ]
+        },
+        {
+          "id": "validated",
+          "when": true,
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "validated": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 4,
+            "troubleshooting_process": 3
+          },
+          "outputs": [
+            {
+              "text": "Server:  dc01.corp.local\nAddress:  10.20.1.10\n\nName:    intranet.corp.local\nAddress:  10.20.5.25",
+              "format": "terminal",
+              "when": {
+                "or": [
+                  {
+                    "contains": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      "corp.local"
+                    ]
+                  },
+                  {
+                    "in": [
+                      {
+                        "var": "$input.named.host"
+                      },
+                      [
+                        "intranet",
+                        "dc01",
+                        "fileserver",
+                        "sharepoint"
+                      ]
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "text": "Server:  dc01.corp.local\nAddress:  10.20.1.10\n\nNon-authoritative answer:\nName:    {{$input.named.host}}\nAddresses:  2404:6800:4006:80a::200e\n          142.250.70.206",
+              "format": "terminal"
+            }
+          ],
+          "feedback": "Good validation: names now resolve via the corporate DNS server."
+        }
+      ]
+    },
+    {
+      "id": "tracert",
+      "tool": "terminal",
+      "label": "tracert",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "tracert\\s+(?:-d\\s+)?(?P<host>[a-z0-9.-]+)"
+        ]
+      },
+      "effects": [],
+      "score": {
+        "technical_accuracy": 1
+      },
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 2,
+      "outputs": [
+        {
+          "text": "Unable to resolve target system name {{$input.named.host}}.",
+          "format": "terminal",
+          "when": {
+            "and": [
+              {
+                "==": [
+                  {
+                    "var": "dns_mode"
+                  },
+                  "static"
+                ]
+              },
+              {
+                "!": {
+                  "in": [
+                    {
+                      "var": "$input.named.host"
+                    },
+                    [
+                      "8.8.8.8",
+                      "1.1.1.1",
+                      "10.20.30.1",
+                      "8.8.4.4"
+                    ]
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "text": "\nTracing route to {{$input.named.host}} over a maximum of 30 hops\n\n  1     2 ms     1 ms     1 ms  10.20.30.1\n  2     3 ms     2 ms     3 ms  10.20.0.1\n  3    12 ms    11 ms    12 ms  203.0.113.9\n  4    14 ms    14 ms    15 ms  {{$input.named.host}}\n\nTrace complete.",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": []
+    },
+    {
+      "id": "flushdns",
+      "tool": "terminal",
+      "label": "ipconfig /flushdns",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "ipconfig\\s*/flushdns"
+        ]
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.5,
+      "outputs": [
+        {
+          "text": "\nWindows IP Configuration\n\nSuccessfully flushed the DNS Resolver Cache.",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": [],
+      "branches": [
+        {
+          "id": "after_fix",
+          "when": {
+            "var": "connectivity_fixed"
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "dns_flushed": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 3,
+            "troubleshooting_process": 1
+          },
+          "feedback": "Flushing the resolver cache after changing DNS clears cached failures."
+        },
+        {
+          "id": "before_fix",
+          "when": true,
+          "classification": "neutral",
+          "feedback": "Flushing the cache can't help while the adapter still points at a dead DNS server."
+        }
+      ]
+    },
+    {
+      "id": "displaydns",
+      "tool": "terminal",
+      "label": "ipconfig /displaydns",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "ipconfig\\s*/displaydns"
+        ]
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.5,
+      "outputs": [
+        {
+          "text": "\nWindows IP Configuration\n\n    intranet.corp.local\n    ----------------------------------------\n    Name does not exist.",
+          "format": "terminal",
+          "when": {
+            "==": [
+              {
+                "var": "dns_mode"
+              },
+              "static"
+            ]
+          }
+        },
+        {
+          "text": "\nWindows IP Configuration\n\n    intranet.corp.local\n    ----------------------------------------\n    Record Name . . . . . : intranet.corp.local\n    Record Type . . . . . : 1\n    A (Host) Record . . . : 10.20.5.25",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": []
+    },
+    {
+      "id": "release_renew",
+      "tool": "terminal",
+      "label": "ipconfig /release or /renew",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "ipconfig\\s*/(?P<op>release|renew)(?:\\s+\\S+)?"
+        ]
+      },
+      "effects": [
+        {
+          "inc": {
+            "customer_patience": -5
+          }
+        }
+      ],
+      "score": {
+        "decision_making": -1
+      },
+      "classification": "neutral",
+      "feedback": "The laptop already had a valid DHCP lease. Renewing it doesn't change a manually configured DNS server and it briefly disconnected the user.",
+      "time_cost": 1.5,
+      "outputs": [
+        {
+          "text": "\nWindows IP Configuration\n\nNo operation can be performed on {{interface_alias}} while it has its media disconnected… reconnecting.\n\n{{adapter_label}} adapter {{interface_alias}}:\n   IPv4 Address. . . . . . . . . . . : 10.20.30.57\n   Default Gateway . . . . . . . . . : 10.20.30.1",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": [
+        {
+          "character": "priya",
+          "text": "My Teams call just dropped. Was that you?",
+          "when": {
+            "==": [
+              {
+                "var": "$input.named.op"
+              },
+              "release"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "netsh_reset",
+      "tool": "terminal",
+      "label": "netsh int ip reset / winsock reset",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "netsh\\s+(?:int|interface)\\s+(?:ip|ipv4|ipv6)\\s+reset.*",
+          "netsh\\s+winsock\\s+reset.*"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "network_reset": true
+          }
+        },
+        {
+          "inc": {
+            "customer_patience": -15
+          }
+        }
+      ],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 10,
+      "outputs": [
+        {
+          "text": "Resetting Interface, OK!\nResetting Unicast Address, OK!\nResetting Neighbor, OK!\nResetting Path, OK!\nRestart the computer to complete this action.\n\n[Remote session reconnected after reboot: 10 minutes]",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": [
+        {
+          "character": "priya",
+          "text": "My laptop just restarted?! I had a spreadsheet open…"
+        }
+      ],
+      "branches": [
+        {
+          "id": "shotgun",
+          "when": {
+            "!": {
+              "or": [
+                {
+                  "var": "root_cause_identified"
+                },
+                {
+                  "var": "ev_dns_fail"
+                }
+              ]
+            }
+          },
+          "classification": "incorrect",
+          "score": {
+            "troubleshooting_process": -6,
+            "decision_making": -4
+          },
+          "feedback": "Resetting the TCP/IP stack before diagnosing is a shotgun approach: it forces a reboot and doesn't remove a static DNS server."
+        },
+        {
+          "id": "after_diagnosis",
+          "when": true,
+          "classification": "incorrect",
+          "score": {
+            "troubleshooting_process": -3,
+            "decision_making": -3
+          },
+          "feedback": "You had already pointed to DNS. A stack reset needs a reboot and doesn't fix the setting."
+        }
+      ]
+    },
+    {
+      "id": "get_dns_servers",
+      "tool": "terminal",
+      "label": "Get-DnsClientServerAddress",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "get-dnsclientserveraddress.*"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "ev_dns_config": true
+          }
+        }
+      ],
+      "score": {
+        "technical_accuracy": 4,
+        "troubleshooting_process": 2
+      },
+      "classification": "correct",
+      "feedback": "",
+      "time_cost": 0.5,
+      "outputs": [
+        {
+          "text": "InterfaceAlias               Interface Address ServerAddresses\n                             Index     Family\n--------------               --------- ------- ---------------\n{{interface_alias}}                         12 IPv4    {{{dns_servers_ps}}}\n{{interface_alias}}                         12 IPv6    {}\nGlobalConnect VPN                   18 IPv4    {}\nLoopback Pseudo-Interface 1          1 IPv4    {}",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": []
+    },
+    {
+      "id": "get_netadapter",
+      "tool": "terminal",
+      "label": "Get-NetAdapter",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "get-netadapter.*"
+        ]
+      },
+      "effects": [],
+      "score": {
+        "technical_accuracy": 1
+      },
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.5,
+      "outputs": [
+        {
+          "text": "\nName                      InterfaceDescription                    ifIndex Status       LinkSpeed\n----                      --------------------                    ------- ------       ---------\n{{interface_alias}}                     {{adapter_name}}      12 Up           1.2 Gbps\nGlobalConnect VPN         GlobalConnect Virtual Ethernet Adapter       18 Disconnected 0 bps",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": []
+    },
+    {
+      "id": "test_netconnection",
+      "tool": "terminal",
+      "label": "Test-NetConnection",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "(?:test-netconnection|tnc)(?:\\s+(?P<host>[a-z0-9.-]+))?.*"
+        ]
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.5,
+      "outputs": [],
+      "hint": "",
+      "messages": [],
+      "branches": [
+        {
+          "id": "validated",
+          "when": {
+            "var": "connectivity_fixed"
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "validated": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 2,
+            "troubleshooting_process": 2
+          },
+          "outputs": [
+            {
+              "text": "\nComputerName     : intranet.corp.local\nRemoteAddress    : 10.20.5.25\nRemotePort       : 443\nInterfaceAlias   : {{interface_alias}}\nSourceAddress    : 10.20.30.57\nTcpTestSucceeded : True",
+              "format": "terminal"
+            }
+          ]
+        },
+        {
+          "id": "broken",
+          "when": true,
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "ev_dns_fail": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 2
+          },
+          "outputs": [
+            {
+              "text": "WARNING: Name resolution of {{$input.named.host}} failed\n\nComputerName   : {{$input.named.host}}\nRemoteAddress  :\nInterfaceAlias :\nSourceAddress  :\nPingSucceeded  : False",
+              "format": "terminal",
+              "when": {
+                "==": [
+                  {
+                    "var": "dns_mode"
+                  },
+                  "static"
+                ]
+              }
+            },
+            {
+              "text": "\nComputerName     : 8.8.8.8\nRemoteAddress    : 8.8.8.8\nPingSucceeded    : True",
+              "format": "terminal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "set_dns_public",
+      "tool": "terminal",
+      "label": "Set DNS to a public resolver",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "set-dnsclientserveraddress\\s+.*-serveraddresses\\s+.*(?:8\\.8\\.8\\.8|8\\.8\\.4\\.4|1\\.1\\.1\\.1|9\\.9\\.9\\.9).*"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "dns_mode": "public",
+            "dns_servers": "8.8.8.8",
+            "dns_servers_ps": "8.8.8.8",
+            "public_dns_set": true
+          }
+        }
+      ],
+      "score": {
+        "technical_accuracy": -4,
+        "decision_making": -6
+      },
+      "classification": "incorrect",
+      "feedback": "Public resolvers can't resolve internal corp.local names and bypass the company's DNS security filtering. Never hard-code them on corporate devices.",
+      "time_cost": 1,
+      "outputs": [
+        {
+          "text": "(no output: command completed successfully)",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": []
+    },
+    {
+      "id": "set_dns_corp_static",
+      "tool": "terminal",
+      "label": "Hard-code the corporate DNS servers",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "set-dnsclientserveraddress\\s+.*-serveraddresses\\s+.*10\\.20\\.1\\.1[01].*"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "dns_mode": "static_corp",
+            "dns_servers": "10.20.1.10\n                                       10.20.1.11",
+            "dns_servers_ps": "10.20.1.10, 10.20.1.11",
+            "connectivity_fixed": true
+          }
+        }
+      ],
+      "score": {
+        "technical_accuracy": 5,
+        "decision_making": 2
+      },
+      "classification": "correct",
+      "feedback": "It works, but hard-coding servers recreates the same fragility. Resetting to DHCP is the standard fix.",
+      "time_cost": 1,
+      "outputs": [
+        {
+          "text": "(no output: command completed successfully)",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": []
+    },
+    {
+      "id": "set_dns_reset",
+      "tool": "terminal",
+      "label": "Reset DNS to DHCP (Set-DnsClientServerAddress -ResetServerAddresses)",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "set-dnsclientserveraddress\\s+.*-resetserveraddresses.*"
+        ]
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 1,
+      "outputs": [
+        {
+          "text": "(no output: command completed successfully)",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": [],
+      "branches": [
+        {
+          "id": "already_fixed",
+          "when": {
+            "==": [
+              {
+                "var": "dns_mode"
+              },
+              "dhcp"
+            ]
+          },
+          "classification": "neutral",
+          "feedback": "DNS was already set to obtain automatically.",
+          "effects": [],
+          "score": {}
+        },
+        {
+          "id": "diagnosed",
+          "when": {
+            "and": [
+              {
+                "var": "ev_dns_config"
+              },
+              {
+                "var": "ev_dns_fail"
+              }
+            ]
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "dns_mode": "dhcp",
+                "dns_servers": "10.20.1.10\n                                       10.20.1.11",
+                "dns_servers_ps": "10.20.1.10, 10.20.1.11",
+                "connectivity_fixed": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 8,
+            "decision_making": 5,
+            "troubleshooting_process": 2
+          },
+          "feedback": "Correct fix: the adapter now takes its DNS servers from DHCP (10.20.1.10/11)."
+        },
+        {
+          "id": "guessed",
+          "when": true,
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "dns_mode": "dhcp",
+                "dns_servers": "10.20.1.10\n                                       10.20.1.11",
+                "dns_servers_ps": "10.20.1.10, 10.20.1.11",
+                "connectivity_fixed": true
+              }
+            }
+          ],
+          "score": {
+            "technical_accuracy": 5,
+            "decision_making": 2,
+            "troubleshooting_process": -2
+          },
+          "feedback": "Right fix, but you applied it before gathering evidence that DNS was the cause."
+        }
+      ]
+    },
+    {
+      "id": "set_dns_invalid",
+      "tool": "terminal",
+      "label": "Set-DnsClientServerAddress (other)",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "set-dnsclientserveraddress.*"
+        ]
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.25,
+      "outputs": [
+        {
+          "text": "Set-DnsClientServerAddress : Specify -ResetServerAddresses or a valid -ServerAddresses list together with -InterfaceAlias or -InterfaceIndex.",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": []
+    },
+    {
+      "id": "restart_computer",
+      "tool": "terminal",
+      "label": "Restart the laptop",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "restart-computer.*",
+          "shutdown\\s+/r.*"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "rebooted": true
+          }
+        },
+        {
+          "inc": {
+            "customer_patience": -15
+          }
+        }
+      ],
+      "score": {
+        "decision_making": -3
+      },
+      "classification": "incorrect",
+      "feedback": "She had already restarted three times. Rebooting again cost time and goodwill.",
+      "time_cost": 6,
+      "outputs": [
+        {
+          "text": "Remote session disconnected… reconnected after 6 minutes.",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": [
+        {
+          "character": "priya",
+          "text": "It just restarted on me. I had unsaved work open! And it still doesn't work."
+        }
+      ]
+    },
+    {
+      "id": "help",
+      "tool": "terminal",
+      "label": "help",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "help",
+          "\\?",
+          "get-help.*"
+        ]
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0,
+      "outputs": [
+        {
+          "text": "Remote support toolkit on FIN-LT-0457. Common tools: ipconfig, ping, nslookup, tracert, netsh, Get-NetAdapter, Get-DnsClientServerAddress, Set-DnsClientServerAddress, Test-NetConnection, Restart-Computer",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": [],
+      "repeat": {
+        "mode": "allow"
+      }
+    },
+    {
+      "id": "hostname",
+      "tool": "terminal",
+      "label": "hostname",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "hostname"
+        ]
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.1,
+      "outputs": [
+        {
+          "text": "FIN-LT-0457",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": [],
+      "repeat": {
+        "mode": "allow"
+      }
+    },
+    {
+      "id": "whoami",
+      "tool": "terminal",
+      "label": "whoami",
+      "kind": "command",
+      "input": {
+        "type": "command",
+        "patterns": [
+          "whoami"
+        ]
+      },
+      "effects": [],
+      "score": {},
+      "classification": "neutral",
+      "feedback": "",
+      "time_cost": 0.1,
+      "outputs": [
+        {
+          "text": "corp\\pshah",
+          "format": "terminal"
+        }
+      ],
+      "hint": "",
+      "messages": [],
+      "repeat": {
+        "mode": "allow"
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "customer_follow_up",
+      "title": "Customer chases an update",
+      "trigger": {
+        "type": "time",
+        "at_minutes": 30,
+        "condition": {
+          "!": {
+            "var": "connectivity_fixed"
+          }
+        }
+      },
+      "effects": [
+        {
+          "inc": {
+            "customer_patience": -10
+          }
+        }
+      ],
+      "score": {
+        "communication": -1
+      },
+      "notify": "Priya sent a follow-up message.",
+      "messages": [
+        {
+          "character": "priya",
+          "text": "Hi, any update? I really need this working before 3pm."
+        }
+      ]
+    },
+    {
+      "id": "customer_escalates",
+      "title": "Customer escalates to the manager",
+      "classification": "incorrect",
+      "trigger": {
+        "type": "condition",
+        "condition": {
+          "<=": [
+            {
+              "var": "customer_patience"
+            },
+            0
+          ]
+        }
+      },
+      "effects": [
+        {
+          "set": {
+            "escalated_by_customer": true
+          },
+          "add_problem": {
+            "id": "customer_escalation",
+            "severity": "high",
+            "text": "Customer escalated to the Service Desk Manager (Mark Ellis)"
+          }
+        }
+      ],
+      "score": {
+        "communication": -6,
+        "decision_making": -3
+      },
+      "notify": "Priya escalated INC0042317 to the Service Desk Manager.",
+      "messages": [
+        {
+          "character": "priya",
+          "text": "This is taking far too long and you keep disrupting my work. I'm escalating this to your manager."
+        },
+        {
+          "character": "mark",
+          "text": "I've had Finance on the phone about INC0042317. Please prioritise it and send me an update when it's fixed."
+        }
+      ],
+      "feedback": "The customer's patience ran out. Keep her informed and avoid disruptive, unnecessary actions."
+    },
+    {
+      "id": "manager_check_in",
+      "title": "Manager checks SLA",
+      "trigger": {
+        "type": "time",
+        "at_minutes": 60,
+        "condition": {
+          "!": {
+            "var": "connectivity_fixed"
+          }
+        }
+      },
+      "score": {
+        "decision_making": -2
+      },
+      "notify": "Mark Ellis (Service Desk Manager) messaged you.",
+      "messages": [
+        {
+          "character": "mark",
+          "text": "INC0042317 has been open for an hour of hands-on time. What's the blocker?"
+        }
+      ]
+    }
+  ],
+  "scoring": {
+    "dimensions": [
+      {
+        "id": "technical_accuracy",
+        "name": "Technical accuracy",
+        "weight": 35,
+        "max_points": 40
+      },
+      {
+        "id": "troubleshooting_process",
+        "name": "Troubleshooting process",
+        "weight": 25,
+        "max_points": 34
+      },
+      {
+        "id": "communication",
+        "name": "Communication",
+        "weight": 15,
+        "max_points": 20
+      },
+      {
+        "id": "decision_making",
+        "name": "Decision making",
+        "weight": 15,
+        "max_points": 14
+      },
+      {
+        "id": "efficiency",
+        "name": "Efficiency",
+        "weight": 10,
+        "max_points": 10
+      }
+    ],
+    "efficiency": {
+      "dimension": "efficiency",
+      "target_minutes": 30,
+      "max_minutes": 80
+    },
+    "process": {
+      "dimension": "troubleshooting_process",
+      "required_order": [
+        "INITIAL",
+        "INVESTIGATION",
+        "DIAGNOSIS",
+        "REMEDIATION",
+        "VALIDATION",
+        "RESOLUTION"
+      ],
+      "skip_penalty": 4
+    },
+    "pass_mark": 70,
+    "critical_cap": 49
+  },
+  "completion": {
+    "success": {
+      "action_taken": "close_ticket"
+    },
+    "max_sim_minutes": 120
+  },
+  "feedback_rules": [
+    {
+      "id": "s_history",
+      "type": "strength",
+      "priority": 5,
+      "when": {
+        "and": [
+          {
+            "action_taken": "ask_error_message"
+          },
+          {
+            "action_taken": "ask_when_started"
+          },
+          {
+            "action_taken": "ask_recent_changes"
+          }
+        ]
+      },
+      "text": "You gathered a clear problem history (symptoms, timing and recent changes) before touching the system."
+    },
+    {
+      "id": "s_layered",
+      "type": "strength",
+      "priority": 4,
+      "when": {
+        "and": [
+          {
+            "var": "ev_ping_ip"
+          },
+          {
+            "var": "ev_dns_fail"
+          }
+        ]
+      },
+      "text": "You isolated the fault to name resolution by contrasting ping-by-IP with name lookups."
+    },
+    {
+      "id": "s_corp_dns",
+      "type": "strength",
+      "when": {
+        "var": "ev_corp_dns_ok"
+      },
+      "text": "Querying the corporate DNS server directly was an expert move: it proved the servers were healthy and the client was misconfigured."
+    },
+    {
+      "id": "s_kb",
+      "type": "strength",
+      "when": {
+        "var": "ev_kb"
+      },
+      "text": "You checked the knowledge base and found the known VPN 5.2 issue."
+    },
+    {
+      "id": "s_validated",
+      "type": "strength",
+      "priority": 3,
+      "when": {
+        "and": [
+          {
+            "var": "validated"
+          },
+          {
+            "var": "customer_confirmed"
+          }
+        ]
+      },
+      "text": "You validated the fix technically and with the customer before closing."
+    },
+    {
+      "id": "s_docs",
+      "type": "strength",
+      "when": {
+        "==": [
+          {
+            "var": "doc_quality"
+          },
+          "thorough"
+        ]
+      },
+      "text": "Your resolution notes captured cause, fix and verification."
+    },
+    {
+      "id": "i_other_devices",
+      "type": "improvement",
+      "when": {
+        "!": {
+          "action_taken": "ask_other_devices"
+        }
+      },
+      "text": "Ask whether other devices or colleagues are affected to scope the incident (one device vs. the whole site)."
+    },
+    {
+      "id": "i_changes",
+      "type": "improvement",
+      "when": {
+        "!": {
+          "or": [
+            {
+              "action_taken": "ask_recent_changes"
+            },
+            {
+              "action_taken": "ask_when_started"
+            }
+          ]
+        }
+      },
+      "text": "Always ask what changed recently. The VPN update was the key clue."
+    },
+    {
+      "id": "i_driver",
+      "type": "improvement",
+      "priority": 6,
+      "when": {
+        "var": "driver_reinstalled"
+      },
+      "text": "Reinstalling the driver wasted 20 minutes; the adapter was up and ping by IP proved the driver was fine."
+    },
+    {
+      "id": "i_password",
+      "type": "improvement",
+      "priority": 6,
+      "when": {
+        "var": "password_reset"
+      },
+      "text": "Resetting the password disrupted the user without any evidence of an account problem."
+    },
+    {
+      "id": "i_netsh",
+      "type": "improvement",
+      "when": {
+        "var": "network_reset"
+      },
+      "text": "Avoid 'shotgun' fixes like netsh resets. Diagnose first, then make the smallest change that addresses the cause."
+    },
+    {
+      "id": "i_public_dns",
+      "type": "improvement",
+      "priority": 5,
+      "when": {
+        "var": "public_dns_set"
+      },
+      "text": "Never point corporate devices at public DNS. Internal names won't resolve and security filtering is bypassed."
+    },
+    {
+      "id": "i_static_corp",
+      "type": "improvement",
+      "when": {
+        "==": [
+          {
+            "var": "dns_mode"
+          },
+          "static_corp"
+        ]
+      },
+      "text": "Hard-coding the corporate DNS servers works, but resetting to DHCP is more robust."
+    },
+    {
+      "id": "i_escalation",
+      "type": "improvement",
+      "when": {
+        "var": "escalated_by_customer"
+      },
+      "text": "The customer escalated because the incident dragged on. Communicate progress and avoid disruptive steps."
+    },
+    {
+      "id": "i_wrong_dx",
+      "type": "improvement",
+      "when": {
+        "var": "wrong_diagnosis"
+      },
+      "text": "Record a diagnosis only when the evidence supports it."
+    },
+    {
+      "id": "m_flush",
+      "type": "missed_step",
+      "when": {
+        "and": [
+          {
+            "var": "connectivity_fixed"
+          },
+          {
+            "!": {
+              "var": "dns_flushed"
+            }
+          }
+        ]
+      },
+      "text": "Flush the DNS resolver cache (ipconfig /flushdns) after changing DNS servers."
+    },
+    {
+      "id": "m_validate",
+      "type": "missed_step",
+      "when": {
+        "!": {
+          "var": "validated"
+        }
+      },
+      "text": "Validate technically after the fix (nslookup intranet.corp.local or Test-NetConnection)."
+    },
+    {
+      "id": "m_confirm",
+      "type": "missed_step",
+      "when": {
+        "!": {
+          "var": "customer_confirmed"
+        }
+      },
+      "text": "Ask the customer to confirm the fix from her side before closing."
+    },
+    {
+      "id": "m_document",
+      "type": "missed_step",
+      "when": {
+        "!": {
+          "var": "documented"
+        }
+      },
+      "text": "Write resolution notes: symptoms, root cause, fix and verification."
+    },
+    {
+      "id": "m_fix",
+      "type": "missed_step",
+      "priority": 9,
+      "when": {
+        "!": {
+          "var": "connectivity_fixed"
+        }
+      },
+      "text": "The root cause, a stale static DNS server left by the VPN client update, was never fixed. Resetting the adapter's DNS to DHCP resolves it."
+    },
+    {
+      "id": "t_explain",
+      "type": "tip",
+      "when": {
+        "and": [
+          {
+            "var": "connectivity_fixed"
+          },
+          {
+            "!": {
+              "action_taken": "explain_fix"
+            }
+          }
+        ]
+      },
+      "text": "Briefly explaining the cause in plain language builds trust and reduces repeat calls."
+    }
+  ],
+  "settings": {
+    "unknown_input": {
+      "penalty": {
+        "communication": -1
+      },
+      "max_penalised": 5,
+      "time_cost": 0.5,
+      "reply": "I'm not sure what you mean."
+    },
+    "repeat": {
+      "mode": "diminish",
+      "free_repeats": 2,
+      "penalty": {
+        "efficiency": -0.5
+      }
+    },
+    "show_feedback": true,
+    "show_feedback_when_graded": false,
+    "ai_character_voice": true,
+    "session_timeout_minutes": 240
+  }
+}

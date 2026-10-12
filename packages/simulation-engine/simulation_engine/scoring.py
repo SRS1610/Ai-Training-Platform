@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from simulation_engine.conditions import EvalContext, truthy
-from simulation_engine.schema import SimulationDefinition, parse_definition
+from simulation_engine.schema import SimulationDefinition, parse_definition, resolve_outcome
 
 
 def _efficiency_factor(d: SimulationDefinition, state: dict[str, Any]) -> float:
@@ -97,9 +97,10 @@ def build_feedback(d: SimulationDefinition, state: dict[str, Any], scores: dict[
         if h.get("type") != "action" or h["classification"] not in ("critical", "incorrect"):
             continue
         a = d.action(h["action_id"])
-        spec = a
-        if a is not None and h.get("branch") is not None:
-            spec = next((b for i, b in enumerate(a.branches) if (b.id or str(i)) == h["branch"]), a)
+        spec = None
+        if a is not None:
+            br = next((b for i, b in enumerate(a.branches) if (b.id or str(i)) == h.get("branch")), None)
+            spec = resolve_outcome(a, br)
         key = (h["action_id"], h.get("branch") or "")
         if key in seen:
             continue

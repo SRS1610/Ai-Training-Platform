@@ -96,7 +96,7 @@ def _word_match(p: str, words: Iterable[str]) -> bool:
 
 def score_intent(text: str, intent: Intent, vocab: Vocabulary) -> float:
     """0 when the intent does not match; otherwise a specificity score (higher = better match)."""
-    words = set(vocab.tokens(text, keep_question_words=True))
+    words = set(vocab.tokens(text, keep_question_words=True) or vocab.tokens(text, drop_stopwords=False))
     if not words:
         return 0.0
     best = 0.0

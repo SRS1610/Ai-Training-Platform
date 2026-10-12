@@ -1,0 +1,1535 @@
+{
+  "schema_version": "1.0",
+  "key": "phishing-email-investigation",
+  "meta": {
+    "title": "Phishing Email Investigation",
+    "description": "SOC Level 1: triage a user-reported 'Microsoft 365 security alert' email, analyse headers and the link, scope the campaign in the SIEM, contain it and recover a compromised account.",
+    "industry": "cybersecurity",
+    "environment_type": "soc",
+    "difficulty": "intermediate",
+    "estimated_minutes": 20,
+    "learner_role": "SOC Analyst (Level 1)",
+    "briefing": "Three staff reported a suspicious 'Unusual sign-in activity' email to the phishing mailbox. Investigate it with the email headers, URL sandbox and SIEM, decide whether it is malicious, contain the campaign and handle any compromised accounts. Your team lead Tom expects a brief update.",
+    "objectives": [
+      "Analyse headers and the embedded URL",
+      "Scope impact in the SIEM",
+      "Contain: quarantine and block",
+      "Recover compromised accounts",
+      "Communicate and close"
+    ],
+    "tags": [
+      "security",
+      "phishing",
+      "incident-response",
+      "soc"
+    ]
+  },
+  "environment": {
+    "panels": [
+      {
+        "id": "inbox",
+        "type": "email_inbox",
+        "title": "Phishing report mailbox",
+        "data": {
+          "messages": [
+            {
+              "id": "msg-1",
+              "from": "Microsoft 365 Security <security@micros0ft-support.com>",
+              "subject": "Unusual sign-in activity - verify your account",
+              "received": "Today 09:31",
+              "reported_by": [
+                "a.patel",
+                "m.rossi",
+                "l.chen"
+              ],
+              "body": "We detected an unusual sign-in to your account. To avoid suspension, verify your identity within 24 hours: [Verify account](hxxps://login-microsoftonline.secure-verify[.]top/o365/)"
+            }
+          ]
+        }
+      },
+      {
+        "id": "headers",
+        "type": "email_viewer",
+        "title": "Message headers",
+        "visible_when": {
+          "action_taken": "view_headers"
+        },
+        "data": {
+          "headers": {
+            "From": "security@micros0ft-support.com",
+            "Return-Path": "bounce@mail-relay-sg.xyz",
+            "Received": "from mail-relay-sg.xyz (185.234.72.19)",
+            "Authentication-Results": "spf=fail; dkim=none; dmarc=fail action=none",
+            "X-Originating-IP": "185.234.72.19"
+          }
+        }
+      },
+      {
+        "id": "sandbox",
+        "type": "url_sandbox",
+        "title": "URL sandbox",
+        "visible_when": {
+          "action_taken": "sandbox_url"
+        },
+        "data": {
+          "url": "hxxps://login-microsoftonline.secure-verify[.]top/o365/",
+          "verdict": "Malicious",
+          "category": "Credential harvesting",
+          "domain_age_days": 2,
+          "notes": "Clone of the Microsoft 365 sign-in page; credentials POSTed to /gate.php"
+        }
+      },
+      {
+        "id": "siem",
+        "type": "siem_alerts",
+        "title": "SIEM",
+        "visible_when": {
+          "action_taken": "query_siem"
+        },
+        "data": {
+          "alerts": [
+            {
+              "time": "09:31",
+              "source": "Email gateway",
+              "severity": "medium",
+              "text": "Message 'Unusual sign-in activity' delivered to 47 recipients"
+            },
+            {
+              "time": "09:40-09:52",
+              "source": "Web proxy",
+              "severity": "high",
+              "text": "3 users visited secure-verify[.]top: j.nguyen, a.patel, m.rossi"
+            },
+            {
+              "time": "09:47",
+              "source": "Entra ID",
+              "severity": "high",
+              "text": "j.nguyen: successful sign-in from 185.234.72.19 (LT), MFA satisfied by push approval"
+            }
+          ]
+        }
+      },
+      {
+        "id": "console",
+        "type": "dashboard",
+        "title": "Response console",
+        "data": {
+          "incident": "SEC-2291",
+          "status": "{{incident_status}}"
+        }
+      }
+    ]
+  },
+  "tools": [
+    {
+      "id": "inbox",
+      "name": "Phishing mailbox",
+      "panel": "inbox",
+      "icon": "mail"
+    },
+    {
+      "id": "sandbox",
+      "name": "URL sandbox",
+      "panel": "sandbox",
+      "icon": "shield"
+    },
+    {
+      "id": "siem",
+      "name": "SIEM",
+      "panel": "siem",
+      "icon": "activity"
+    },
+    {
+      "id": "console",
+      "name": "Response console",
+      "panel": "console",
+      "icon": "settings"
+    },
+    {
+      "id": "chat",
+      "name": "Chat",
+      "icon": "message"
+    }
+  ],
+  "characters": [
+    {
+      "id": "jasmine",
+      "name": "Jasmine Nguyen",
+      "role": "Accounts Payable Officer",
+      "avatar": "JN",
+      "persona": "Worried employee who clicked the link and wants to know if she's in trouble.",
+      "fallback_reply": "Sorry, what do you mean?",
+      "facts": [
+        {
+          "id": "f_entered",
+          "text": "Jasmine entered her password on the page."
+        },
+        {
+          "id": "f_mfa",
+          "text": "Jasmine approved an unexpected MFA push notification."
+        },
+        {
+          "id": "f_time",
+          "text": "She clicked the link at about 09:45."
+        }
+      ]
+    },
+    {
+      "id": "tom",
+      "name": "Tom Becker",
+      "role": "SOC Team Lead",
+      "avatar": "TB",
+      "persona": "Calm, direct team lead who wants concise status updates.",
+      "fallback_reply": "Keep it brief: what's the status?",
+      "patience_var": "lead_patience",
+      "patience_decay_per_minute": 1.0,
+      "facts": []
+    }
+  ],
+  "intents": [
+    {
+      "id": "entered_credentials",
+      "patterns": [
+        "password",
+        "credentials",
+        "log in",
+        "login",
+        "sign in",
+        "enter details",
+        "type in"
+      ]
+    },
+    {
+      "id": "mfa_prompt",
+      "patterns": [
+        "mfa",
+        "approve",
+        "push",
+        "notification",
+        "authenticator",
+        "code"
+      ]
+    },
+    {
+      "id": "when_clicked",
+      "patterns": [
+        "when click",
+        "what time",
+        "when open"
+      ]
+    },
+    {
+      "id": "status_update",
+      "patterns": [
+        "update",
+        "status",
+        "brief",
+        "summary",
+        "findings",
+        "contained"
+      ],
+      "examples": [
+        "Quick update: it's a credential phishing campaign, now contained."
+      ]
+    },
+    {
+      "id": "reassure",
+      "patterns": [
+        "not trouble",
+        "not in trouble",
+        "dont worry",
+        "did right",
+        "thanks report"
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "INITIAL",
+      "name": "Triage",
+      "transitions": [
+        "ANALYSIS"
+      ],
+      "auto_advance": [
+        {
+          "to": "ANALYSIS",
+          "when": {
+            ">=": [
+              {
+                "var": "$actions_count"
+              },
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ANALYSIS",
+      "name": "Analysis",
+      "transitions": [
+        "CONTAINMENT"
+      ],
+      "auto_advance": [
+        {
+          "to": "CONTAINMENT",
+          "when": {
+            "==": [
+              {
+                "var": "classification"
+              },
+              "phishing"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "CONTAINMENT",
+      "name": "Containment",
+      "transitions": [
+        "RECOVERY"
+      ],
+      "auto_advance": [
+        {
+          "to": "RECOVERY",
+          "when": {
+            "and": [
+              {
+                "var": "quarantined"
+              },
+              {
+                "var": "sender_blocked"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "RECOVERY",
+      "name": "Recovery",
+      "transitions": [
+        "REPORTING"
+      ],
+      "auto_advance": [
+        {
+          "to": "REPORTING",
+          "when": {
+            "var": "creds_reset"
+          }
+        }
+      ]
+    },
+    {
+      "id": "REPORTING",
+      "name": "Reporting",
+      "terminal": true
+    }
+  ],
+  "variables": {
+    "campaign_ground_truth": {
+      "type": "str",
+      "initial": "credential_harvest_jnguyen_compromised",
+      "visibility": "secret"
+    },
+    "incident_status": {
+      "type": "str",
+      "initial": "New",
+      "visibility": "public",
+      "label": "Incident status"
+    },
+    "lead_patience": {
+      "type": "float",
+      "initial": 100,
+      "min": 0,
+      "max": 100
+    },
+    "classification": {
+      "type": "str",
+      "initial": ""
+    },
+    "headers_checked": {
+      "type": "bool",
+      "initial": false
+    },
+    "url_analysed": {
+      "type": "bool",
+      "initial": false
+    },
+    "siem_checked": {
+      "type": "bool",
+      "initial": false
+    },
+    "scoped": {
+      "type": "bool",
+      "initial": false
+    },
+    "user_interviewed": {
+      "type": "bool",
+      "initial": false
+    },
+    "quarantined": {
+      "type": "bool",
+      "initial": false
+    },
+    "sender_blocked": {
+      "type": "bool",
+      "initial": false
+    },
+    "creds_reset": {
+      "type": "bool",
+      "initial": false
+    },
+    "mass_reset": {
+      "type": "bool",
+      "initial": false
+    },
+    "users_notified": {
+      "type": "bool",
+      "initial": false
+    },
+    "lead_briefed": {
+      "type": "bool",
+      "initial": false
+    },
+    "ir_notified": {
+      "type": "bool",
+      "initial": false
+    },
+    "forwarding_rule": {
+      "type": "bool",
+      "initial": false
+    }
+  },
+  "opening_messages": [
+    {
+      "text": "3 new reports in the phishing mailbox. Incident SEC-2291 opened."
+    },
+    {
+      "character": "tom",
+      "text": "Can you take SEC-2291? Let me know what we're dealing with."
+    }
+  ],
+  "actions": [
+    {
+      "id": "open_report",
+      "tool": "inbox",
+      "label": "Open the reported email",
+      "kind": "inspect",
+      "listed": true,
+      "score": {
+        "investigation": 2
+      },
+      "effects": [],
+      "classification": "correct",
+      "time_cost": 0.5,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "Reported email opened: sender *micros0ft-support.com* (zero, not 'o'), urgent tone, link to an external domain.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "view_headers",
+      "tool": "inbox",
+      "label": "View full message headers",
+      "kind": "inspect",
+      "listed": true,
+      "score": {
+        "technical_analysis": 4,
+        "investigation": 2
+      },
+      "effects": [
+        {
+          "set": {
+            "headers_checked": true
+          }
+        }
+      ],
+      "classification": "correct",
+      "time_cost": 1,
+      "feedback": "Headers show spoofed branding from an unauthenticated sender.",
+      "outputs": [
+        {
+          "text": "SPF **fail**, DKIM none, DMARC **fail**; Return-Path *mail-relay-sg.xyz*; originating IP 185.234.72.19.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "sandbox_url",
+      "tool": "sandbox",
+      "label": "Detonate the link in the URL sandbox",
+      "kind": "inspect",
+      "listed": true,
+      "score": {
+        "technical_analysis": 5,
+        "investigation": 2
+      },
+      "effects": [
+        {
+          "set": {
+            "url_analysed": true
+          }
+        }
+      ],
+      "classification": "correct",
+      "time_cost": 2,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "Verdict **Malicious**: credential-harvesting clone of the Microsoft 365 sign-in page. Domain registered 2 days ago.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "click_link_live",
+      "tool": "inbox",
+      "label": "Open the link in your own browser",
+      "kind": "command",
+      "listed": true,
+      "score": {
+        "technical_analysis": -8
+      },
+      "effects": [
+        {
+          "set": {
+            "classification": "unsafe_handling"
+          }
+        },
+        {
+          "complete": "failure"
+        }
+      ],
+      "classification": "critical",
+      "time_cost": 0.5,
+      "feedback": "Never open suspicious links outside an isolated sandbox.",
+      "outputs": [
+        {
+          "text": "You opened a live credential-harvesting page on a corporate workstation.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "query_siem",
+      "tool": "siem",
+      "label": "Query SIEM for related activity",
+      "kind": "inspect",
+      "listed": true,
+      "score": {
+        "investigation": 4,
+        "technical_analysis": 3
+      },
+      "effects": [
+        {
+          "set": {
+            "siem_checked": true
+          }
+        }
+      ],
+      "classification": "correct",
+      "time_cost": 2,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "47 recipients; 3 users visited the phishing domain; **j.nguyen** has a successful sign-in from 185.234.72.19 with MFA approved.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "search_mailboxes",
+      "tool": "siem",
+      "label": "Search all mailboxes for the message",
+      "kind": "inspect",
+      "listed": true,
+      "score": {
+        "investigation": 3
+      },
+      "effects": [
+        {
+          "set": {
+            "scoped": true
+          }
+        }
+      ],
+      "classification": "correct",
+      "time_cost": 1.5,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "Found in 47 mailboxes (12 read, 35 unread).",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "classify",
+      "tool": "console",
+      "label": "Classify the report",
+      "kind": "select",
+      "listed": true,
+      "score": {},
+      "effects": [],
+      "classification": "correct",
+      "time_cost": 0.5,
+      "feedback": "",
+      "outputs": [],
+      "messages": [],
+      "description": "",
+      "branches": [
+        {
+          "id": "phishing",
+          "when": {
+            "==": [
+              {
+                "var": "$input.choice"
+              },
+              "phishing"
+            ]
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "classification": "phishing",
+                "incident_status": "Investigating"
+              }
+            }
+          ],
+          "score": {
+            "technical_analysis": 5,
+            "containment": 2
+          }
+        },
+        {
+          "id": "legitimate",
+          "when": {
+            "==": [
+              {
+                "var": "$input.choice"
+              },
+              "legitimate"
+            ]
+          },
+          "classification": "critical",
+          "effects": [
+            {
+              "set": {
+                "classification": "legitimate",
+                "incident_status": "Closed - false positive"
+              }
+            },
+            {
+              "complete": "failure"
+            }
+          ],
+          "score": {
+            "technical_analysis": -10
+          },
+          "feedback": "Marking a credential-phishing email as legitimate leaves 47 users exposed."
+        },
+        {
+          "id": "other",
+          "when": true,
+          "classification": "incorrect",
+          "effects": [
+            {
+              "set": {
+                "classification": "{{$input.choice}}"
+              }
+            }
+          ],
+          "score": {
+            "technical_analysis": -3
+          },
+          "feedback": "Look again at the sender domain, failed SPF/DMARC and the sandbox verdict."
+        }
+      ],
+      "input": {
+        "type": "choice",
+        "choices": [
+          {
+            "id": "phishing",
+            "label": "Credential phishing"
+          },
+          {
+            "id": "spam",
+            "label": "Spam / marketing"
+          },
+          {
+            "id": "legitimate",
+            "label": "Legitimate Microsoft notice"
+          },
+          {
+            "id": "malware",
+            "label": "Malware attachment"
+          }
+        ]
+      }
+    },
+    {
+      "id": "quarantine_all",
+      "tool": "console",
+      "label": "Purge & quarantine the message from all mailboxes",
+      "kind": "command",
+      "listed": true,
+      "score": {
+        "containment": 5
+      },
+      "effects": [
+        {
+          "set": {
+            "quarantined": true
+          }
+        }
+      ],
+      "classification": "correct",
+      "time_cost": 1.5,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "47 copies moved to quarantine.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "delete_reported_only",
+      "tool": "console",
+      "label": "Delete the email from the reporters' inboxes only",
+      "kind": "command",
+      "listed": true,
+      "score": {
+        "containment": -3
+      },
+      "effects": [],
+      "classification": "incorrect",
+      "time_cost": 1.0,
+      "feedback": "Only removing reported copies leaves the lure in 44 other inboxes.",
+      "outputs": [
+        {
+          "text": "3 copies deleted. 44 remain in other mailboxes.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "block_sender",
+      "tool": "console",
+      "label": "Block sender domain and phishing URL (gateway + proxy)",
+      "kind": "command",
+      "listed": true,
+      "score": {
+        "containment": 5,
+        "technical_analysis": 2
+      },
+      "effects": [
+        {
+          "set": {
+            "sender_blocked": true
+          }
+        }
+      ],
+      "classification": "correct",
+      "time_cost": 1,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "Blocked micros0ft-support.com at the mail gateway and secure-verify.top at the web proxy.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "reset_jnguyen",
+      "tool": "console",
+      "label": "Reset j.nguyen's password and revoke sessions/MFA tokens",
+      "kind": "command",
+      "listed": true,
+      "score": {},
+      "effects": [],
+      "classification": "correct",
+      "time_cost": 2,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "j.nguyen: password reset, refresh tokens revoked, MFA re-registration required.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": "Contain the compromised account.",
+      "branches": [
+        {
+          "id": "evidence",
+          "when": {
+            "or": [
+              {
+                "var": "siem_checked"
+              },
+              {
+                "var": "user_interviewed"
+              }
+            ]
+          },
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "creds_reset": true,
+                "incident_status": "Contained"
+              }
+            }
+          ],
+          "score": {
+            "containment": 6,
+            "technical_analysis": 2
+          }
+        },
+        {
+          "id": "no_evidence",
+          "when": true,
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "creds_reset": true,
+                "incident_status": "Contained"
+              }
+            }
+          ],
+          "score": {
+            "containment": 4,
+            "investigation": -2
+          },
+          "feedback": "Right action, but confirm compromise in the SIEM or with the user first."
+        }
+      ]
+    },
+    {
+      "id": "reset_everyone",
+      "tool": "console",
+      "label": "Force password reset for all 1,200 staff",
+      "kind": "command",
+      "listed": true,
+      "score": {
+        "containment": -5,
+        "communication": -3
+      },
+      "effects": [
+        {
+          "set": {
+            "mass_reset": true
+          }
+        }
+      ],
+      "classification": "incorrect",
+      "time_cost": 3,
+      "feedback": "Mass resets are disproportionate when only one account shows compromise.",
+      "outputs": [],
+      "messages": [
+        {
+          "character": "tom",
+          "text": "Whoa, the whole company? The service desk is getting flooded. That wasn't proportionate."
+        }
+      ],
+      "description": ""
+    },
+    {
+      "id": "notify_ir",
+      "tool": "console",
+      "label": "Notify Incident Response of the confirmed account compromise",
+      "kind": "escalate",
+      "listed": true,
+      "score": {},
+      "effects": [
+        {
+          "set": {
+            "ir_notified": true
+          }
+        }
+      ],
+      "classification": "correct",
+      "time_cost": 0.5,
+      "feedback": "",
+      "outputs": [],
+      "messages": [],
+      "description": "",
+      "branches": [
+        {
+          "id": "confirmed",
+          "when": {
+            "or": [
+              {
+                "var": "siem_checked"
+              },
+              {
+                "var": "user_interviewed"
+              }
+            ]
+          },
+          "classification": "correct",
+          "score": {
+            "containment": 2,
+            "communication": 1
+          }
+        },
+        {
+          "id": "premature",
+          "when": true,
+          "classification": "neutral",
+          "feedback": "Confirm the compromise before paging Incident Response."
+        }
+      ]
+    },
+    {
+      "id": "send_awareness",
+      "tool": "console",
+      "label": "Send user awareness notice",
+      "kind": "document",
+      "listed": true,
+      "score": {},
+      "effects": [],
+      "classification": "correct",
+      "time_cost": 2,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "Awareness notice sent to 47 recipients.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": "",
+      "branches": [
+        {
+          "id": "good",
+          "classification": "correct",
+          "when": {
+            ">=": [
+              {
+                "count_keywords": [
+                  {
+                    "var": "$input.text"
+                  },
+                  [
+                    [
+                      "phishing",
+                      "phish",
+                      "scam"
+                    ],
+                    [
+                      "password",
+                      "credentials"
+                    ],
+                    [
+                      "report",
+                      "reported"
+                    ],
+                    [
+                      "click",
+                      "link"
+                    ],
+                    [
+                      "delete",
+                      "removed",
+                      "quarantined"
+                    ]
+                  ]
+                ]
+              },
+              3
+            ]
+          },
+          "effects": [
+            {
+              "set": {
+                "users_notified": true
+              }
+            }
+          ],
+          "score": {
+            "communication": 5
+          }
+        },
+        {
+          "id": "weak",
+          "when": true,
+          "classification": "neutral",
+          "effects": [
+            {
+              "set": {
+                "users_notified": true
+              }
+            }
+          ],
+          "score": {
+            "communication": 1
+          },
+          "feedback": "Tell users what happened, what to do if they clicked, and how to report."
+        }
+      ],
+      "input": {
+        "type": "free_text",
+        "min_length": 20,
+        "placeholder": "Message to all recipients…"
+      }
+    },
+    {
+      "id": "close_incident",
+      "tool": "console",
+      "label": "Close incident SEC-2291",
+      "kind": "submit",
+      "listed": true,
+      "score": {},
+      "effects": [],
+      "classification": "correct",
+      "time_cost": 0.5,
+      "feedback": "",
+      "outputs": [],
+      "messages": [],
+      "description": "",
+      "branches": [
+        {
+          "id": "uncontained",
+          "when": {
+            "!": {
+              "and": [
+                {
+                  "and": [
+                    {
+                      "var": "quarantined"
+                    },
+                    {
+                      "var": "sender_blocked"
+                    }
+                  ]
+                },
+                {
+                  "var": "creds_reset"
+                }
+              ]
+            }
+          },
+          "classification": "critical",
+          "effects": [
+            {
+              "set": {
+                "incident_status": "Closed"
+              }
+            },
+            {
+              "complete": "failure"
+            }
+          ],
+          "score": {
+            "containment": -5
+          },
+          "feedback": "You closed the incident before containing the campaign and recovering the compromised account."
+        },
+        {
+          "id": "no_comms",
+          "when": {
+            "!": {
+              "var": "users_notified"
+            }
+          },
+          "classification": "incorrect",
+          "effects": [
+            {
+              "set": {
+                "incident_status": "Closed"
+              }
+            },
+            {
+              "transition": "REPORTING"
+            },
+            {
+              "complete": "success"
+            }
+          ],
+          "score": {
+            "communication": -2
+          },
+          "feedback": "Contained, but recipients were never told what happened or what to do."
+        },
+        {
+          "id": "complete",
+          "when": true,
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "incident_status": "Closed"
+              }
+            },
+            {
+              "transition": "REPORTING"
+            },
+            {
+              "complete": "success"
+            }
+          ],
+          "score": {
+            "investigation": 2,
+            "communication": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "ask_entered",
+      "tool": "chat",
+      "label": "Ask Jasmine whether she entered credentials",
+      "kind": "ask",
+      "character": "jasmine",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "entered_credentials"
+        ]
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_entered"
+          ]
+        },
+        {
+          "set": {
+            "user_interviewed": true
+          }
+        }
+      ],
+      "score": {
+        "investigation": 3,
+        "communication": 1
+      },
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "messages": [
+        {
+          "character": "jasmine",
+          "text": "Yes… it looked exactly like the normal Microsoft login, so I typed my password. Am I in trouble?"
+        }
+      ]
+    },
+    {
+      "id": "ask_mfa",
+      "tool": "chat",
+      "label": "Ask Jasmine about MFA prompts",
+      "kind": "ask",
+      "character": "jasmine",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "mfa_prompt"
+        ]
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_mfa"
+          ]
+        }
+      ],
+      "score": {
+        "investigation": 3,
+        "technical_analysis": 1
+      },
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "messages": [
+        {
+          "character": "jasmine",
+          "text": "I got a prompt on my phone straight after and tapped Approve. I thought it was part of the check."
+        }
+      ]
+    },
+    {
+      "id": "ask_when",
+      "tool": "chat",
+      "label": "Ask Jasmine when she clicked",
+      "kind": "ask",
+      "character": "jasmine",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "when_clicked"
+        ]
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_time"
+          ]
+        }
+      ],
+      "score": {
+        "investigation": 1
+      },
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "messages": [
+        {
+          "character": "jasmine",
+          "text": "Around quarter to ten, just after I got in."
+        }
+      ]
+    },
+    {
+      "id": "reassure_jasmine",
+      "tool": "chat",
+      "label": "Reassure Jasmine",
+      "kind": "ask",
+      "character": "jasmine",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "reassure"
+        ]
+      },
+      "effects": [],
+      "score": {
+        "communication": 2
+      },
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "messages": [
+        {
+          "character": "jasmine",
+          "text": "Thanks, that's a relief. I'll be more careful."
+        }
+      ]
+    },
+    {
+      "id": "brief_lead",
+      "tool": "chat",
+      "label": "Brief the team lead",
+      "kind": "ask",
+      "character": "tom",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "status_update"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "lead_briefed": true
+          }
+        }
+      ],
+      "score": {
+        "communication": 3
+      },
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "messages": [
+        {
+          "character": "tom",
+          "text": "Good work. Contain first, then we'll handle comms. Keep me posted."
+        }
+      ],
+      "preconditions": {
+        "==": [
+          {
+            "var": "classification"
+          },
+          "phishing"
+        ]
+      },
+      "precondition_message": "Do we know what it is yet? Classify it first, then brief me."
+    }
+  ],
+  "events": [
+    {
+      "id": "lead_chases",
+      "title": "Team lead chases an update",
+      "trigger": {
+        "type": "time",
+        "at_minutes": 15,
+        "condition": {
+          "!": {
+            "var": "lead_briefed"
+          }
+        }
+      },
+      "score": {
+        "communication": -2
+      },
+      "notify": "Tom Becker is waiting for an update.",
+      "messages": [
+        {
+          "character": "tom",
+          "text": "Where are we on SEC-2291? The CISO is asking."
+        }
+      ]
+    },
+    {
+      "id": "attacker_persistence",
+      "title": "Attacker creates a mailbox forwarding rule",
+      "classification": "incorrect",
+      "trigger": {
+        "type": "condition",
+        "condition": {
+          "and": [
+            {
+              ">=": [
+                {
+                  "var": "$minutes"
+                },
+                15
+              ]
+            },
+            {
+              "!": {
+                "var": "creds_reset"
+              }
+            }
+          ]
+        }
+      },
+      "effects": [
+        {
+          "set": {
+            "forwarding_rule": true
+          },
+          "add_problem": {
+            "id": "forwarding_rule",
+            "severity": "critical",
+            "text": "New inbox rule on j.nguyen forwards invoices to an external address"
+          }
+        }
+      ],
+      "score": {
+        "containment": -4
+      },
+      "notify": "New SIEM alert: suspicious inbox rule created on j.nguyen.",
+      "feedback": "Slow recovery let the attacker establish persistence."
+    }
+  ],
+  "scoring": {
+    "dimensions": [
+      {
+        "id": "technical_analysis",
+        "name": "Technical analysis",
+        "weight": 30,
+        "max_points": 18
+      },
+      {
+        "id": "investigation",
+        "name": "Investigation process",
+        "weight": 25,
+        "max_points": 18
+      },
+      {
+        "id": "containment",
+        "name": "Containment & recovery",
+        "weight": 25,
+        "max_points": 18
+      },
+      {
+        "id": "communication",
+        "name": "Communication",
+        "weight": 10,
+        "max_points": 10
+      },
+      {
+        "id": "efficiency",
+        "name": "Efficiency",
+        "weight": 10,
+        "max_points": 10
+      }
+    ],
+    "efficiency": {
+      "dimension": "efficiency",
+      "target_minutes": 20,
+      "max_minutes": 50
+    },
+    "process": {
+      "dimension": "investigation",
+      "required_order": [
+        "INITIAL",
+        "ANALYSIS",
+        "CONTAINMENT",
+        "RECOVERY",
+        "REPORTING"
+      ],
+      "skip_penalty": 3
+    },
+    "bands": [
+      {
+        "name": "Expert",
+        "min": 95
+      },
+      {
+        "name": "Advanced",
+        "min": 85
+      },
+      {
+        "name": "Competent",
+        "min": 70
+      },
+      {
+        "name": "Needs Improvement",
+        "min": 50
+      },
+      {
+        "name": "Fail",
+        "min": 0
+      }
+    ],
+    "pass_mark": 70,
+    "critical_cap": 49
+  },
+  "completion": {
+    "success": {
+      "action_taken": "close_incident"
+    },
+    "max_sim_minutes": 90
+  },
+  "feedback_rules": [
+    {
+      "id": "s_analysis",
+      "type": "strength",
+      "when": {
+        "and": [
+          {
+            "var": "headers_checked"
+          },
+          {
+            "var": "url_analysed"
+          }
+        ]
+      },
+      "text": "You confirmed the verdict with both header analysis and a safe URL detonation."
+    },
+    {
+      "id": "s_scope",
+      "type": "strength",
+      "when": {
+        "var": "siem_checked"
+      },
+      "text": "You scoped the campaign in the SIEM and found the compromised account."
+    },
+    {
+      "id": "s_fast",
+      "type": "strength",
+      "when": {
+        "and": [
+          {
+            "var": "creds_reset"
+          },
+          {
+            "!": {
+              "var": "forwarding_rule"
+            }
+          }
+        ]
+      },
+      "text": "You recovered the compromised account before the attacker could persist."
+    },
+    {
+      "id": "i_headers",
+      "type": "improvement",
+      "when": {
+        "!": {
+          "var": "headers_checked"
+        }
+      },
+      "text": "Check SPF/DKIM/DMARC results and the Return-Path in the headers."
+    },
+    {
+      "id": "i_mass",
+      "type": "improvement",
+      "when": {
+        "var": "mass_reset"
+      },
+      "text": "Keep containment proportionate to the evidence."
+    },
+    {
+      "id": "m_block",
+      "type": "missed_step",
+      "when": {
+        "!": {
+          "var": "sender_blocked"
+        }
+      },
+      "text": "Block the sender domain and phishing URL to stop new deliveries and clicks."
+    },
+    {
+      "id": "m_reset",
+      "type": "missed_step",
+      "when": {
+        "!": {
+          "var": "creds_reset"
+        }
+      },
+      "text": "Reset the compromised account's password and revoke its sessions and MFA tokens."
+    },
+    {
+      "id": "m_mfa",
+      "type": "missed_step",
+      "when": {
+        "!": {
+          "action_taken": "ask_mfa"
+        }
+      },
+      "text": "Ask the affected user about MFA prompts. Approved pushes explain how MFA was bypassed."
+    },
+    {
+      "id": "m_notify",
+      "type": "missed_step",
+      "when": {
+        "!": {
+          "var": "users_notified"
+        }
+      },
+      "text": "Notify recipients with clear guidance."
+    }
+  ],
+  "settings": {
+    "unknown_input": {
+      "penalty": {
+        "communication": -1
+      },
+      "max_penalised": 3
+    },
+    "repeat": {
+      "mode": "diminish",
+      "free_repeats": 2,
+      "penalty": {}
+    }
+  }
+}

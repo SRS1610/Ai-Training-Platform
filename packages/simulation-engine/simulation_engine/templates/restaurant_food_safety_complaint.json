@@ -1,0 +1,1306 @@
+{
+  "schema_version": "1.0",
+  "key": "restaurant-food-safety-complaint",
+  "meta": {
+    "title": "Restaurant Customer Complaint: Food Safety",
+    "description": "Hospitality duty manager: a guest who declared a peanut allergy reports a reaction. Put guest safety first, recover the service, investigate and complete the incident report.",
+    "industry": "hospitality",
+    "environment_type": "front_of_house",
+    "difficulty": "beginner",
+    "estimated_minutes": 15,
+    "learner_role": "Duty Manager",
+    "briefing": "It's Saturday dinner service at Harbour Kitchen. Mia, a server, calls you to table 12: Daniel Okafor says his green curry had nuts in it even though he told her about his peanut allergy. He's upset. Handle it.",
+    "objectives": [
+      "Check the guest's wellbeing first",
+      "De-escalate and apologise sincerely",
+      "Investigate how the allergen got onto the plate",
+      "Remove the hazard",
+      "Record and report the incident"
+    ],
+    "tags": [
+      "hospitality",
+      "food-safety",
+      "allergens",
+      "service-recovery"
+    ]
+  },
+  "environment": {
+    "panels": [
+      {
+        "id": "complaint",
+        "type": "crm_record",
+        "title": "Table 12",
+        "data": {
+          "guest": "Daniel Okafor",
+          "covers": 2,
+          "order": "Thai green curry, jasmine rice",
+          "server": "Mia",
+          "allergy_declared": "Peanuts (per server)",
+          "status": "{{case_status}}"
+        }
+      },
+      {
+        "id": "chat",
+        "type": "chat",
+        "title": "Conversation",
+        "data": {}
+      },
+      {
+        "id": "kitchen_log",
+        "type": "log_viewer",
+        "title": "Kitchen docket log",
+        "visible_when": {
+          "action_taken": "check_kitchen_log"
+        },
+        "data": {
+          "entries": [
+            {
+              "time": "19:36",
+              "text": "Docket #4471 T12: 1x green curry *** NUT ALLERGY ***"
+            },
+            {
+              "time": "19:40",
+              "text": "Garnish mix (nut-free) run out; restock requested"
+            },
+            {
+              "time": "19:42",
+              "text": "#4471 plated by Sam, garnish from satay station tray"
+            },
+            {
+              "time": "19:44",
+              "text": "#4471 served"
+            }
+          ]
+        }
+      },
+      {
+        "id": "allergen_chart",
+        "type": "checklist",
+        "title": "Allergen matrix",
+        "visible_when": {
+          "action_taken": "check_allergen_chart"
+        },
+        "data": {
+          "items": [
+            {
+              "dish": "Green curry",
+              "contains": "fish, shellfish",
+              "garnish": "herb mix (nut-free)"
+            },
+            {
+              "dish": "Chicken satay",
+              "contains": "PEANUTS, soy",
+              "garnish": "crushed peanuts"
+            }
+          ]
+        }
+      },
+      {
+        "id": "incident",
+        "type": "document",
+        "title": "Incident report",
+        "data": {
+          "form": "FS-03"
+        }
+      }
+    ]
+  },
+  "tools": [
+    {
+      "id": "floor",
+      "name": "Front of house",
+      "panel": "complaint",
+      "icon": "users"
+    },
+    {
+      "id": "chat",
+      "name": "Talk",
+      "panel": "chat",
+      "icon": "message"
+    },
+    {
+      "id": "kitchen",
+      "name": "Kitchen",
+      "panel": "kitchen_log",
+      "icon": "chef"
+    },
+    {
+      "id": "office",
+      "name": "Manager's office",
+      "panel": "incident",
+      "icon": "clipboard"
+    }
+  ],
+  "characters": [
+    {
+      "id": "daniel",
+      "name": "Daniel Okafor",
+      "role": "Guest",
+      "avatar": "DO",
+      "persona": "Frightened and angry guest with a peanut allergy. Calms down if treated with care and taken seriously; furious if blamed.",
+      "fallback_reply": "I don't understand. Are you going to do something about this?",
+      "patience_var": "guest_patience",
+      "patience_decay_per_minute": 3,
+      "facts": [
+        {
+          "id": "f_symptoms",
+          "text": "Daniel's lips are tingling and his throat feels tight. He carries an EpiPen."
+        },
+        {
+          "id": "f_declared",
+          "text": "Daniel told the server about his peanut allergy when ordering."
+        }
+      ]
+    },
+    {
+      "id": "mia",
+      "name": "Mia",
+      "role": "Server",
+      "avatar": "MI",
+      "fallback_reply": "Sorry, what do you need?",
+      "facts": [
+        {
+          "id": "f_docket",
+          "text": "Mia wrote NUT ALLERGY on the docket and told the pass."
+        }
+      ]
+    },
+    {
+      "id": "luca",
+      "name": "Luca",
+      "role": "Head Chef",
+      "avatar": "LU",
+      "fallback_reply": "We're slammed, quick!",
+      "facts": [
+        {
+          "id": "f_garnish",
+          "text": "The nut-free garnish ran out at 19:40; Sam used the satay station tray, which contains crushed peanuts."
+        }
+      ]
+    }
+  ],
+  "intents": [
+    {
+      "id": "wellbeing",
+      "patterns": [
+        "are you ok",
+        "how feel",
+        "symptom",
+        "breath",
+        "reaction",
+        "throat",
+        "are you alright",
+        "feeling"
+      ],
+      "examples": [
+        "Are you feeling okay? Any trouble breathing?"
+      ]
+    },
+    {
+      "id": "medical",
+      "patterns": [
+        "ambulance",
+        "first aid",
+        "epipen",
+        "doctor",
+        "medical",
+        "call 000",
+        "paramedic"
+      ]
+    },
+    {
+      "id": "apology",
+      "patterns": [
+        "sorry",
+        "take seriously",
+        "my fault",
+        "our fault",
+        "unacceptable"
+      ]
+    },
+    {
+      "id": "blame",
+      "patterns": [
+        "you should have",
+        "are you sure",
+        "your fault",
+        "didnt tell",
+        "did you tell",
+        "didnt mention",
+        "not our problem"
+      ]
+    },
+    {
+      "id": "comp",
+      "patterns": [
+        "no charge",
+        "on the house",
+        "refund",
+        "pay for",
+        "complimentary",
+        "comp"
+      ]
+    },
+    {
+      "id": "what_happened",
+      "patterns": [
+        "what happen",
+        "tell me",
+        "docket",
+        "allergy note",
+        "order"
+      ]
+    },
+    {
+      "id": "prep",
+      "patterns": [
+        "garnish",
+        "prep",
+        "plated",
+        "cross contact",
+        "satay",
+        "how did",
+        "nuts"
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "INITIAL",
+      "name": "Arrive at table",
+      "transitions": [
+        "ASSESS"
+      ],
+      "auto_advance": [
+        {
+          "to": "ASSESS",
+          "when": {
+            ">=": [
+              {
+                "var": "$actions_count"
+              },
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ASSESS",
+      "name": "Assess guest safety",
+      "transitions": [
+        "INVESTIGATE"
+      ],
+      "auto_advance": [
+        {
+          "to": "INVESTIGATE",
+          "when": {
+            "or": [
+              {
+                "var": "symptoms_checked"
+              },
+              {
+                "var": "medical_called"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INVESTIGATE",
+      "name": "Investigate",
+      "transitions": [
+        "RESOLVE"
+      ],
+      "auto_advance": [
+        {
+          "to": "RESOLVE",
+          "when": {
+            "and": [
+              {
+                "var": "cause_found"
+              },
+              {
+                "var": "hazard_removed"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "RESOLVE",
+      "name": "Resolve",
+      "transitions": [
+        "FOLLOW_UP"
+      ],
+      "auto_advance": [
+        {
+          "to": "FOLLOW_UP",
+          "when": {
+            "var": "incident_reported"
+          }
+        }
+      ]
+    },
+    {
+      "id": "FOLLOW_UP",
+      "name": "Follow up",
+      "terminal": true
+    }
+  ],
+  "variables": {
+    "ground_truth": {
+      "type": "str",
+      "initial": "garnish_cross_contact_from_satay_tray",
+      "visibility": "secret"
+    },
+    "case_status": {
+      "type": "str",
+      "initial": "Open",
+      "visibility": "public",
+      "label": "Case status"
+    },
+    "guest_patience": {
+      "type": "float",
+      "initial": 70,
+      "visibility": "public",
+      "label": "Guest mood",
+      "min": 0,
+      "max": 100
+    },
+    "symptoms_checked": {
+      "type": "bool",
+      "initial": false
+    },
+    "medical_called": {
+      "type": "bool",
+      "initial": false
+    },
+    "apologised": {
+      "type": "bool",
+      "initial": false
+    },
+    "blamed": {
+      "type": "bool",
+      "initial": false
+    },
+    "comped": {
+      "type": "bool",
+      "initial": false
+    },
+    "cause_found": {
+      "type": "bool",
+      "initial": false
+    },
+    "hazard_removed": {
+      "type": "bool",
+      "initial": false
+    },
+    "incident_reported": {
+      "type": "bool",
+      "initial": false
+    },
+    "supervisor_notified": {
+      "type": "bool",
+      "initial": false
+    },
+    "voucher_only": {
+      "type": "bool",
+      "initial": false
+    },
+    "deteriorated": {
+      "type": "bool",
+      "initial": false
+    }
+  },
+  "opening_messages": [
+    {
+      "character": "daniel",
+      "text": "There are nuts in this! I TOLD your server I'm allergic to peanuts!"
+    }
+  ],
+  "actions": [
+    {
+      "id": "check_wellbeing",
+      "tool": "chat",
+      "label": "Check how the guest is feeling",
+      "kind": "ask",
+      "character": "daniel",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "wellbeing"
+        ]
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_symptoms"
+          ]
+        },
+        {
+          "set": {
+            "symptoms_checked": true
+          }
+        }
+      ],
+      "score": {
+        "guest_safety": 8,
+        "service_recovery": 2
+      },
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "messages": [
+        {
+          "character": "daniel",
+          "text": "My lips are tingling and my throat feels a bit tight. I've got my EpiPen in my bag."
+        }
+      ]
+    },
+    {
+      "id": "offer_medical",
+      "tool": "chat",
+      "label": "Offer first aid / call an ambulance",
+      "kind": "ask",
+      "character": "daniel",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "medical"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "medical_called": true,
+            "case_status": "First aid in progress"
+          }
+        }
+      ],
+      "score": {
+        "guest_safety": 10
+      },
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "messages": [
+        {
+          "character": "daniel",
+          "text": "Yes… please. I think I should get checked."
+        }
+      ]
+    },
+    {
+      "id": "apologise",
+      "tool": "chat",
+      "label": "Apologise sincerely",
+      "kind": "ask",
+      "character": "daniel",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "apology"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "apologised": true
+          }
+        },
+        {
+          "inc": {
+            "guest_patience": 15
+          }
+        }
+      ],
+      "score": {
+        "service_recovery": 4
+      },
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "messages": [
+        {
+          "character": "daniel",
+          "text": "Thank you. I just want to know how this happened."
+        }
+      ]
+    },
+    {
+      "id": "blame_guest",
+      "tool": "chat",
+      "label": "Question whether the guest declared the allergy",
+      "kind": "ask",
+      "character": "daniel",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "blame"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "blamed": true
+          }
+        },
+        {
+          "inc": {
+            "guest_patience": -40
+          }
+        }
+      ],
+      "score": {
+        "service_recovery": -8
+      },
+      "classification": "incorrect",
+      "time_cost": 1.0,
+      "feedback": "Never question a guest's account during an allergic reaction. Safety first, facts later.",
+      "messages": [
+        {
+          "character": "daniel",
+          "text": "Are you calling me a liar? I told her twice!"
+        }
+      ]
+    },
+    {
+      "id": "offer_comp",
+      "tool": "chat",
+      "label": "Offer to cover the bill",
+      "kind": "ask",
+      "character": "daniel",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "comp"
+        ]
+      },
+      "effects": [
+        {
+          "set": {
+            "comped": true
+          }
+        }
+      ],
+      "score": {
+        "service_recovery": 3
+      },
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "messages": [
+        {
+          "character": "daniel",
+          "text": "Thank you. That's decent of you."
+        }
+      ],
+      "preconditions": {
+        "or": [
+          {
+            "var": "symptoms_checked"
+          },
+          {
+            "var": "medical_called"
+          }
+        ]
+      },
+      "precondition_message": "I don't care about the bill right now!"
+    },
+    {
+      "id": "ask_mia",
+      "tool": "chat",
+      "label": "Ask Mia what happened",
+      "kind": "ask",
+      "character": "mia",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "what_happened"
+        ]
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_declared"
+          ]
+        },
+        {
+          "reveal": [
+            "f_docket"
+          ]
+        }
+      ],
+      "score": {
+        "investigation": 4
+      },
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "messages": [
+        {
+          "character": "mia",
+          "text": "He told me about the peanut allergy and I wrote NUT ALLERGY on the docket. I told the pass too."
+        }
+      ]
+    },
+    {
+      "id": "ask_chef",
+      "tool": "chat",
+      "label": "Ask the chef how the dish was prepared",
+      "kind": "ask",
+      "character": "luca",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "prep"
+        ]
+      },
+      "effects": [
+        {
+          "reveal": [
+            "f_garnish"
+          ]
+        },
+        {
+          "set": {
+            "cause_found": true
+          }
+        }
+      ],
+      "score": {
+        "investigation": 5
+      },
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "messages": [
+        {
+          "character": "luca",
+          "text": "We ran out of the nut-free garnish at 7:40. Sam grabbed the satay station tray. Damn."
+        }
+      ]
+    },
+    {
+      "id": "check_kitchen_log",
+      "tool": "kitchen",
+      "label": "Check the kitchen docket log",
+      "kind": "inspect",
+      "listed": true,
+      "score": {
+        "investigation": 4
+      },
+      "effects": [
+        {
+          "set": {
+            "cause_found": true
+          }
+        }
+      ],
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "Docket #4471 flagged NUT ALLERGY; garnish taken from the satay station tray at 19:42.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "check_allergen_chart",
+      "tool": "kitchen",
+      "label": "Check the allergen matrix",
+      "kind": "inspect",
+      "listed": true,
+      "score": {
+        "investigation": 2,
+        "compliance": 1
+      },
+      "effects": [],
+      "classification": "correct",
+      "time_cost": 0.5,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "Green curry is nut-free when plated with the standard herb garnish; satay garnish contains crushed peanuts.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "remove_hazard",
+      "tool": "kitchen",
+      "label": "Pull the satay garnish tray from shared use and re-brief the line",
+      "kind": "command",
+      "listed": true,
+      "score": {
+        "compliance": 3,
+        "guest_safety": 2
+      },
+      "effects": [
+        {
+          "set": {
+            "hazard_removed": true
+          }
+        }
+      ],
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "Tray segregated, allergen-only utensils issued, line re-briefed.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "voucher_only",
+      "tool": "floor",
+      "label": "Offer a voucher for next visit",
+      "kind": "command",
+      "listed": true,
+      "score": {},
+      "effects": [
+        {
+          "set": {
+            "voucher_only": true
+          }
+        }
+      ],
+      "classification": "incorrect",
+      "time_cost": 0.5,
+      "feedback": "",
+      "outputs": [],
+      "messages": [],
+      "description": "",
+      "branches": [
+        {
+          "id": "after_safety",
+          "when": {
+            "or": [
+              {
+                "var": "symptoms_checked"
+              },
+              {
+                "var": "medical_called"
+              }
+            ]
+          },
+          "classification": "neutral",
+          "score": {},
+          "messages": [
+            {
+              "character": "daniel",
+              "text": "Thanks, I suppose."
+            }
+          ]
+        },
+        {
+          "id": "before_safety",
+          "when": true,
+          "classification": "incorrect",
+          "effects": [
+            {
+              "inc": {
+                "guest_patience": -15
+              }
+            }
+          ],
+          "score": {
+            "service_recovery": -4
+          },
+          "messages": [
+            {
+              "character": "daniel",
+              "text": "A voucher? I'm having an allergic reaction!"
+            }
+          ],
+          "feedback": "Compensation before checking on the guest's health signals the wrong priorities."
+        }
+      ]
+    },
+    {
+      "id": "ask_to_leave",
+      "tool": "floor",
+      "label": "Ask the guest to calm down or leave",
+      "kind": "command",
+      "listed": true,
+      "score": {
+        "service_recovery": -10,
+        "guest_safety": -10
+      },
+      "effects": [
+        {
+          "set": {
+            "case_status": "Guest left"
+          }
+        },
+        {
+          "complete": "failure"
+        }
+      ],
+      "classification": "critical",
+      "time_cost": 0.5,
+      "feedback": "Sending away a guest who may be having an allergic reaction is dangerous and indefensible.",
+      "outputs": [],
+      "messages": [
+        {
+          "character": "daniel",
+          "text": "Unbelievable. I'm calling the council."
+        }
+      ],
+      "description": ""
+    },
+    {
+      "id": "notify_supervisor",
+      "tool": "office",
+      "label": "Notify the licensee / food safety supervisor",
+      "kind": "escalate",
+      "listed": true,
+      "score": {
+        "compliance": 3
+      },
+      "effects": [
+        {
+          "set": {
+            "supervisor_notified": true
+          }
+        }
+      ],
+      "classification": "correct",
+      "time_cost": 1.0,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "Food safety supervisor notified; will review the allergen procedure tomorrow.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": ""
+    },
+    {
+      "id": "write_incident_report",
+      "tool": "office",
+      "label": "Complete incident report FS-03",
+      "kind": "document",
+      "listed": true,
+      "score": {},
+      "effects": [],
+      "classification": "correct",
+      "time_cost": 3,
+      "feedback": "",
+      "outputs": [
+        {
+          "text": "Incident report FS-03 saved.",
+          "format": "markdown"
+        }
+      ],
+      "messages": [],
+      "description": "",
+      "branches": [
+        {
+          "id": "good",
+          "classification": "correct",
+          "when": {
+            ">=": [
+              {
+                "count_keywords": [
+                  {
+                    "var": "$input.text"
+                  },
+                  [
+                    [
+                      "peanut",
+                      "nut",
+                      "allergen",
+                      "allergy"
+                    ],
+                    [
+                      "garnish",
+                      "satay",
+                      "tray"
+                    ],
+                    [
+                      "first aid",
+                      "ambulance",
+                      "epipen",
+                      "medical"
+                    ],
+                    [
+                      "docket",
+                      "server",
+                      "mia"
+                    ],
+                    [
+                      "19:4",
+                      "time",
+                      "pm"
+                    ]
+                  ]
+                ]
+              },
+              3
+            ]
+          },
+          "effects": [
+            {
+              "set": {
+                "incident_reported": true,
+                "case_status": "Reported"
+              }
+            }
+          ],
+          "score": {
+            "compliance": 5
+          }
+        },
+        {
+          "id": "thin",
+          "when": true,
+          "classification": "neutral",
+          "effects": [
+            {
+              "set": {
+                "incident_reported": true,
+                "case_status": "Reported"
+              }
+            }
+          ],
+          "score": {
+            "compliance": 1
+          },
+          "feedback": "Record the allergen, cause, timeline and first aid given."
+        }
+      ],
+      "input": {
+        "type": "free_text",
+        "min_length": 30,
+        "placeholder": "What happened, actions taken, cause…"
+      }
+    },
+    {
+      "id": "close_case",
+      "tool": "office",
+      "label": "Close the case",
+      "kind": "submit",
+      "listed": true,
+      "score": {},
+      "effects": [],
+      "classification": "correct",
+      "time_cost": 0.5,
+      "feedback": "",
+      "outputs": [],
+      "messages": [],
+      "description": "",
+      "branches": [
+        {
+          "id": "unsafe",
+          "when": {
+            "!": {
+              "or": [
+                {
+                  "var": "symptoms_checked"
+                },
+                {
+                  "var": "medical_called"
+                }
+              ]
+            }
+          },
+          "classification": "critical",
+          "effects": [
+            {
+              "complete": "failure"
+            }
+          ],
+          "score": {
+            "guest_safety": -10
+          },
+          "feedback": "You closed the case without ever checking on the guest's health."
+        },
+        {
+          "id": "unreported",
+          "when": {
+            "!": {
+              "var": "incident_reported"
+            }
+          },
+          "classification": "incorrect",
+          "effects": [
+            {
+              "transition": "FOLLOW_UP"
+            },
+            {
+              "complete": "success"
+            }
+          ],
+          "score": {
+            "compliance": -3
+          },
+          "feedback": "Allergen incidents must be recorded."
+        },
+        {
+          "id": "ok",
+          "when": true,
+          "classification": "correct",
+          "effects": [
+            {
+              "set": {
+                "case_status": "Closed"
+              }
+            },
+            {
+              "transition": "FOLLOW_UP"
+            },
+            {
+              "complete": "success"
+            }
+          ],
+          "score": {
+            "service_recovery": 2
+          }
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "reaction_worsens",
+      "title": "Guest's symptoms worsen",
+      "classification": "incorrect",
+      "trigger": {
+        "type": "time",
+        "at_minutes": 3,
+        "condition": {
+          "!": {
+            "or": [
+              {
+                "var": "symptoms_checked"
+              },
+              {
+                "var": "medical_called"
+              }
+            ]
+          }
+        }
+      },
+      "effects": [
+        {
+          "set": {
+            "deteriorated": true
+          }
+        }
+      ],
+      "score": {
+        "guest_safety": -5
+      },
+      "notify": "Daniel is coughing and scratching at his throat.",
+      "feedback": "Every minute matters in an allergic reaction. Assess the guest first."
+    },
+    {
+      "id": "guest_threatens_review",
+      "title": "Guest threatens a public review",
+      "trigger": {
+        "type": "condition",
+        "condition": {
+          "<=": [
+            {
+              "var": "guest_patience"
+            },
+            20
+          ]
+        }
+      },
+      "score": {
+        "service_recovery": -3
+      },
+      "messages": [
+        {
+          "character": "daniel",
+          "text": "I'm posting about this everywhere."
+        }
+      ]
+    }
+  ],
+  "scoring": {
+    "dimensions": [
+      {
+        "id": "guest_safety",
+        "name": "Guest safety",
+        "weight": 35,
+        "max_points": 18
+      },
+      {
+        "id": "service_recovery",
+        "name": "Service recovery",
+        "weight": 25,
+        "max_points": 9
+      },
+      {
+        "id": "investigation",
+        "name": "Investigation",
+        "weight": 20,
+        "max_points": 12
+      },
+      {
+        "id": "compliance",
+        "name": "Compliance & reporting",
+        "weight": 10,
+        "max_points": 10
+      },
+      {
+        "id": "efficiency",
+        "name": "Efficiency",
+        "weight": 10,
+        "max_points": 10
+      }
+    ],
+    "efficiency": {
+      "dimension": "efficiency",
+      "target_minutes": 15,
+      "max_minutes": 40
+    },
+    "process": {
+      "dimension": "investigation",
+      "required_order": [
+        "INITIAL",
+        "ASSESS",
+        "INVESTIGATE",
+        "RESOLVE",
+        "FOLLOW_UP"
+      ],
+      "skip_penalty": 3
+    },
+    "bands": [
+      {
+        "name": "Expert",
+        "min": 95
+      },
+      {
+        "name": "Advanced",
+        "min": 85
+      },
+      {
+        "name": "Competent",
+        "min": 70
+      },
+      {
+        "name": "Needs Improvement",
+        "min": 50
+      },
+      {
+        "name": "Fail",
+        "min": 0
+      }
+    ],
+    "pass_mark": 70,
+    "critical_cap": 49
+  },
+  "completion": {
+    "success": {
+      "action_taken": "close_case"
+    },
+    "max_sim_minutes": 60
+  },
+  "feedback_rules": [
+    {
+      "id": "s_safety",
+      "type": "strength",
+      "priority": 5,
+      "when": {
+        "var": "symptoms_checked"
+      },
+      "text": "You checked the guest's symptoms straight away. Safety comes first."
+    },
+    {
+      "id": "s_cause",
+      "type": "strength",
+      "when": {
+        "var": "cause_found"
+      },
+      "text": "You traced the cross-contact to the shared garnish tray."
+    },
+    {
+      "id": "i_blame",
+      "type": "improvement",
+      "priority": 6,
+      "when": {
+        "var": "blamed"
+      },
+      "text": "Questioning the guest escalated the conflict."
+    },
+    {
+      "id": "i_slow",
+      "type": "improvement",
+      "when": {
+        "var": "deteriorated"
+      },
+      "text": "The guest's symptoms worsened while you dealt with other things."
+    },
+    {
+      "id": "m_medical",
+      "type": "missed_step",
+      "when": {
+        "!": {
+          "var": "medical_called"
+        }
+      },
+      "text": "Offer first aid / emergency services whenever a guest reports allergic symptoms."
+    },
+    {
+      "id": "m_hazard",
+      "type": "missed_step",
+      "when": {
+        "!": {
+          "var": "hazard_removed"
+        }
+      },
+      "text": "Remove the hazard so the next allergic guest isn't affected."
+    },
+    {
+      "id": "m_report",
+      "type": "missed_step",
+      "when": {
+        "!": {
+          "var": "incident_reported"
+        }
+      },
+      "text": "Complete the incident report."
+    },
+    {
+      "id": "t_supervisor",
+      "type": "tip",
+      "when": {
+        "!": {
+          "var": "supervisor_notified"
+        }
+      },
+      "text": "Notify the food safety supervisor so procedures can be reviewed."
+    }
+  ],
+  "settings": {
+    "unknown_input": {
+      "penalty": {
+        "service_recovery": -1
+      },
+      "max_penalised": 3
+    },
+    "repeat": {
+      "mode": "diminish",
+      "free_repeats": 1,
+      "penalty": {}
+    }
+  }
+}

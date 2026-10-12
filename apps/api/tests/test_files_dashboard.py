@@ -2,12 +2,15 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 
+from sqlalchemy import func, select
+
 from app.models.ai import AIGeneration
 from app.models.assignment import Submission
 from app.models.learning import ActivityDay
 from app.models.platform import Certificate, Recommendation
 from app.models.simulation import SimulationScenario, SimulationSession
 from app.modules.dashboard.service import streaks
+from app.modules.progress.service import local_today
 from tests.learning_utils import (
     API,
     add_lesson,
@@ -135,7 +138,7 @@ LEARNER_KEYS = {
 }
 
 
-async def test_learner_dashboard_contract(client):
+async def test_learner_dashboard_contract(client, db):
     admin = await org_with_admin(client)
     learner = await learner_in(admin.org_id)
     empty = (await client.get(f"{API}/dashboard/learner", headers=learner.headers)).json()
@@ -184,7 +187,7 @@ async def test_learner_dashboard_contract(client):
     await graded_attempt(admin.org_id, learner.user_id, quiz.id, 88)
 
     now = datetime.now(UTC)
-    yesterday = date.today() - timedelta(days=1)
+    yesterday = local_today("Australia/Sydney") - timedelta(days=1)
     (scen,) = await insert(
         SimulationScenario(organisation_id=admin.org_id, simulation_id=sim.id, version=1, definition={})
     )
@@ -238,7 +241,12 @@ async def test_learner_dashboard_contract(client):
     d = (await client.get(f"{API}/dashboard/learner", headers=learner.headers)).json()
     assert set(d) == LEARNER_KEYS
     st = d["stats"]
-    assert st["courses_in_progress"] == 1 and st["courses_completed"] == 1 and st["certificates"] == 1
+    # the certificates module may also auto-issue one on course.completed
+    n_certs = await db.scalar(
+        select(func.count()).select_from(Certificate).where(Certificate.user_id == learner.user_id)
+    )
+    assert st["courses_in_progress"] == 1 and st["courses_completed"] == 1
+    assert st["certificates"] == n_certs >= 1
     assert st["streak_days"] == 2 and st["longest_streak"] == 2 and st["learning_minutes_week"] == 11
     assert st["average_score"] is None  # completed course had no graded components
 
@@ -277,7 +285,8 @@ async def test_learner_dashboard_contract(client):
         "completed_at",
     }
     assert sr["title"] == "Outage drill" and sr["total_score"] == 82.5
-    (cert,) = d["certificates"]
+    assert len(d["certificates"]) == n_certs
+    cert = d["certificates"][0]
     assert set(cert) == {"id", "certificate_number", "course_title", "issued_at"}
     (rec,) = d["recommendations"]
     assert set(rec) == {"id", "kind", "title", "reason", "target_type", "target_id", "course_id"}
@@ -293,7 +302,7 @@ async def test_learner_dashboard_contract(client):
     } <= types
     assert all(set(a) == {"type", "title", "at", "link"} for a in d["recent_activity"])
     assert len(d["recent_activity"]) <= 10
-    assert d["activity_heatmap"][-1] == {"day": date.today().isoformat(), "seconds": 90}
+    assert d["activity_heatmap"][-1] == {"day": local_today("Australia/Sydney").isoformat(), "seconds": 90}
     assert d["activity_heatmap"][-2]["seconds"] == 600
 
 

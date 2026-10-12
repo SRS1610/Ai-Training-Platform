@@ -214,10 +214,18 @@ class OutcomeSpec(_Model):
 
 
 class Branch(OutcomeSpec):
-    """Alternative outcome selected (first match wins) by ``when``, evaluated *before* effects apply."""
+    """Alternative outcome selected (first match wins) by ``when``, evaluated *before* effects apply.
+
+    The action's own ``effects`` and ``messages`` always apply first (shared consequences), followed by the
+    branch's. ``score``, ``classification``, ``feedback``, ``outputs`` and ``time_cost`` replace the action's
+    values when set on the branch (``None`` = inherit from the action)."""
 
     id: str | None = None
     when: Condition = True
+    score: dict[str, float] | None = None  # type: ignore[assignment]
+    classification: Classification | None = None  # type: ignore[assignment]
+    feedback: str | None = None  # type: ignore[assignment]
+    outputs: list[Output] | None = None  # type: ignore[assignment]
 
 
 class Choice(_Model):
@@ -410,6 +418,23 @@ class SimulationDefinition(_Model):
 
     def dimension_ids(self) -> list[str]:
         return [d.id for d in self.scoring.dimensions]
+
+
+def resolve_outcome(action: Action, branch: Branch | None) -> OutcomeSpec:
+    """The effective outcome of ``action`` when ``branch`` (or no branch) matched."""
+    if branch is None:
+        return OutcomeSpec(effects=action.effects, score=action.score, classification=action.classification,
+                           feedback=action.feedback, outputs=action.outputs, messages=action.messages,
+                           time_cost=action.time_cost)
+    return OutcomeSpec(
+        effects=[*action.effects, *branch.effects],
+        messages=[*action.messages, *branch.messages],
+        score=branch.score if branch.score is not None else action.score,
+        classification=branch.classification or action.classification,
+        feedback=branch.feedback if branch.feedback is not None else action.feedback,
+        outputs=branch.outputs if branch.outputs is not None else action.outputs,
+        time_cost=branch.time_cost if branch.time_cost is not None else action.time_cost,
+    )
 
 
 def parse_definition(data: SimulationDefinition | dict[str, Any]) -> SimulationDefinition:

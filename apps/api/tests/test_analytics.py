@@ -1,4 +1,5 @@
-"""Analytics: numbers on a known seeded data set, permissions, tenant isolation, date ranges, platform view."""
+"""Analytics: numbers on a known seeded data set, permissions, tenant isolation, date ranges, platform
+view."""
 
 from __future__ import annotations
 
@@ -33,7 +34,11 @@ async def test_learner_me(client, scenario):
     assert s["enrolments"] == 1 and s["in_progress"] == 1 and s["overdue"] == 1 and s["completed"] == 0
     assert s["completion_rate"] == 0.0 and s["time_spent_seconds"] == 1800
     assert s["attempts"] == 1 and s["avg_attempt_pct"] == pytest.approx(33.3, abs=0.1)
-    assert s["attempt_pass_rate"] == 0.0 and s["simulations_completed"] == 1 and s["avg_simulation_score"] == 60.0
+    assert (
+        s["attempt_pass_rate"] == 0.0
+        and s["simulations_completed"] == 1
+        and s["avg_simulation_score"] == 60.0
+    )
     assert s["avg_assignment_score"] == 45.0 and s["active_days_30d"] == 1
     assert d["courses"][0]["title"] == "Network Security 101" and d["courses"][0]["overdue"] is True
     kinds = sorted(x["kind"] for x in d["scores_over_time"])
@@ -85,9 +90,13 @@ async def test_course_analytics(client, scenario):
     q1, q2, q3 = (str(i) for i in sc.question_ids)
     assert q[q2]["p_value"] == pytest.approx(0.333, abs=0.001) and q[q2]["difficulty"] == "hard"
     assert q[q2]["discrimination"] == pytest.approx(1.0, abs=0.001)
-    assert q[q1]["p_value"] == pytest.approx(0.667, abs=0.001) and q[q1]["discrimination"] == pytest.approx(0.5, abs=0.01)
+    assert q[q1]["p_value"] == pytest.approx(0.667, abs=0.001) and q[q1]["discrimination"] == pytest.approx(
+        0.5, abs=0.01
+    )
     assert d["questions"][0]["question_id"] == q2  # hardest first
-    assert d["most_failed_questions"][0]["question_id"] == q2 and d["most_failed_questions"][0]["incorrect"] == 2
+    assert (
+        d["most_failed_questions"][0]["question_id"] == q2 and d["most_failed_questions"][0]["incorrect"] == 2
+    )
 
     a = d["assessments"][0]
     assert a["attempts"] == 3 and a["learners"] == 3 and a["pass_rate"] == pytest.approx(33.3, abs=0.1)
@@ -96,8 +105,13 @@ async def test_course_analytics(client, scenario):
     dist = {b["bucket"]: b["count"] for b in asg["distribution"]}
     assert dist["0-49"] == 1 and dist["80-89"] == 1 and sum(dist.values()) == 2
     sim = d["simulations"][0]
-    assert sim["completed"] == 2 and sim["avg_score"] == 75.0 and sim["bands"] == {"expert": 1, "developing": 1}
-    assert {x["dimension"]: x["avg_score"] for x in sim["dimensions"]} == {"diagnosis": 60.0, "communication": 80.0}
+    assert (
+        sim["completed"] == 2 and sim["avg_score"] == 75.0 and sim["bands"] == {"expert": 1, "developing": 1}
+    )
+    assert {x["dimension"]: x["avg_score"] for x in sim["dimensions"]} == {
+        "diagnosis": 60.0,
+        "communication": 80.0,
+    }
 
     overview = (await client.get(f"{API}/courses", headers=admin.headers)).json()["items"]
     assert overview[0]["course_id"] == str(sc.course.id) and overview[0]["enrolments"] == 3
@@ -130,8 +144,9 @@ async def test_organisation_analytics(client, scenario):
     assert d["top_performers"][0]["full_name"] == "Learner 1"
 
     # department filter
-    r = await client.get(f"{API}/organisation", params={"department_id": str(sc.department_id)},
-                         headers=admin.headers)
+    r = await client.get(
+        f"{API}/organisation", params={"department_id": str(sc.department_id)}, headers=admin.headers
+    )
     d = r.json()
     assert d["summary"]["members"] == 2 and d["summary"]["enrolments"] == 2
     assert d["skill_gaps"][0]["learners"] == 2 and d["skill_gaps"][0]["meeting"] == 1
@@ -140,8 +155,9 @@ async def test_organisation_analytics(client, scenario):
     future = (today() + timedelta(days=10)).isoformat()
     r = await client.get(f"{API}/organisation", params={"start": future}, headers=admin.headers)
     assert r.json()["summary"]["enrolments"] == 0
-    bad = await client.get(f"{API}/organisation", params={"start": future, "end": today().isoformat()},
-                           headers=admin.headers)
+    bad = await client.get(
+        f"{API}/organisation", params={"start": future, "end": today().isoformat()}, headers=admin.headers
+    )
     assert bad.status_code == 400
     learner = sc.learners[0]
     assert (await client.get(f"{API}/organisation", headers=learner.headers)).status_code == 403
@@ -159,10 +175,27 @@ async def test_platform_requires_superadmin(client, scenario):
     from decimal import Decimal
 
     async with tenant_session(admin.org_id) as s:
-        s.add(Payment(organisation_id=admin.org_id, stripe_invoice_id="in_platform_1", amount_cents=4900,
-                      status="paid", paid_at=datetime.now(UTC)))
-        s.add(AIUsage(organisation_id=admin.org_id, created_at=datetime.now(UTC), feature="tutor",
-                      provider="openai", model="gpt-4o-mini", tokens_in=10, tokens_out=5, cost_usd=Decimal("1.5")))
+        s.add(
+            Payment(
+                organisation_id=admin.org_id,
+                stripe_invoice_id="in_platform_1",
+                amount_cents=4900,
+                status="paid",
+                paid_at=datetime.now(UTC),
+            )
+        )
+        s.add(
+            AIUsage(
+                organisation_id=admin.org_id,
+                created_at=datetime.now(UTC),
+                feature="tutor",
+                provider="openai",
+                model="gpt-4o-mini",
+                tokens_in=10,
+                tokens_out=5,
+                cost_usd=Decimal("1.5"),
+            )
+        )
     r = await client.get(f"{API}/platform", headers=admin.headers)
     assert r.status_code == 200, r.text
     d = r.json()

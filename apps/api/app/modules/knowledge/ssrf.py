@@ -28,18 +28,39 @@ MAX_BYTES = 5 * 1024 * 1024
 TIMEOUT_SECONDS = 15.0
 MAX_REDIRECTS = 3
 ALLOWED_PORTS = {None, 80, 443, 8080, 8443}
-BLOCKED_HOSTNAMES = {"localhost", "localhost.localdomain", "metadata", "metadata.google.internal",
-                     "metadata.goog", "instance-data", "instance-data.ec2.internal", "kubernetes.default",
-                     "kubernetes.default.svc"}
+BLOCKED_HOSTNAMES = {
+    "localhost",
+    "localhost.localdomain",
+    "metadata",
+    "metadata.google.internal",
+    "metadata.goog",
+    "instance-data",
+    "instance-data.ec2.internal",
+    "kubernetes.default",
+    "kubernetes.default.svc",
+}
 BLOCKED_SUFFIXES = (".localhost", ".local", ".internal", ".svc", ".cluster.local", ".home.arpa")
 ALLOWED_CONTENT_TYPES = {
-    "text/html", "application/xhtml+xml", "text/plain", "text/markdown", "application/pdf",
+    "text/html",
+    "application/xhtml+xml",
+    "text/plain",
+    "text/markdown",
+    "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "application/octet-stream",
 }
-_EXTRA_BLOCKED = [ipaddress.ip_network(n) for n in ("100.64.0.0/10", "192.0.0.0/24", "198.18.0.0/15",
-                                                     "64:ff9b::/96", "64:ff9b:1::/48", "fd00:ec2::/32")]
+_EXTRA_BLOCKED = [
+    ipaddress.ip_network(n)
+    for n in (
+        "100.64.0.0/10",
+        "192.0.0.0/24",
+        "198.18.0.0/15",
+        "64:ff9b::/96",
+        "64:ff9b:1::/48",
+        "fd00:ec2::/32",
+    )
+]
 
 
 class UnsafeURL(BadRequest):
@@ -59,8 +80,16 @@ def ip_is_blocked(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
             return ip_is_blocked(ip.ipv4_mapped)
         if ip.sixtofour is not None and ip_is_blocked(ip.sixtofour):
             return True
-    return (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved
-            or ip.is_unspecified or not ip.is_global or any(ip in n for n in _EXTRA_BLOCKED))
+    return (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+        or not ip.is_global
+        or any(ip in n for n in _EXTRA_BLOCKED)
+    )
 
 
 def validate_url(url: str) -> tuple[str, int | None]:
@@ -119,12 +148,23 @@ async def check_url(url: str) -> None:
 fetch_transport: httpx.AsyncBaseTransport | None = None
 
 
-async def safe_fetch(url: str, *, max_bytes: int = MAX_BYTES, timeout: float = TIMEOUT_SECONDS,  # noqa: ASYNC109
-                     max_redirects: int = MAX_REDIRECTS) -> FetchResult:
+async def safe_fetch(
+    url: str,
+    *,
+    max_bytes: int = MAX_BYTES,
+    timeout: float = TIMEOUT_SECONDS,  # noqa: ASYNC109
+    max_redirects: int = MAX_REDIRECTS,
+) -> FetchResult:
     current = url
-    async with httpx.AsyncClient(timeout=httpx.Timeout(timeout), follow_redirects=False, transport=fetch_transport,
-                                 headers={"User-Agent": "PraxisKnowledgeBot/1.0 (+knowledge ingestion)",
-                                          "Accept": "text/html,application/pdf,text/plain,*/*;q=0.5"}) as client:
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(timeout),
+        follow_redirects=False,
+        transport=fetch_transport,
+        headers={
+            "User-Agent": "PraxisKnowledgeBot/1.0 (+knowledge ingestion)",
+            "Accept": "text/html,application/pdf,text/plain,*/*;q=0.5",
+        },
+    ) as client:
         for _ in range(max_redirects + 1):
             await check_url(current)
             async with asyncio.timeout(timeout):
@@ -137,7 +177,12 @@ async def safe_fetch(url: str, *, max_bytes: int = MAX_BYTES, timeout: float = T
                         continue
                     if resp.status_code >= 400:
                         raise BadRequest(f"The URL returned HTTP {resp.status_code}", code="fetch_failed")
-                    ctype = resp.headers.get("content-type", "application/octet-stream").split(";")[0].strip().lower()
+                    ctype = (
+                        resp.headers.get("content-type", "application/octet-stream")
+                        .split(";")[0]
+                        .strip()
+                        .lower()
+                    )
                     if ctype not in ALLOWED_CONTENT_TYPES:
                         raise BadRequest(f"Unsupported content type '{ctype}'", code="unsupported_content")
                     length = resp.headers.get("content-length")

@@ -1,0 +1,215 @@
+"use client";
+
+import type { SearchHit } from "@praxis/types";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  Kbd,
+  Spinner,
+  categoryClasses,
+  cn,
+  colorClasses,
+  humanize,
+} from "@praxis/ui";
+import { useQuery } from "@tanstack/react-query";
+import { CornerDownLeft, FileText, LogOut, Search, ShieldCheck, UserRound } from "lucide-react";
+import { useRouter } from "next/navigation";
+import * as React from "react";
+import { isNotDeployed } from "@/components/common/error-state";
+import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { visibleNav } from "@/lib/nav";
+import { qk } from "@/lib/query-keys";
+
+const TYPE_ROUTES: Record<string, (id: string) => string> = {
+  course: (id) => `/app/learn/${id}`,
+  courses: (id) => `/app/learn/${id}`,
+  lesson: () => `/app/learning`,
+  user: (id) => `/app/admin/users/${id}`,
+  users: (id) => `/app/admin/users/${id}`,
+  simulation: (id) => `/app/simulations/${id}`,
+  simulations: (id) => `/app/simulations/${id}`,
+  assignment: (id) => `/app/assignments/${id}`,
+  assignments: (id) => `/app/assignments/${id}`,
+  learning_path: () => `/app/learning`,
+  certificate: () => `/app/certificates`,
+};
+
+/** Normalise the (concurrently built) search response into a flat list of hits. */
+export function normaliseSearch(data: unknown): SearchHit[] {
+  if (!data || typeof data !== "object") return [];
+  const d = data as Record<string, unknown>;
+  const list = Array.isArray(d.items) ? d.items : Array.isArray(d.results) ? d.results : Array.isArray(data) ? (data as unknown[]) : null;
+  if (list) return list as SearchHit[];
+  const out: SearchHit[] = [];
+  for (const [group, items] of Object.entries(d)) {
+    if (Array.isArray(items)) for (const it of items) out.push({ type: group.replace(/s$/, ""), ...(it as object) } as SearchHit);
+  }
+  return out;
+}
+
+function hitHref(h: SearchHit): string {
+  return h.link ?? h.url ?? TYPE_ROUTES[h.type]?.(h.id) ?? "/app/dashboard";
+}
+
+export function useCommandPaletteHotkey(setOpen: React.Dispatch<React.SetStateAction<boolean>>) {
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing = target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+      if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setOpen((o) => !o);
+      } else if (e.key === "/" && !typing) {
+        e.preventDefault();
+        setOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setOpen]);
+}
+
+export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const router = useRouter();
+  const { can, user, logout } = useAuth();
+  const [q, setQ] = React.useState("");
+  const [debounced, setDebounced] = React.useState("");
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebounced(q.trim()), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+  React.useEffect(() => {
+    if (!open) setQ("");
+  }, [open]);
+
+  const search = useQuery({
+    queryKey: qk.search(debounced),
+    queryFn: ({ signal }) => api.get<unknown>("/search", { query: { q: debounced, limit: 20 }, signal }),
+    enabled: open && debounced.length >= 2,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const hits = normaliseSearch(search.data);
+  const grouped = hits.reduce<Record<string, SearchHit[]>>((acc, h) => {
+    (acc[h.type] ??= []).push(h);
+    return acc;
+  }, {});
+
+  const nav = visibleNav(can, !!user?.is_superadmin).flatMap((s) => s.items.map((i) => ({ ...i, section: s.label })));
+  const needle = q.trim().toLowerCase();
+  const navMatches = needle ? nav.filter((n) => `${n.label} ${n.section} ${n.description ?? ""}`.toLowerCase().includes(needle)) : nav.slice(0, 8);
+
+  const go = (href: string) => {
+    onOpenChange(false);
+    router.push(href);
+  };
+
+  return (
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      label="Search Praxis"
+      shouldFilter={false}
+      footer={
+        <span className="flex items-center gap-4">
+          <span className="flex items-center gap-1">
+            <Kbd>↑</Kbd>
+            <Kbd>↓</Kbd> navigate
+          </span>
+          <span className="flex items-center gap-1">
+            <Kbd>
+              <CornerDownLeft className="size-3" />
+            </Kbd>{" "}
+            open
+          </span>
+          <span className="flex items-center gap-1">
+            <Kbd>esc</Kbd> close
+          </span>
+        </span>
+      }
+    >
+      <CommandInput
+        value={q}
+        onValueChange={setQ}
+        placeholder="Search courses, simulations, people, pages…"
+        trailing={search.isFetching ? <Spinner label="Searching" /> : null}
+      />
+      <CommandList>
+        {debounced.length >= 2 && search.isError && !isNotDeployed(search.error) && (
+          <p className="px-3 py-2 text-xs text-rose-700">Search failed — showing pages only.</p>
+        )}
+        {debounced.length >= 2 && search.isError && isNotDeployed(search.error) && (
+          <p className="px-3 py-2 text-xs text-slate-500">Content search is coming soon — showing matching pages.</p>
+        )}
+        <CommandEmpty>
+          <span className="flex flex-col items-center gap-2">
+            <Search className="size-6 text-slate-300" aria-hidden />
+            No results for “{q}”
+          </span>
+        </CommandEmpty>
+
+        {Object.entries(grouped).map(([type, items]) => {
+          const c = categoryClasses(type);
+          return (
+            <CommandGroup key={type} heading={humanize(type)}>
+              {items.map((h) => (
+                <CommandItem key={`${type}-${h.id}`} value={`${type}-${h.id}`} onSelect={() => go(hitHref(h))}>
+                  <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", c.soft, c.icon)}>
+                    <FileText className="size-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-slate-900">{h.title}</span>
+                    {(h.subtitle || h.snippet) && <span className="block truncate text-xs text-slate-500">{h.subtitle ?? h.snippet}</span>}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          );
+        })}
+
+        {navMatches.length > 0 && (
+          <CommandGroup heading={needle ? "Pages" : "Jump to"}>
+            {navMatches.map((n) => {
+              const c = colorClasses(n.color);
+              const Icon = n.icon;
+              return (
+                <CommandItem key={n.href} value={n.href} onSelect={() => go(n.href)}>
+                  <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-white", c.gradient)}>
+                    <Icon className="size-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-slate-900">{n.label}</span>
+                    <span className="block truncate text-xs text-slate-500">{n.description}</span>
+                  </span>
+                  <span className="text-2xs font-semibold uppercase tracking-wider text-slate-400">{n.section}</span>
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        )}
+        {!needle && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Account">
+              <CommandItem value="profile" onSelect={() => go("/app/profile")}>
+                <UserRound className="size-4 text-slate-500" aria-hidden /> Profile
+              </CommandItem>
+              <CommandItem value="security" onSelect={() => go("/app/profile/security")}>
+                <ShieldCheck className="size-4 text-slate-500" aria-hidden /> Security & sign-in
+              </CommandItem>
+              <CommandItem value="logout" onSelect={() => logout()}>
+                <LogOut className="size-4 text-slate-500" aria-hidden /> Sign out
+              </CommandItem>
+            </CommandGroup>
+          </>
+        )}
+      </CommandList>
+    </CommandDialog>
+  );
+}

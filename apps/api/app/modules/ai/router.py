@@ -18,7 +18,9 @@ async def get_config(ctx: Ctx = Depends(require_permission("ai.manage"))) -> AIC
 
 
 @router.put("/config", response_model=AIConfigOut)
-async def put_config(body: AIConfigUpdate, ctx: Ctx = Depends(require_permission("ai.manage"))) -> AIConfigOut:
+async def put_config(
+    body: AIConfigUpdate, ctx: Ctx = Depends(require_permission("ai.manage"))
+) -> AIConfigOut:
     return await service.update_config(ctx, body)
 
 

@@ -135,7 +135,9 @@ async def on_submission_graded(db: AsyncSession, p: dict[str, Any]) -> None:
         user_id=p["user_id"],
         type="instructor_feedback",
         title=f"Feedback ready: {title}",
-        body=f'Your submission for "{title}" has been graded ({_fmt_score(p.get("final_score"))}, {outcome}).',
+        body=(
+            f'Your submission for "{title}" has been graded ({_fmt_score(p.get("final_score"))}, {outcome}).'
+        ),
         link=f"/app/assignments/{p['assignment_id']}",
         data={
             "submission_id": str(p.get("submission_id")),

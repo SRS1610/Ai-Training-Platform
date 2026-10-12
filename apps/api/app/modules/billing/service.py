@@ -627,7 +627,8 @@ async def _on_invoice(db: AsyncSession, org: Organisation, obj: dict[str, Any], 
             db,
             org.id,
             "Payment failed",
-            f"We couldn't collect payment of {amount}. Please update your payment method to avoid interruption.",
+            f"We couldn't collect payment of {amount}. "
+            "Please update your payment method to avoid interruption.",
             {"invoice_id": invoice_id, "amount_cents": payment.amount_cents},
         )
         await _audit(

@@ -1,4 +1,5 @@
-"""Thin async wrapper over the Stripe SDK (all network calls go through here so tests can monkeypatch them)."""
+"""Thin async wrapper over the Stripe SDK (all network calls go through here so tests can monkeypatch
+them)."""
 
 from __future__ import annotations
 
