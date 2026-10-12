@@ -166,7 +166,7 @@ export function QuestionEditorDialog({
     <Dialog open={open} onOpenChange={(o) => !save.isPending && onOpenChange(o)}>
       <DialogContent className="max-w-6xl gap-0 p-0" aria-describedby={undefined}>
         <div className={cn("h-1.5 rounded-t-3xl bg-gradient-to-r", c.gradient)} aria-hidden />
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-5 p-5 sm:p-6">
             <DialogHeader>
               <DialogTitle>{question ? "Edit question" : "New question"}</DialogTitle>

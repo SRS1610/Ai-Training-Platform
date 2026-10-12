@@ -86,7 +86,7 @@ export function MissionColumn({ feedback, className }: { feedback: Record<number
           })}
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 scrollbar-thin">
+      <div className="relative min-h-0 flex-1 overflow-y-auto p-4 scrollbar-thin">
         <ProblemsList problems={view.problems} className="mb-4" />
         {tab === "brief" && <Brief view={view} />}
         {tab === "facts" && <Facts view={view} lastSeq={lastSeq} />}
@@ -152,7 +152,7 @@ function Brief({ view }: { view: SessionView }) {
 function Facts({ view, lastSeq }: { view: SessionView; lastSeq: number }) {
   // Facts revealed by the latest step are those whose character spoke in that step.
   const freshIds = new Set(
-    view.transcript.some((e) => e.seq === lastSeq && e.kind === "message" && e.from !== "learner") ? view.revealed_facts.slice(-1).map((f) => f.id) : [],
+    lastSeq > 0 && view.transcript.some((e) => e.seq === lastSeq && e.kind === "message" && e.from !== "learner") ? view.revealed_facts.slice(-1).map((f) => f.id) : [],
   );
   if (!view.revealed_facts.length)
     return (

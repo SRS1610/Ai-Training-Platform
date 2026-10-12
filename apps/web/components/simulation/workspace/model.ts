@@ -11,6 +11,8 @@ export interface WorkspaceApp {
   /** Stable across "closed" (tool only) and "open" (panel visible) states. */
   key: string;
   title: string;
+  /** Short label for the app dock (the tool's name when there is one). */
+  label: string;
   type: string;
   panel: ViewPanel | null;
   tools: ViewTool[];
@@ -79,6 +81,7 @@ export function buildApps(view: SessionView): WorkspaceApp[] {
     add({
       key,
       title: p?.title || t.name,
+      label: t.name || p?.title || t.id,
       type: p?.type ?? "closed",
       panel: p,
       tools: [t],
@@ -90,7 +93,7 @@ export function buildApps(view: SessionView): WorkspaceApp[] {
   }
   for (const p of view.panels) {
     if (p.type === "chat" || byKey.has(p.id)) continue;
-    add({ key: p.id, title: p.title || p.id, type: p.type, panel: p, tools: [], actions: [], icon: toolIcon(p.type), color: panelColor(p.type, p.id), commandTools: [] });
+    add({ key: p.id, title: p.title || p.id, label: p.title || p.id, type: p.type, panel: p, tools: [], actions: [], icon: toolIcon(p.type), color: panelColor(p.type, p.id), commandTools: [] });
   }
   // Actions belong to the app of their tool.
   const toolToApp = new Map<string, WorkspaceApp>();

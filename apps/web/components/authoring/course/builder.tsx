@@ -59,7 +59,7 @@ function BuilderSkeleton() {
     <div className="space-y-6" aria-busy aria-label="Loading course builder">
       <Skeleton className="h-36 rounded-3xl" />
       <Skeleton className="h-10 w-80" />
-      <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-2xl" />
@@ -242,7 +242,7 @@ export function CourseBuilder({ courseId }: { courseId: string }) {
 
           <TabsContent value="content">
             {structure.modules.length === 0 ? (
-              <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
                 <CourseOutline structure={structure} selectedLessonId={null} onSelect={(id) => selectLesson(id || null)} onAddLesson={(mid) => setAddFor(structure.modules.find((m) => m.id === mid) ?? null)} />
                 <Card className="p-6">
                   <EmptyState
@@ -261,7 +261,7 @@ export function CourseBuilder({ courseId }: { courseId: string }) {
                 </Card>
               </div>
             ) : (
-              <div className="grid items-start gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+              <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
                 <aside className={cn("lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pb-4 lg:pr-1 lg:scrollbar-thin", lesson && "hidden lg:block")} aria-label="Course outline">
                   <CourseOutline
                     structure={structure}

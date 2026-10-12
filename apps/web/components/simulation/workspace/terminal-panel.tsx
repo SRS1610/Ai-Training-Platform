@@ -58,10 +58,24 @@ export function TerminalPanel({ app, focusRef }: { app: WorkspaceApp; focusRef?:
   const running = pending?.kind === "command" && pending.tool === tool?.id ? pending.text : null;
   const newestOutputKey = [...lines].reverse().find((l) => l.type === "output" && l.seq > mountSeq.current)?.key;
 
+  // Follow the output (including the streamed reveal) unless the learner has scrolled up to read.
+  const stick = React.useRef(true);
+  const content = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     const el = scroller.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  });
+    const inner = content.current;
+    if (!el || !inner || typeof ResizeObserver === "undefined") return;
+    const follow = () => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    };
+    follow();
+    const ro = new ResizeObserver(follow);
+    ro.observe(inner);
+    return () => ro.disconnect();
+  }, []);
+  React.useEffect(() => {
+    if (pending?.kind === "command") stick.current = true;
+  }, [pending]);
 
   const submit = async () => {
     const text = input.trim();
@@ -133,9 +147,14 @@ export function TerminalPanel({ app, focusRef }: { app: WorkspaceApp; focusRef?:
         role="log"
         aria-live="polite"
         aria-label="Terminal output"
-        className="min-h-0 flex-1 cursor-text overflow-y-auto px-4 py-3 font-mono text-[12.5px] leading-[1.55] text-slate-200 scrollbar-thin [scrollbar-color:#334155_transparent]"
+        className="relative min-h-0 flex-1 cursor-text overflow-y-auto px-4 py-3 font-mono text-[12.5px] leading-[1.55] text-slate-200 scrollbar-thin [scrollbar-color:#334155_transparent]"
         onClick={() => window.getSelection()?.toString() || inputRef.current?.focus()}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+        }}
       >
+        <div ref={content}>
         {lines.map((l) =>
           l.type === "output" ? (
             <OutputBlock key={l.key} text={l.text} animate={l.key === newestOutputKey} />
@@ -161,7 +180,7 @@ export function TerminalPanel({ app, focusRef }: { app: WorkspaceApp; focusRef?:
         )}
         {running === null && (
           <form
-            className="mt-2 flex items-center gap-2"
+            className="-mx-1.5 mt-2 flex items-center gap-2 rounded-md px-1.5 py-0.5 ring-1 ring-transparent focus-within:bg-white/[0.04] focus-within:ring-teal-400/50"
             onSubmit={(e) => {
               e.preventDefault();
               void submit();
@@ -190,6 +209,7 @@ export function TerminalPanel({ app, focusRef }: { app: WorkspaceApp; focusRef?:
             />
           </form>
         )}
+        </div>
       </div>
       <footer className="flex items-center justify-between gap-3 border-t border-white/10 bg-[#111a2e] px-4 py-1.5 font-mono text-2xs text-slate-500">
         <span>↑/↓ history · cls to clear · Ctrl+L</span>

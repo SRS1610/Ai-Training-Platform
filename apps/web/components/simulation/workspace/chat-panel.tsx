@@ -176,7 +176,7 @@ export function ChatPanel({
         </div>
       </header>
 
-      <div ref={scroller} className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-gradient-to-b from-slate-50/80 to-white px-4 py-4 scrollbar-thin" role="log" aria-live="polite" aria-label={`Conversation with ${character.name}`}>
+      <div ref={scroller} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto bg-gradient-to-b from-slate-50/80 to-white px-4 py-4 scrollbar-thin" role="log" aria-live="polite" aria-label={`Conversation with ${character.name}`}>
         {items.length === 0 && !sending && (
           <p className="mx-auto max-w-xs py-8 text-center text-sm text-muted-foreground">No messages with {firstName(character.name)} yet. Say hello to get started.</p>
         )}
@@ -185,7 +185,7 @@ export function ChatPanel({
             <div key={m.key} className="flex justify-end">
               <div className="max-w-[85%]">
                 <div className="rounded-2xl rounded-br-md bg-gradient-to-br from-indigo-600 to-violet-600 px-3.5 py-2 text-sm text-white shadow-sm">{m.text}</div>
-                {m.minutes !== undefined && <p className="mt-0.5 text-right font-mono text-2xs text-slate-400">T+{simClock(m.minutes)}</p>}
+                {m.minutes !== undefined && <p className="mt-0.5 text-right font-mono text-2xs text-slate-500">T+{simClock(m.minutes)}</p>}
               </div>
             </div>
           ) : (
@@ -193,7 +193,7 @@ export function ChatPanel({
               <CharacterAvatar c={character} size="sm" />
               <div className="max-w-[85%]">
                 <div className="rounded-2xl rounded-bl-md border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 shadow-sm">{m.text}</div>
-                {m.minutes !== undefined && <p className="mt-0.5 font-mono text-2xs text-slate-400">T+{simClock(m.minutes)}</p>}
+                {m.minutes !== undefined && <p className="mt-0.5 font-mono text-2xs text-slate-500">T+{simClock(m.minutes)}</p>}
               </div>
             </div>
           ),

@@ -97,9 +97,9 @@ export function PatienceMeter({ character, compact }: { character: ViewCharacter
       >
         <CharacterAvatar c={character} size="sm" className="size-6 text-[9px]" />
         {!compact && (
-          <div className="w-16">
+          <div className="w-[5.5rem]">
             <div className="flex items-center justify-between text-2xs">
-              <span className={cn("font-semibold", c.text)}>{tone.label}</span>
+              <span className={cn("truncate font-semibold", c.text)}>{tone.label}</span>
               <span className="tabular-nums text-slate-500">{p}%</span>
             </div>
             <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-slate-100">

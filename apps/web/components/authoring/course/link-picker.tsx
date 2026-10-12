@@ -24,7 +24,7 @@ interface Option {
 const CONFIG: Record<LinkKind, { noun: string; path: string; perm: string; editHref: (id: string) => string }> = {
   quiz: { noun: "assessment", path: "/assessments", perm: "assessments.manage", editHref: (id) => `/app/instructor/assessments/${id}` },
   assignment: { noun: "assignment", path: "/assignments", perm: "assignments.manage", editHref: (id) => `/app/instructor/assignments/${id}` },
-  simulation: { noun: "simulation", path: "/simulations", perm: "simulations.manage", editHref: (id) => `/app/instructor/simulations/${id}/builder` },
+  simulation: { noun: "simulation", path: "/simulations", perm: "simulations.manage", editHref: (id) => `/app/instructor/simulations/${id}` },
 };
 
 export function editHrefFor(kind: string, id: string): string | null {

@@ -70,6 +70,7 @@ ignore = ["S101", "B008", "S311", "UP040", "UP042", "UP046"]
 "tests/**" = ["S105", "S106", "S108"]
 "app/models/identity.py" = ["S105"]  # token purpose names, not secrets
 "app/seed/**" = ["S105", "S106"]
+"app/seed/{content_*,people,sims}.py" = ["E501"]  # prose and data tables
 
 [tool.coverage.run]
 source = ["app", "simulation_engine", "praxis_ai"]

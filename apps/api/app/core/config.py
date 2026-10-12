@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 20
     DATABASE_ECHO: bool = False
+    # Pre-ping validates each pooled connection on checkout. With asyncpg that is three round trips
+    # (BEGIN; ping; ROLLBACK) per request, so it can be disabled where connections are not dropped
+    # underneath the pool (local dev, CI, seeding); stale connections are still recycled.
+    DATABASE_POOL_PRE_PING: bool = True
+    DATABASE_POOL_RECYCLE_SECONDS: int = 1800
     REDIS_URL: str = "redis://localhost:6379/0"
     CELERY_BROKER_URL: str | None = None
     CELERY_TASK_ALWAYS_EAGER: bool = False

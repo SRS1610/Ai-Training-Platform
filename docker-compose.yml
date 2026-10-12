@@ -77,7 +77,7 @@ services:
     environment: *api-env
     depends_on:
       postgres: { condition: service_healthy }
-    command: ["sh", "-c", "alembic upgrade head && python -m app.seed"]
+    command: ["sh", "-c", "alembic upgrade head && python -m app.seed --if-empty"]
 
   api:
     build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }

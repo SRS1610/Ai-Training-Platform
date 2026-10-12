@@ -185,7 +185,7 @@ export function MatchingInput({ question, value, onChange, disabled, labelledBy 
                   <span id={`m-${question.id}-${l.id}`}>{l.text}</span>
                 </span>
                 <SimpleSelect
-                  className="h-10 sm:w-64"
+                  className="h-10 sm:w-[min(26rem,55%)] sm:shrink-0"
                   aria-label={`Match for ${l.text}`}
                   value={pairs[l.id] ?? "__none"}
                   disabled={disabled}

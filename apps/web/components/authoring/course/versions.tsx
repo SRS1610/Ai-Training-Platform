@@ -267,7 +267,7 @@ export function VersionsPanel({ course, hasUnpublished }: { course: Course; hasU
   ];
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <SectionCard title="Compare versions" description="See exactly what changed between any two versions or the draft" icon={GitCompare} color="sky">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           <SimpleSelect aria-label="Compare from" value={from} onValueChange={setFrom} options={list.map((v) => ({ value: String(v.version_number), label: `Version ${v.version_number}` }))} className="sm:w-44" />

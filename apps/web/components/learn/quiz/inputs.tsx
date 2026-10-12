@@ -144,6 +144,9 @@ function words(s: string) {
 export function LongAnswerInput({ question, value, onChange, disabled, labelledBy, rows = 9, placeholder = "Write your answer…" }: InputProps & { rows?: number; placeholder?: string }) {
   const text = typeof value?.text === "string" ? value.text : "";
   const min = Number(question.options.min_words) || 0;
+  const max = Number(question.options.max_words) || 0;
+  const count = words(text);
+  const over = max > 0 && count > max;
   return (
     <div>
       <Textarea
@@ -155,9 +158,10 @@ export function LongAnswerInput({ question, value, onChange, disabled, labelledB
         placeholder={placeholder}
         className="text-[15px]"
       />
-      <p className="mt-1.5 text-right text-xs tabular-nums text-slate-500" aria-live="polite">
-        {words(text)} word{words(text) === 1 ? "" : "s"}
-        {min ? ` · aim for ${min}+` : ""}
+      <p className={cn("mt-1.5 text-right text-xs tabular-nums", over ? "font-semibold text-amber-800" : "text-slate-500")} aria-live="polite">
+        {count} word{count === 1 ? "" : "s"}
+        {min && max ? ` · aim for ${min}–${max}` : min ? ` · aim for ${min}+` : max ? ` · up to ${max}` : ""}
+        {over ? " — over the limit" : ""}
       </p>
     </div>
   );
@@ -217,18 +221,18 @@ export function CodeInput({ question, value, onChange, disabled, labelledBy }: I
   const ref = React.useRef<HTMLTextAreaElement>(null);
   const gutter = React.useRef<HTMLDivElement>(null);
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#0f172a] shadow-lift">
-      <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/80 shadow-soft focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/15">
+      <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-2">
         <span className="flex gap-1.5" aria-hidden>
-          <span className="size-2.5 rounded-full bg-rose-400/80" />
-          <span className="size-2.5 rounded-full bg-amber-400/80" />
-          <span className="size-2.5 rounded-full bg-emerald-400/80" />
+          <span className="size-2.5 rounded-full bg-rose-400" />
+          <span className="size-2.5 rounded-full bg-amber-400" />
+          <span className="size-2.5 rounded-full bg-emerald-400" />
         </span>
-        <span className="ml-2 font-mono text-xs text-slate-300">solution</span>
-        <span className="ml-auto rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-2xs uppercase text-slate-200">{lang}</span>
+        <span className="ml-2 font-mono text-xs text-slate-600">solution</span>
+        <span className="ml-auto rounded-md bg-indigo-50 px-1.5 py-0.5 font-mono text-2xs font-semibold uppercase text-indigo-700 ring-1 ring-inset ring-indigo-100">{lang}</span>
       </div>
       <div className="flex max-h-[28rem] overflow-hidden">
-        <div ref={gutter} className="select-none overflow-hidden py-3 pl-3 pr-2 text-right font-mono text-[13px] leading-6 text-slate-500" aria-hidden>
+        <div ref={gutter} className="select-none overflow-hidden border-r border-slate-200 bg-white/60 py-3 pl-3 pr-2 text-right font-mono text-[13px] leading-6 text-slate-400" aria-hidden>
           {Array.from({ length: lines }, (_, i) => (
             <div key={i}>{i + 1}</div>
           ))}
@@ -261,11 +265,11 @@ export function CodeInput({ question, value, onChange, disabled, labelledBy }: I
             }
           }}
           rows={lines}
-          className="min-h-[18rem] flex-1 resize-y bg-transparent py-3 pr-4 font-mono text-[13px] leading-6 text-slate-100 caret-fuchsia-400 outline-none placeholder:text-slate-500"
+          className="min-h-[18rem] flex-1 resize-y bg-transparent px-3 py-3 font-mono text-[13px] leading-6 text-slate-800 caret-brand-600 outline-none placeholder:text-slate-400"
           placeholder="// Write your code here"
         />
       </div>
-      <p id={`${labelledBy}-code-hint`} className="border-t border-white/10 px-3 py-1.5 text-2xs text-slate-400">
+      <p id={`${labelledBy}-code-hint`} className="border-t border-slate-200 bg-white px-3 py-1.5 text-2xs text-slate-500">
         Tab inserts two spaces · press Esc then Tab to move focus out. Code is checked statically — it is never executed.
       </p>
     </div>

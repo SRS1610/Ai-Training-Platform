@@ -263,7 +263,7 @@ export function BankDetail({ bankId }: { bankId: string }) {
               </Button>
             </div>
           </div>
-          <div className="mt-5 grid gap-4 sm:grid-cols-[auto_auto_1fr] sm:items-center">
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-[auto_auto_1fr] sm:items-center">
             <div>
               <p className="font-display text-3xl font-bold tabular-nums text-slate-900">{b.question_count}</p>
               <p className="text-xs text-muted-foreground">questions</p>

@@ -641,6 +641,37 @@ async def test_unpublished_and_expired_sessions(client, db):
     assert r.status_code == 200 and r.json()["status"] == "expired"
 
 
+async def test_learner_briefing_before_start(client):
+    admin, learner = await org_with_learner(client)
+    sim_id = await published_helpdesk(client, admin)
+    r = await client.get(f"/api/v1/simulations/{sim_id}/briefing", headers=learner.headers)
+    assert r.status_code == 200, r.text
+    b = r.json()
+    assert b["version"] == 1 and b["title"] == "Corporate Laptop Cannot Connect to Network"
+    assert b["learner_role"] == "Level 2 Service Desk Analyst" and "INC0042317" in b["briefing"]
+    assert len(b["objectives"]) == 5
+    assert [d["id"] for d in b["dimensions"]][0] == "technical_accuracy"
+    assert sum(d["weight"] for d in b["dimensions"]) == 100
+    assert b["phases"] == ["Initial", "Investigation", "Diagnosis", "Remediation", "Validation", "Resolution"]
+    assert b["pass_mark"] == 70 and b["target_minutes"] == 30 and b["bands"][0]["name"] == "Expert"
+    assert {"name": "Priya Shah", "role": "Finance Analyst"} in b["characters"]
+    assert any(t["name"] == "Remote PowerShell" for t in b["tools"])
+    assert_no_secrets(r.text)
+    for hidden in ("actions", "facts", "variables", "persona", "10.0.0.53"):
+        assert hidden not in r.text
+    # Drafts (never published) have no learner briefing.
+    r = await client.post(
+        "/api/v1/simulations/from-template",
+        headers=admin.headers,
+        json={"template_key": "phishing-email-investigation"},
+    )
+    draft_id = r.json()["id"]
+    r = await client.get(f"/api/v1/simulations/{draft_id}/briefing", headers=learner.headers)
+    assert r.status_code == 404
+    r = await client.get(f"/api/v1/simulations/{draft_id}/briefing", headers=admin.headers)
+    assert r.status_code == 404
+
+
 async def test_finish_early_scores_partial_run(client):
     admin, learner = await org_with_learner(client)
     sim_id = await published_helpdesk(client, admin)

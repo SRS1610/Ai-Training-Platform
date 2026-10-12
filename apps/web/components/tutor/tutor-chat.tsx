@@ -1,15 +1,14 @@
 "use client";
 
-import { Alert, Button, cn, Popover, PopoverContent, PopoverTrigger, Skeleton, toast, Tooltip } from "@praxis/ui";
+import { Alert, Button, cn, Skeleton, toast, Tooltip } from "@praxis/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, Bot, BookOpenText, CloudOff, FileText, Lightbulb, RefreshCw, ShieldAlert, Sparkles, Square, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowUp, Bot, BookOpenText, CloudOff, Lightbulb, RefreshCw, ShieldAlert, Sparkles, Square, ThumbsDown, ThumbsUp } from "lucide-react";
 import * as React from "react";
-import { Markdown } from "@/components/common/markdown";
 import { ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { firstName } from "@/lib/format";
+import { CitationChip, TutorMarkdown } from "./citations";
 import {
-  type Citation,
   createTutorSession,
   fetchTutorMessages,
   rateTutorMessage,
@@ -29,52 +28,6 @@ export const DEFAULT_PROMPTS = [
   "What mistakes do people usually make here?",
   "Summarise what I should remember",
 ];
-
-/* ------------------------------------------------------------------ citations */
-
-function CitationChip({ c }: { c: Citation }) {
-  const [open, setOpen] = React.useState(false);
-  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const show = () => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setOpen(true), 120);
-  };
-  const hide = () => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setOpen(false), 150);
-  };
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          onMouseEnter={show}
-          onMouseLeave={hide}
-          onFocus={show}
-          onBlur={hide}
-          className="inline-flex max-w-[14rem] items-center gap-1.5 rounded-full bg-white py-0.5 pl-0.5 pr-2.5 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-200 transition-colors hover:bg-sky-50 hover:ring-sky-200 focus-visible:focus-ring"
-          aria-label={`Source ${c.index}: ${c.title}`}
-        >
-          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 text-[10px] font-bold text-white">{c.index}</span>
-          <span className="truncate">{c.title}</span>
-        </button>
-      </PopoverTrigger>
-      <PopoverContent side="top" align="start" className="w-80" onMouseEnter={show} onMouseLeave={hide} onOpenAutoFocus={(e) => e.preventDefault()}>
-        <div className="flex items-start gap-2.5">
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-50 text-sky-600">
-            <FileText className="size-4" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-900">{c.title}</p>
-            {c.heading && <p className="text-xs text-slate-500">{c.heading}</p>}
-          </div>
-        </div>
-        {c.snippet && <p className="mt-3 line-clamp-6 border-l-2 border-sky-300 pl-3 text-xs leading-relaxed text-slate-600">{c.snippet}</p>}
-        <p className="mt-3 text-2xs font-medium uppercase tracking-wider text-slate-400">Source [{c.index}] · course knowledge base</p>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 /* ------------------------------------------------------------------ mode badge */
 
@@ -114,7 +67,9 @@ function AssistantMessage({ m, onRate }: { m: TutorMessage; onRate: (r: 1 | -1) 
         <div className={cn("rounded-2xl rounded-tl-md px-4 py-3", refuse ? "bg-rose-50/70 ring-1 ring-inset ring-rose-200" : m.mode === "hint" ? "bg-amber-50/50 ring-1 ring-inset ring-amber-200/80" : "bg-white ring-1 ring-inset ring-slate-200")}>
           {m.content ? (
             <div className="relative">
-              <Markdown className="text-[14.5px]">{m.content}</Markdown>
+              <TutorMarkdown className="text-[14.5px]" citations={m.streaming ? [] : (m.citations ?? [])}>
+                {m.content}
+              </TutorMarkdown>
               {m.streaming && <span className="ml-0.5 inline-block h-4 w-1.5 translate-y-0.5 rounded-sm bg-violet-500 motion-safe:animate-pulse" aria-hidden />}
             </div>
           ) : (
@@ -127,7 +82,7 @@ function AssistantMessage({ m, onRate }: { m: TutorMessage; onRate: (r: 1 | -1) 
         </div>
         {!m.streaming && m.citations?.length > 0 && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-2xs font-semibold uppercase tracking-wider text-slate-400">Sources</span>
+            <span className="text-2xs font-semibold uppercase tracking-wider text-slate-500">Sources</span>
             {m.citations.map((c) => (
               <CitationChip key={`${c.index}-${c.chunk_id}`} c={c} />
             ))}
@@ -157,7 +112,7 @@ function AssistantMessage({ m, onRate }: { m: TutorMessage; onRate: (r: 1 | -1) 
                 <ThumbsDown className="size-3.5" aria-hidden />
               </button>
             </Tooltip>
-            {m.model && <span className="ml-1 text-2xs text-slate-400">{/offline/i.test(m.model) ? "Offline demo model" : m.model}</span>}
+            {m.model && <span className="ml-1 text-2xs text-slate-500">{/offline/i.test(m.model) ? "Offline demo model" : m.model}</span>}
           </div>
         )}
       </div>
@@ -234,7 +189,8 @@ export function TutorChat({ sessionId, onSessionId, courseId, lessonId, contextL
 
   React.useEffect(() => {
     const el = scroller.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: busy ? "auto" : "smooth" });
+    // Keep the welcome state scrolled to the top; follow the conversation once it starts.
+    if (el && messages.length) el.scrollTo({ top: el.scrollHeight, behavior: busy ? "auto" : "smooth" });
   }, [messages, busy]);
 
   React.useEffect(() => () => abort.current?.abort(), []);
@@ -252,7 +208,7 @@ export function TutorChat({ sessionId, onSessionId, courseId, lessonId, contextL
     let sid = sessionId;
     try {
       if (!sid) {
-        const s = await createTutorSession({ course_id: courseId, lesson_id: lessonId });
+        const s = await createTutorSession({ course_id: courseId, lesson_id: lessonId, title: content.slice(0, 80) });
         sid = s.id;
         ownSession.current = s.id;
         onSessionId(s.id);
@@ -320,7 +276,7 @@ export function TutorChat({ sessionId, onSessionId, courseId, lessonId, contextL
           Running on the offline demo model — configure an AI provider for full answers.
         </div>
       )}
-      <div ref={scroller} className={cn("min-h-0 flex-1 overflow-y-auto scrollbar-thin", compact ? "px-4 py-4" : "px-4 py-6 sm:px-8")} role="log" aria-live="polite" aria-busy={busy} aria-label="Tutor conversation">
+      <div ref={scroller} className={cn("relative min-h-0 flex-1 overflow-y-auto scrollbar-thin", compact ? "px-4 py-4" : "px-4 py-6 sm:px-8")} role="log" aria-live="polite" aria-busy={busy} aria-label="Tutor conversation">
         <div className={cn("mx-auto space-y-5", !compact && "max-w-3xl")}>
           {history.isError && (
             <Alert tone="danger" title="Couldn't load this conversation" action={<Button size="xs" variant="secondary" onClick={() => history.refetch()}>Retry</Button>}>
@@ -436,7 +392,7 @@ export function TutorChat({ sessionId, onSessionId, courseId, lessonId, contextL
               </Button>
             )}
           </form>
-          <p className="mt-2 flex items-center justify-between gap-2 px-1 text-2xs text-slate-400">
+          <p className="mt-2 flex items-center justify-between gap-2 px-1 text-2xs text-slate-500">
             <span>AI can make mistakes — check the cited sources.</span>
             {text.length > MAX * 0.8 && (
               <span className={cn("tabular-nums", text.length >= MAX && "text-rose-600")}>

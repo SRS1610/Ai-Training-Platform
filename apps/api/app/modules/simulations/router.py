@@ -150,6 +150,13 @@ async def simulation_sessions(
 # ---------------------------------------------------------------------------------------------- learner
 
 
+@sims.get("/{sim_id}/briefing", response_model=s.BriefingOut)
+async def get_briefing(sim_id: uuid.UUID, ctx: Ctx = Depends(viewer)) -> Any:
+    """Learner-safe briefing of the published version (role, objectives, people, phases, scoring model),
+    shown before an attempt starts."""
+    return await svc.briefing(ctx, sim_id)
+
+
 @sims.post("/{sim_id}/sessions", response_model=s.SessionOut, status_code=201)
 async def start_session(
     sim_id: uuid.UUID, body: s.SessionStart | None = None, ctx: Ctx = Depends(learner)

@@ -31,7 +31,8 @@ def get_engine() -> AsyncEngine:
             echo=settings.DATABASE_ECHO,
             pool_size=settings.DATABASE_POOL_SIZE,
             max_overflow=settings.DATABASE_MAX_OVERFLOW,
-            pool_pre_ping=True,
+            pool_pre_ping=settings.DATABASE_POOL_PRE_PING,
+            pool_recycle=settings.DATABASE_POOL_RECYCLE_SECONDS,
         )
     return _engine
 
@@ -60,6 +61,11 @@ _SET_TENANT_SQL = text(
 def _apply_tenant_context(session: Session, transaction, connection) -> None:  # noqa: ANN001
     org_id = session.info.get(TENANT_KEY)
     bypass = session.info.get(BYPASS_KEY, False)
+    if not org_id and not bypass:
+        # Nothing to bind: both settings are only ever set transaction-locally (``is_local => true``),
+        # so a new transaction already sees the fail-closed defaults (no tenant, no bypass). Skipping
+        # the statement saves a round trip at the start of every request.
+        return
     connection.execute(
         _SET_TENANT_SQL, {"org_id": str(org_id) if org_id else "", "bypass": "on" if bypass else "off"}
     )

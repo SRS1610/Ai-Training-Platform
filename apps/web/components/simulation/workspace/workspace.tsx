@@ -37,6 +37,7 @@ import {
   Bell,
   Command as CommandIcon,
   Flag,
+  Frown,
   Keyboard,
   LayoutGrid,
   ListChecks,
@@ -103,6 +104,11 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
   const [feedback, setFeedback] = React.useState<Record<number, StepFeedback>>({});
   const [alerts, setAlerts] = React.useState<LiveAlert[]>([]);
   const [lastSeq, setLastSeq] = React.useState(0);
+  // Messages up to this seq count as read (mobile "Chat" tab badge); everything on entry is read.
+  const [chatSeenSeq, setChatSeenSeq] = React.useState(view.action_count);
+  React.useEffect(() => {
+    if (mobileTab === "chat") setChatSeenSeq(view.action_count);
+  }, [mobileTab, view.action_count]);
   const [palette, setPalette] = React.useState(false);
   const [launch, setLaunch] = React.useState<ViewAction | null>(null);
   const [shortcuts, setShortcuts] = React.useState(false);
@@ -118,6 +124,9 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
   const chatInput = React.useRef<HTMLTextAreaElement>(null);
   const termInput = React.useRef<HTMLInputElement>(null);
   const prevOpen = React.useRef(new Set(apps.filter((a) => a.panel).map((a) => a.key)));
+  // The view as rendered before a step is applied (step handlers run before the re-render).
+  const viewRef = React.useRef(view);
+  viewRef.current = view;
 
   // Persisted preferences.
   React.useEffect(() => {
@@ -220,11 +229,21 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
         setTimeout(() => setAlerts((a) => a.filter((x) => x.id !== alert.id)), 9000);
       }
       for (const pr of o.problems_added ?? []) toast.error("New problem", { description: pr.text, icon: <AlertTriangle className="size-4" /> });
+      // Customer mood: call out sharp drops in patience.
+      for (const c of step.view.characters) {
+        const before = viewRef.current.characters.find((x) => x.id === c.id)?.patience;
+        if (typeof before === "number" && typeof c.patience === "number" && before - c.patience >= 10)
+          toast.warning(`${c.name} is losing patience`, {
+            description: `Patience ${Math.round(before)}% → ${Math.round(c.patience)}%. Keep them informed and avoid disruptive steps.`,
+            icon: <Frown className="size-4" />,
+          });
+      }
       if (o.problems_removed?.length) toast.success("Problem resolved");
       // Unsolicited messages from people you're not currently talking to.
       const replyTo = p.kind === "chat" ? p.character : null;
       for (const m of o.messages ?? []) {
-        if (m.from !== "system" && m.from !== replyTo && !(mobileTab === "chat" && m.from === activeChar)) {
+        const chatVisible = mobileTab === "chat" || window.matchMedia?.("(min-width: 1024px)").matches;
+        if (m.from !== "system" && m.from !== replyTo && !(chatVisible && m.from === activeChar)) {
           toast(`${m.name ?? m.from}`, {
             description: m.text,
             icon: <MessagesSquare className="size-4 text-violet-600" />,
@@ -328,7 +347,7 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
   const active = apps.find((a) => a.key === activeKey) ?? apps[0];
   const patienceChars = view.characters.filter((c) => c.patience !== null && c.patience !== undefined);
   const unreadChat = chatModel
-    ? chatModel.characters.reduce((n, c) => n + chatThread(view, c.id).filter((e) => e.from === c.id && e.seq === lastSeq).length, 0)
+    ? chatModel.characters.reduce((n, c) => n + chatThread(view, c.id).filter((e) => e.from === c.id && e.seq > chatSeenSeq).length, 0)
     : 0;
   const orphans = orphanActions(view, apps);
 
@@ -385,6 +404,11 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
             <Tooltip content="All available actions (Ctrl/⌘ J)">
               <Button variant="secondary" size="sm" onClick={() => setPalette(true)} leftIcon={<Zap className="text-amber-500" />} className="hidden md:inline-flex" disabled={ended}>
                 Actions
+              </Button>
+            </Tooltip>
+            <Tooltip content="Finish and get your debrief">
+              <Button size="sm" onClick={() => setConfirm("finish")} leftIcon={<Flag />} className="hidden sm:inline-flex" disabled={ended}>
+                Finish
               </Button>
             </Tooltip>
             <Tooltip content={focus ? "Exit focus mode (F)" : "Focus mode (F)"}>
@@ -643,9 +667,11 @@ function AppDock({ apps, active, onChange }: { apps: WorkspaceApp[]; active?: st
             <span className={cn("grid size-6 place-items-center rounded-md transition-colors", on ? cn("bg-gradient-to-br text-white", c.gradient) : cn(c.soft, c.icon))}>
               <Icon className="size-3.5" aria-hidden />
             </span>
-            <span className="max-w-[10rem] truncate">{a.title}</span>
+            <span className="max-w-[11rem] truncate" title={a.title !== a.label ? a.title : undefined}>
+              {a.label}
+            </span>
             {!a.panel && <span className="rounded bg-slate-200/70 px-1 text-[10px] font-semibold uppercase text-slate-500">closed</span>}
-            {i < 9 && <span className="hidden rounded border border-slate-200 bg-white px-1 font-mono text-[10px] leading-4 text-slate-400 xl:inline">{i + 1}</span>}
+            {i < 9 && <span className="hidden rounded border border-slate-200 bg-white px-1 font-mono text-[10px] leading-4 text-slate-500 xl:inline">{i + 1}</span>}
             {on && <span className={cn("absolute inset-x-3 -bottom-px h-0.5 rounded-full", c.solid)} aria-hidden />}
           </button>
         );

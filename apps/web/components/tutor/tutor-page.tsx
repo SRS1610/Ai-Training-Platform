@@ -80,7 +80,7 @@ export function TutorPage() {
   const shell = React.useRef<HTMLDivElement>(null);
   // Remount the chat only on explicit navigation, never when a new chat gets its session id mid-stream.
   const [chatKey, setChatKey] = React.useState(0);
-  const height = useFillHeight(shell);
+  const height = useFillHeight(shell, 440);
 
   const current = sessions.data?.items.find((s) => s.id === sessionId) ?? null;
   const ctxCourse = current ? current.course_id : courseParam;
@@ -132,7 +132,7 @@ export function TutorPage() {
         </Button>
         <Input inputSize="sm" leftIcon={<Search />} placeholder="Search conversations…" aria-label="Search conversations" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
-      <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 scrollbar-thin" aria-label="Conversations">
+      <nav className="relative min-h-0 flex-1 overflow-y-auto px-2 pb-3 scrollbar-thin" aria-label="Conversations">
         {sessions.isError ? (
           <ErrorState error={sessions.error} onRetry={() => sessions.refetch()} size="sm" />
         ) : sessions.isLoading ? (
@@ -150,7 +150,7 @@ export function TutorPage() {
         ) : (
           groupByDate(filtered).map((g) => (
             <div key={g.label} className="mb-3">
-              <p className="px-2 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wider text-slate-400">{g.label}</p>
+              <p className="px-2 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wider text-slate-500">{g.label}</p>
               <ul className="space-y-0.5">
                 {g.items.map((s) => {
                   const on = s.id === sessionId;
@@ -222,8 +222,9 @@ export function TutorPage() {
       )}
     </div>
   ) : (
-    <div className="mb-2 grid gap-2 sm:grid-cols-2">
+    <div className="mb-2 grid grid-cols-2 gap-2">
       <SimpleSelect
+        className="h-9 text-xs sm:h-10 sm:text-sm"
         aria-label="Course context"
         value={ctxCourse ?? "all"}
         onValueChange={(v) => setParams({ course: v === "all" ? null : v, lesson: null })}
@@ -231,6 +232,7 @@ export function TutorPage() {
         disabled={enrolments.isLoading}
       />
       <SimpleSelect
+        className="h-9 text-xs sm:h-10 sm:text-sm"
         aria-label="Lesson context"
         value={ctxLesson ?? "all"}
         onValueChange={(v) => setParams({ lesson: v === "all" ? null : v })}
@@ -265,7 +267,7 @@ export function TutorPage() {
         </div>
       </div>
 
-      <div ref={shell} style={height ? { height } : undefined} className="flex min-h-[32rem] overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
+      <div ref={shell} style={height ? { height } : undefined} className="flex min-h-[27rem] overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
         <aside className="hidden w-72 shrink-0 border-r border-slate-200/80 bg-slate-50/70 lg:block">{list}</aside>
         <section className="relative flex min-w-0 flex-1 flex-col bg-gradient-to-b from-violet-50/40 via-white to-white" aria-label="Conversation">
           <div className="flex items-center gap-2 border-b border-slate-200/70 px-4 py-2.5 sm:px-6">

@@ -36,10 +36,20 @@ function LauncherInner() {
     [params, pathname, router],
   );
 
+  // The API has no difficulty filter: with one selected, fetch the whole (filtered) catalogue and page locally.
   const sims = useQuery({
-    queryKey: simKeys.list({ search, industry, page }),
+    queryKey: simKeys.list({ search, industry, page: difficulty ? "all" : page }),
     queryFn: ({ signal }) =>
-      fetchSimulations({ status: "published", search: search || undefined, industry: industry || undefined, page, page_size: PAGE_SIZE }, signal),
+      fetchSimulations(
+        {
+          status: "published",
+          search: search || undefined,
+          industry: industry || undefined,
+          page: difficulty ? 1 : page,
+          page_size: difficulty ? 200 : PAGE_SIZE,
+        },
+        signal,
+      ),
   });
   // Industry pills come from an unfiltered request so they don't disappear while filtering.
   const allSims = useQuery({
@@ -59,7 +69,9 @@ function LauncherInner() {
     return [...set].sort();
   }, [allSims.data]);
 
-  const items = (sims.data?.items ?? []).filter((s) => !difficulty || s.difficulty === difficulty);
+  const filtered = (sims.data?.items ?? []).filter((s) => !difficulty || s.difficulty === difficulty);
+  const total = difficulty ? filtered.length : (sims.data?.total ?? 0);
+  const items = difficulty ? filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : filtered;
   const titles = React.useMemo(() => new Map((allSims.data?.items ?? []).map((s) => [s.id, s])), [allSims.data]);
   const active = (mine.data?.items ?? []).find((s) => s.status === "active");
 
@@ -142,9 +154,7 @@ function LauncherInner() {
                   </li>
                 ))}
               </ul>
-              {(sims.data?.total ?? 0) > PAGE_SIZE && (
-                <Pagination className="mt-6" page={page} pageSize={PAGE_SIZE} total={sims.data?.total ?? 0} onPageChange={(p) => setParam({ page: String(p) })} />
-              )}
+              {total > PAGE_SIZE && <Pagination className="mt-6" page={page} pageSize={PAGE_SIZE} total={total} onPageChange={(p) => setParam({ page: String(p) })} />}
             </>
           )}
         </div>

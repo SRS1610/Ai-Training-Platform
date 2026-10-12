@@ -41,7 +41,7 @@ import { useCourseOptions } from "../use-options";
 export function KindChip({ kind }: { kind: string }) {
   const k = kindMeta(kind);
   const c = colorClasses(k.color);
-  return <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold ring-1 ring-inset", c.soft, c.text, c.ring)}>{k.label}</span>;
+  return <span className={cn("inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-semibold ring-1 ring-inset", c.soft, c.text, c.ring)}>{k.label}</span>;
 }
 
 function CreateAssessmentDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {

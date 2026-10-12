@@ -634,6 +634,49 @@ export function SubNav({ items, className }: { items: { href: string; label: str
 
 /* ------------------------------------------------------------------ misc */
 
+/** Textarea that grows with its content (titles, summaries). `singleLine` blocks newlines (Enter blurs). */
+export function AutoGrowTextarea({
+  value,
+  onChange,
+  singleLine,
+  className,
+  ...rest
+}: Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "value"> & { value: string; onChange: (v: string) => void; singleLine?: boolean }) {
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      onChange={(e) => onChange(singleLine ? e.target.value.replace(/[\r\n]+/g, " ") : e.target.value)}
+      onKeyDown={(e) => {
+        if (singleLine && e.key === "Enter") {
+          e.preventDefault();
+          (e.target as HTMLTextAreaElement).blur();
+        }
+      }}
+      className={cn("block resize-none overflow-hidden", className)}
+      {...rest}
+    />
+  );
+}
+
 export function AIBadge({ className }: { className?: string }) {
   return (
     <Badge tone="violet" size="sm" className={className}>

@@ -247,7 +247,7 @@ function TextSpecEditor({ spec, onChange, label = "answer" }: { spec: O; onChang
       <FormField label="Accepted answers" hint="Press Enter after each. Matching ignores extra spaces and surrounding punctuation.">
         {(aria) => <TagInput id={aria.id} aria-describedby={aria["aria-describedby"]} value={accepted} onChange={(v) => onChange({ ...spec, accepted: v })} placeholder={`Add an accepted ${label}…`} />}
       </FormField>
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
         <FormField label="Pattern (regular expression)" hint="Optional — the whole answer must match, e.g. ^(TLS|SSL)\s?1\.[23]$">
           <Input className="font-mono" value={str(spec.regex)} onChange={(e) => onChange({ ...spec, regex: e.target.value })} placeholder="optional" />
         </FormField>
@@ -345,7 +345,7 @@ function MatchingEditor({ s, onChange }: { s: QState; onChange: (s: QState) => v
     <div className="space-y-3">
       <p className="text-sm font-medium text-slate-800">Pairs · learners match each item on the left with one on the right (right side is shuffled)</p>
       {rows.map((row, i) => (
-        <div key={row.l.id} className="grid items-center gap-2 rounded-2xl border border-fuchsia-200/70 bg-gradient-to-r from-fuchsia-50/60 to-white p-2 sm:grid-cols-[1fr_auto_1fr_auto]">
+        <div key={row.l.id} className="grid grid-cols-1 items-center gap-2 rounded-2xl border border-fuchsia-200/70 bg-gradient-to-r from-fuchsia-50/60 to-white p-2 sm:grid-cols-[1fr_auto_1fr_auto]">
           <Input inputSize="sm" value={row.l.text} placeholder={`Item ${i + 1}`} aria-label={`Left item ${i + 1}`} onChange={(e) => emit(rows.map((x, j) => (j === i ? { ...x, l: { ...x.l, text: e.target.value } } : x)))} />
           <span className="hidden text-fuchsia-500 sm:block" aria-hidden>
             ⟷
@@ -545,7 +545,7 @@ function DecisionTreeEditor({ s, onChange }: { s: QState; onChange: (s: QState) 
             <Textarea rows={2} className="min-h-[60px]" value={n.prompt} placeholder="What situation does the learner face here?" aria-label={`${label(id)} prompt`} onChange={(e) => setNode(id, { ...n, prompt: e.target.value })} />
             <div className="mt-2 space-y-2">
               {n.choices.map((c, ci) => (
-                <div key={c.id} className="grid items-center gap-2 rounded-xl bg-slate-50 p-2 sm:grid-cols-[1fr_170px_90px_auto]">
+                <div key={c.id} className="grid grid-cols-1 items-center gap-2 rounded-xl bg-slate-50 p-2 sm:grid-cols-[1fr_170px_90px_auto]">
                   <Input inputSize="sm" value={c.text} placeholder={`Option ${ci + 1}`} aria-label={`${label(id)} option ${ci + 1}`} onChange={(e) => setNode(id, { ...n, choices: n.choices.map((x) => (x.id === c.id ? { ...x, text: e.target.value } : x)) })} />
                   <SimpleSelect
                     aria-label={`${label(id)} option ${ci + 1} leads to`}
@@ -603,7 +603,7 @@ function CodeQuestionEditor({ s, onChange }: { s: QState; onChange: (s: QState) 
       <div className="space-y-2">
         <p className="text-sm font-medium text-slate-800">Static checks · code is never executed, only pattern-checked</p>
         {cases.map((c, i) => (
-          <div key={c.id} className="grid items-center gap-2 rounded-xl border border-violet-200/70 bg-violet-50/40 p-2 sm:grid-cols-[150px_1fr_90px_auto]">
+          <div key={c.id} className="grid grid-cols-1 items-center gap-2 rounded-xl border border-violet-200/70 bg-violet-50/40 p-2 sm:grid-cols-[150px_1fr_90px_auto]">
             <SimpleSelect
               aria-label={`Check ${i + 1} type`}
               value={c.match || "contains"}

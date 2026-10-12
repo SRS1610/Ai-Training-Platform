@@ -18,6 +18,7 @@ import jwt
 from fastapi import Depends, Request
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.auth.rbac import ALL_CODES
 from app.core.audit import write_audit
@@ -154,11 +155,19 @@ async def get_optional_principal(request: Request, db: AsyncSession = Depends(ge
         claims = decode_access_token(token)
     except jwt.PyJWTError as exc:
         raise Unauthorized("Invalid or expired access token", code="token_invalid") from exc
-    session = await db.get(AuthSession, uuid.UUID(claims["sid"]))
+    # Session (revocation / expiry) and user are loaded in one round trip; both are still checked on
+    # every request.
+    row = (
+        await db.execute(
+            select(AuthSession, User)
+            .outerjoin(User, User.id == uuid.UUID(claims["sub"]))
+            .where(AuthSession.id == uuid.UUID(claims["sid"]))
+        )
+    ).first()
+    session, user = row if row is not None else (None, None)
     if not session or session.revoked_at or session.expires_at < datetime.now(UTC):
         raise Unauthorized("Session has been revoked", code="session_revoked")
-    user = await db.get(User, uuid.UUID(claims["sub"]))
-    if not user or user.status != UserStatus.ACTIVE or user.deleted_at:
+    if not user or user.id != session.user_id or user.status != UserStatus.ACTIVE or user.deleted_at:
         raise Unauthorized("Account is not active")
     principal = Principal(user=user, session_id=session.id, mfa_verified=bool(claims.get("mfa")))
     request.state.principal = principal
@@ -191,6 +200,14 @@ async def _permissions_for(
     return perms
 
 
+async def _load_membership(db: AsyncSession, *where: Any) -> OrganisationUser | None:
+    """Membership with its organisation and roles joined (role permissions follow in one ``selectin``
+    query), saving a round trip over the default loaders. Permissions are still read fresh per request."""
+    stmt = select(OrganisationUser).options(joinedload(OrganisationUser.roles)).where(*where)
+    result = await db.execute(stmt)
+    return result.unique().scalars().first()
+
+
 async def resolve_ctx(request: Request, db: AsyncSession, principal: Principal) -> Ctx:
     cached = getattr(request.state, "ctx", None)
     if cached is not None:
@@ -211,14 +228,14 @@ async def resolve_ctx(request: Request, db: AsyncSession, principal: Principal) 
         else:
             org_id = principal.user.default_organisation_id
         if org_id:
-            membership = await db.scalar(
-                select(OrganisationUser).where(
-                    OrganisationUser.organisation_id == org_id, OrganisationUser.user_id == principal.user.id
-                )
+            membership = await _load_membership(
+                db,
+                OrganisationUser.organisation_id == org_id,
+                OrganisationUser.user_id == principal.user.id,
             )
         if membership is None and not header:
-            membership = await db.scalar(
-                select(OrganisationUser)
+            first_id = await db.scalar(
+                select(OrganisationUser.id)
                 .where(
                     OrganisationUser.user_id == principal.user.id,
                     OrganisationUser.status == MembershipStatus.ACTIVE,
@@ -226,6 +243,8 @@ async def resolve_ctx(request: Request, db: AsyncSession, principal: Principal) 
                 .order_by(OrganisationUser.created_at)
                 .limit(1)
             )
+            if first_id is not None:
+                membership = await _load_membership(db, OrganisationUser.id == first_id)
         if membership is not None:
             org = membership.organisation
         elif org_id and principal.is_superadmin:

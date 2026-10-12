@@ -144,7 +144,7 @@ export function CourseSettings({ course }: { course: Course }) {
   });
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-3">
           <SaveIndicator status={save.status} error={save.error} savedAt={save.savedAt} onRetry={() => void save.flush()} />

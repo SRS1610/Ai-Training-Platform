@@ -44,6 +44,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
+import { TutorPanel } from "@/components/tutor/tutor-panel";
 import { Markdown } from "@/components/common/markdown";
 import { ApiError, errorMessage } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
@@ -115,32 +116,39 @@ function ScoreRing({ score, band }: { score: number; band: string | null }) {
 /* ------------------------------------------------------------------ confetti (Advanced / Expert) */
 
 function Confetti() {
+  // Two staggered waves of ribbons and dots drifting down across the hero (decorative; hidden for reduced motion).
   const [pieces] = React.useState(() =>
-    Array.from({ length: 46 }, (_, i) => ({
+    Array.from({ length: 72 }, (_, i) => ({
       left: Math.random() * 100,
-      delay: Math.random() * 0.8,
-      dur: 2.2 + Math.random() * 1.6,
-      rot: Math.random() * 360,
+      delay: (i % 2 ? 1.6 : 0) + Math.random() * 1.2,
+      dur: 2.8 + Math.random() * 1.8,
+      dx: (Math.random() - 0.5) * 140,
+      spin: 360 + Math.random() * 540,
       color: colorClasses(CATEGORY_COLORS[i % CATEGORY_COLORS.length]!).hex,
-      w: 6 + Math.random() * 6,
-      round: Math.random() > 0.6,
+      w: 7 + Math.random() * 6,
+      round: Math.random() > 0.65,
     })),
   );
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden motion-reduce:hidden" aria-hidden>
-      <style>{`@keyframes praxis-confetti{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(420px) rotate(540deg);opacity:0}}`}</style>
+      <style>{`@keyframes praxis-confetti{0%{transform:translate3d(0,-24px,0) rotate(0deg);opacity:0}8%{opacity:1}80%{opacity:1}100%{transform:translate3d(var(--dx),var(--fall),0) rotate(var(--spin));opacity:0}}`}</style>
       {pieces.map((p, i) => (
         <span
           key={i}
-          className={p.round ? "absolute top-0 rounded-full" : "absolute top-0 rounded-sm"}
-          style={{
-            left: `${p.left}%`,
-            width: p.w,
-            height: p.round ? p.w : p.w * 0.45,
-            background: p.color,
-            transform: `rotate(${p.rot}deg)`,
-            animation: `praxis-confetti ${p.dur}s cubic-bezier(.2,.7,.4,1) ${p.delay}s 2 both`,
-          }}
+          className={p.round ? "absolute -top-3 rounded-full" : "absolute -top-3 rounded-[2px]"}
+          style={
+            {
+              left: `${p.left}%`,
+              width: p.w,
+              height: p.round ? p.w : p.w * 0.42,
+              background: p.color,
+              opacity: 0,
+              "--dx": `${p.dx}px`,
+              "--fall": "380px",
+              "--spin": `${p.spin}deg`,
+              animation: `praxis-confetti ${p.dur}s cubic-bezier(.33,.2,.55,1) ${p.delay}s 1 both`,
+            } as React.CSSProperties
+          }
         />
       ))}
     </div>
@@ -160,6 +168,7 @@ export function SessionResults({ session }: { session: SimSession }) {
     queryFn: ({ signal }) => fetchMySessions({ simulation_id: session.simulation_id, page_size: 200 }, signal),
   });
   const [entering, setEntering] = React.useState(false);
+  const [tutor, setTutor] = React.useState(false);
 
   if (result.isError) return <ErrorState error={result.error} onRetry={() => result.refetch()} size="lg" />;
   if (result.isLoading || !result.data) return <ResultsSkeleton />;
@@ -199,7 +208,7 @@ export function SessionResults({ session }: { session: SimSession }) {
         <div className={cn("absolute inset-0 bg-gradient-to-br opacity-90", c.tint)} aria-hidden />
         {celebrate && <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(139,92,246,0.18),transparent_45%),radial-gradient(circle_at_10%_90%,rgba(16,185,129,0.16),transparent_40%)]" aria-hidden />}
         {celebrate && <Confetti />}
-        <div className="relative grid items-center gap-8 p-6 sm:p-8 lg:grid-cols-[auto_1fr_auto]">
+        <div className="relative z-10 grid items-center gap-8 p-6 sm:p-8 lg:grid-cols-[auto_1fr_auto]">
           <div className="mx-auto">
             <ScoreRing score={r.total_score ?? 0} band={r.band} />
           </div>
@@ -265,10 +274,15 @@ export function SessionResults({ session }: { session: SimSession }) {
                 <Link href="/app/simulations">All simulations</Link>
               </Button>
             )}
+            <Button variant="soft" leftIcon={<Sparkles />} onClick={() => setTutor(true)}>
+              Ask the AI tutor
+            </Button>
             {maxed ? (
               <p className="text-center text-xs text-rose-700">All {s?.max_attempts} attempts used</p>
             ) : s?.max_attempts ? (
-              <p className="text-center text-xs text-slate-500">{s.max_attempts - used} attempts left</p>
+              <p className="text-center text-xs text-slate-500">
+                {s.max_attempts - used} {s.max_attempts - used === 1 ? "attempt" : "attempts"} left
+              </p>
             ) : null}
           </div>
         </div>
@@ -297,6 +311,7 @@ export function SessionResults({ session }: { session: SimSession }) {
 
       <Timeline items={r.feedback.timeline ?? []} actions={replay.data?.actions ?? []} loading={replay.isLoading} phases={session.view.phases} />
 
+      <TutorPanel open={tutor} onOpenChange={setTutor} courseId={s?.course_id ?? undefined} />
       <EnteringEnvironment open={entering} title={session.view.meta.title} environment={session.view.meta.environment_type} industry={session.view.meta.industry} />
       <span className="sr-only">{ind.label}</span>
     </div>
@@ -445,6 +460,25 @@ function inputText(a?: ReplayAction): string | null {
   return null;
 }
 
+function PhaseMarker({ label, start }: { label: string; start?: boolean }) {
+  return (
+    <li className="flex items-center gap-3 py-2">
+      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-200 to-brand-300" aria-hidden />
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold shadow-sm",
+          start ? "bg-white text-brand-800 ring-1 ring-inset ring-brand-200" : "bg-brand-gradient text-white",
+        )}
+      >
+        {start ? <Flag className="size-3" aria-hidden /> : <ArrowRight className="size-3" aria-hidden />}
+        <span className="sr-only">Phase: </span>
+        {label}
+      </span>
+      <span className="h-px flex-1 bg-gradient-to-l from-transparent via-brand-200 to-brand-300" aria-hidden />
+    </li>
+  );
+}
+
 function Timeline({ items, actions, loading, phases }: { items: TimelineItem[]; actions: ReplayAction[]; loading: boolean; phases: { id: string; name: string }[] }) {
   const [filter, setFilter] = React.useState<"all" | "mistakes">("all");
   const [cursor, setCursor] = React.useState<number>(items.length);
@@ -463,7 +497,8 @@ function Timeline({ items, actions, loading, phases }: { items: TimelineItem[]; 
   }, [playing, cursor, items.length]);
 
   const visible = items.slice(0, cursor).filter((i) => filter === "all" || i.classification === "incorrect" || i.classification === "critical");
-  let prevPhase: string | null | undefined = items[0]?.phase ? phases[0]?.id : undefined;
+  // Timeline items carry the phase *after* each step: mark a transition right after the step that caused it.
+  let prevPhase: string | null | undefined = phases[0]?.id;
 
   return (
     <Card className="mt-6 p-5 sm:p-6">
@@ -534,7 +569,8 @@ function Timeline({ items, actions, loading, phases }: { items: TimelineItem[]; 
       ) : !items.length ? (
         <EmptyState size="sm" illustration="chart" title="No steps recorded" description="This attempt ended before any actions were taken." />
       ) : (
-        <ol className="mt-5 max-h-[44rem] space-y-0 overflow-y-auto pr-1 scrollbar-thin" aria-live="polite">
+        <ol className="relative mt-5 max-h-[44rem] space-y-0 overflow-y-auto pr-1 scrollbar-thin" aria-live="polite">
+          {phases[0] && <PhaseMarker label={`Start · ${phases[0].name}`} start />}
           {visible.map((it, idx) => {
             const a = bySeq.get(it.seq);
             const text = it.type === "event" ? null : inputText(a);
@@ -545,15 +581,6 @@ function Timeline({ items, actions, loading, phases }: { items: TimelineItem[]; 
             const last = idx === visible.length - 1;
             return (
               <React.Fragment key={`${it.seq}-${idx}`}>
-                {marker && (
-                  <li className="flex items-center gap-3 py-2">
-                    <span className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-200 to-brand-300" aria-hidden />
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-gradient px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                      <ArrowRight className="size-3" aria-hidden /> {phaseName(marker)}
-                    </span>
-                    <span className="h-px flex-1 bg-gradient-to-l from-transparent via-brand-200 to-brand-300" aria-hidden />
-                  </li>
-                )}
                 <li className={cn("relative flex gap-3 pb-3", playing && last && "motion-safe:animate-fade-up")}>
                   <div className="flex flex-col items-center">
                     <span className={cn("grid size-8 shrink-0 place-items-center rounded-xl ring-4 ring-white", it.type === "event" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600")}>
@@ -583,6 +610,7 @@ function Timeline({ items, actions, loading, phases }: { items: TimelineItem[]; 
                     {a?.outcome?.feedback && <p className="mt-1.5 text-xs text-slate-600">{a.outcome.feedback}</p>}
                   </div>
                 </li>
+                {marker && <PhaseMarker label={phaseName(marker)} />}
               </React.Fragment>
             );
           })}

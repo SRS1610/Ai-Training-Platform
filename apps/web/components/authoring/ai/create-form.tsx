@@ -1,16 +1,19 @@
 "use client";
 
 import { Button, Card, FormField, Input, SimpleSelect, cn, colorClasses, type CategoryColor } from "@praxis/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   BookOpen,
   Brain,
   ClipboardCheck,
   FileQuestion,
+  Layers,
+  Library,
   Lightbulb,
   type LucideIcon,
   MonitorPlay,
+  NotebookText,
   Scale,
   ShieldCheck,
   Sparkles,
@@ -22,7 +25,8 @@ import { useDebounced } from "../hooks";
 import { ak } from "../keys";
 import { DIFFICULTIES, GENERATABLE_QUESTION_TYPES, questionMeta } from "../meta";
 import { NumberInput, StringListEditor } from "../shared";
-import type { Generation, GenerationKind } from "../types";
+import type { Generation, GenerationKind, Structure } from "../types";
+import { useCourseOptions } from "../use-options";
 import { GenerationError } from "./generation-progress";
 import { EXAMPLE_PROMPTS, parseRequest } from "./parse";
 
@@ -32,7 +36,12 @@ const KINDS: { value: GenerationKind; label: string; description: string; icon: 
   { value: "assignment", label: "Assignment", description: "Practical task with rubric", icon: ClipboardCheck, color: "amber" },
   { value: "rubric", label: "Rubric", description: "Weighted criteria & levels", icon: Scale, color: "emerald" },
   { value: "scenario", label: "Simulation scenario", description: "Characters, phases & root cause", icon: MonitorPlay, color: "violet" },
+  { value: "flashcards", label: "Flashcards", description: "A spaced-repetition deck, ideally from a lesson", icon: Layers, color: "orange" },
+  { value: "revision_notes", label: "Revision notes", description: "Summary, key points & glossary", icon: NotebookText, color: "teal" },
 ];
+
+/** Kinds that can be grounded in an existing course / lesson (its content becomes source material). */
+const GROUNDABLE = new Set<GenerationKind>(["quiz", "assignment", "rubric", "scenario", "flashcards", "revision_notes"]);
 
 const FORMATS = [
   { value: "self-paced", label: "Self-paced" },
@@ -96,6 +105,18 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
     });
   }, [parsed, debounced]);
 
+  const courses = useCourseOptions(GROUNDABLE.has(kind));
+  const [groundCourse, setGroundCourse] = React.useState("none");
+  const [groundLesson, setGroundLesson] = React.useState("none");
+  const structure = useQuery({
+    queryKey: ak.courses.structure(groundCourse),
+    enabled: GROUNDABLE.has(kind) && groundCourse !== "none",
+    queryFn: ({ signal }) => api.get<Structure>(`/courses/${groundCourse}/structure`, { signal }),
+  });
+  const lessons = (structure.data?.modules ?? []).flatMap((m, mi) => m.lessons.map((l) => ({ ...l, moduleTitle: `${mi + 1}. ${m.title}` })));
+  const lesson = lessons.find((l) => l.id === groundLesson);
+  const grounded = GROUNDABLE.has(kind) && groundCourse !== "none";
+
   const set = <K extends keyof Fields>(k: K, v: Fields[K]) => {
     touched.current.add(k);
     setF((cur) => ({ ...cur, [k]: v }));
@@ -116,7 +137,10 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
           weeks: kind === "course" ? f.weeks : null,
           question_count: f.question_count,
           question_types: f.question_types.length ? f.question_types : ["multiple_choice"],
+          ...(grounded ? { course_id: groundCourse } : {}),
+          ...(grounded && lesson ? { lesson_id: lesson.id, module_id: lesson.module_id } : {}),
         },
+        course_id: grounded ? groundCourse : null,
       }),
     onSuccess: (g) => {
       qc.setQueryData(ak.generations.detail(g.id), g);
@@ -204,7 +228,7 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
 
       <fieldset>
         <legend className="mb-3 font-display text-lg font-semibold text-slate-900">What should we generate?</legend>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" role="radiogroup" aria-label="Generation type">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" role="radiogroup" aria-label="Generation type">
           {KINDS.map((k) => {
             const on = kind === k.value;
             const c = colorClasses(k.color);
@@ -217,6 +241,7 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
                 onClick={() => setKind(k.value)}
                 className={cn(
                   "flex items-start gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition-all focus-visible:focus-ring",
+                  k.value === "course" && "sm:col-span-2",
                   on ? cn(c.border, "bg-gradient-to-br ring-2", c.tint, c.ring) : "border-slate-200 hover:-translate-y-0.5 hover:shadow-lift",
                 )}
               >
@@ -232,6 +257,48 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
           })}
         </div>
       </fieldset>
+
+      {GROUNDABLE.has(kind) && (
+        <Card className="overflow-hidden p-0">
+          <div className="flex flex-col gap-4 bg-gradient-to-br from-teal-50 via-white to-sky-50 p-5 sm:p-6 lg:flex-row lg:items-end">
+            <div className="flex min-w-0 items-start gap-3 lg:w-80 lg:shrink-0">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-teal-400 to-sky-500 text-white shadow-sm" aria-hidden>
+                <Library className="size-5" />
+              </span>
+              <div>
+                <h3 className="font-display text-base font-semibold text-slate-900">Ground it in your content</h3>
+                <p className="text-xs text-muted-foreground">Optional — the lesson (or course) text and approved knowledge become the AI&apos;s source material.</p>
+              </div>
+            </div>
+            <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">
+              <FormField label="Course">
+                {(aria) => (
+                  <SimpleSelect
+                    {...aria}
+                    value={groundCourse}
+                    onValueChange={(v) => {
+                      setGroundCourse(v);
+                      setGroundLesson("none");
+                    }}
+                    options={[{ value: "none", label: "No course — use the brief only" }, ...courses.options]}
+                  />
+                )}
+              </FormField>
+              <FormField label="Lesson" hint={groundCourse === "none" ? "Pick a course first." : lesson ? `In ${lesson.moduleTitle}` : "Whole course if none is chosen."}>
+                {(aria) => (
+                  <SimpleSelect
+                    {...aria}
+                    value={groundLesson}
+                    onValueChange={setGroundLesson}
+                    disabled={groundCourse === "none" || structure.isLoading}
+                    options={[{ value: "none", label: "Any lesson (whole course)" }, ...lessons.map((l) => ({ value: l.id, label: l.title }))]}
+                  />
+                )}
+              </FormField>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="p-5 sm:p-6">
         <h3 className="mb-4 font-display text-lg font-semibold text-slate-900">Fine-tune the brief</h3>
@@ -273,7 +340,7 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
           <FormField label="Learning objectives" className="md:col-span-2 xl:col-span-3" hint="Optional — the AI proposes objectives if you leave this empty.">
             {() => <StringListEditor label="objective" numbered value={f.objectives} onChange={(v) => set("objectives", v)} placeholder="e.g. Contain a ransomware incident within the first hour" color="emerald" />}
           </FormField>
-          {kind !== "rubric" && kind !== "scenario" && (
+          {(kind === "course" || kind === "quiz") && (
             <>
               <fieldset className="md:col-span-2">
                 <legend className="mb-2 text-sm font-medium text-slate-800">Question types</legend>

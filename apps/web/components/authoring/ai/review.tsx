@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
   FormField,
   Input,
+  SimpleSelect,
   Skeleton,
   Textarea,
   cn,
@@ -79,7 +80,9 @@ import type {
   Generation,
   GenerationSummary,
   Page,
+  Structure,
 } from "../types";
+import { useCourseOptions } from "../use-options";
 import { GenerationProgress, OfflineNotice, useGeneration } from "./generation-progress";
 import { AssignmentView, CaseStudyView, FlashcardsView, OutputView, QuestionView, RevisionNotesView, RubricView, ScenarioView } from "./output-views";
 
@@ -92,7 +95,7 @@ function QuizEditor({ quiz, onChange }: { quiz: GenQuiz; onChange: (q: GenQuiz) 
   const setQ = (i: number, patch: Partial<GenQuestion>) => onChange({ ...quiz, questions: quiz.questions.map((q, j) => (j === i ? { ...q, ...patch } : q)) });
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_160px]">
         <FormField label="Quiz title">
           <Input value={quiz.title} onChange={(e) => onChange({ ...quiz, title: e.target.value })} />
         </FormField>
@@ -176,7 +179,7 @@ function QuizEditor({ quiz, onChange }: { quiz: GenQuiz; onChange: (q: GenQuiz) 
 function LessonPane({ lesson, onChange }: { lesson: GenLesson; onChange: (l: GenLesson) => void }) {
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_140px]">
         <FormField label="Lesson title">
           <Input value={lesson.title} onChange={(e) => onChange({ ...lesson, title: e.target.value })} />
         </FormField>
@@ -570,7 +573,7 @@ function AppliedPanel({ result }: { result: ApplyOut }) {
           <p className="text-sm text-slate-600">Review it in the builder, adjust anything, then publish when it&apos;s ready.</p>
         </div>
         <Button asChild variant="gradient" rightIcon={<ArrowRight />}>
-          <Link href={result.link}>{label}</Link>
+          <Link href={result.link.replace(/\/builder$/, "")}>{label}</Link>
         </Button>
       </div>
       {entries.length > 0 && (
@@ -589,6 +592,73 @@ function AppliedPanel({ result }: { result: ApplyOut }) {
         </div>
       )}
     </motion.div>
+  );
+}
+
+/** Lesson-level generations (flashcards, notes, case studies…) are added to a course module. */
+const NEEDS_COURSE = new Set(["module", "lesson", "flashcards", "revision_notes", "case_study"]);
+
+function ApplyTargetDialog({
+  open,
+  onOpenChange,
+  kind,
+  busy,
+  onSubmit,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  kind: string;
+  busy: boolean;
+  onSubmit: (t: { course_id: string; module_id: string | null }) => void;
+}) {
+  const courses = useCourseOptions(open);
+  const [courseId, setCourseId] = React.useState("");
+  const [moduleId, setModuleId] = React.useState("auto");
+  React.useEffect(() => {
+    if (open) {
+      setCourseId("");
+      setModuleId("auto");
+    }
+  }, [open]);
+  const structure = useQuery({
+    queryKey: ak.courses.structure(courseId),
+    enabled: open && !!courseId,
+    queryFn: ({ signal }) => api.get<Structure>(`/courses/${courseId}/structure`, { signal }),
+  });
+  const modules = structure.data?.modules ?? [];
+  return (
+    <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Where should the {kind.replace("_", " ")} go?</DialogTitle>
+          <DialogDescription>It&apos;s added as a new draft lesson at the end of the module you choose. Nothing is published.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <FormField label="Course" required>
+            {(aria) => <SimpleSelect {...aria} value={courseId} onValueChange={(v) => { setCourseId(v); setModuleId("auto"); }} options={courses.options} placeholder="Choose a course" />}
+          </FormField>
+          <FormField label="Module" hint="Defaults to the last module (one is created if the course has none).">
+            {(aria) => (
+              <SimpleSelect
+                {...aria}
+                value={moduleId}
+                onValueChange={setModuleId}
+                disabled={!courseId}
+                options={[{ value: "auto", label: "Last module" }, ...modules.map((m, i) => ({ value: m.id, label: `${i + 1}. ${m.title}` }))]}
+              />
+            )}
+          </FormField>
+        </div>
+        <DialogFooter>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={busy}>
+            Cancel
+          </Button>
+          <Button variant="gradient" leftIcon={<Plus />} loading={busy} disabled={!courseId} onClick={() => onSubmit({ course_id: courseId, module_id: moduleId === "auto" ? null : moduleId })}>
+            Create draft lesson
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -627,6 +697,12 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
   const [node, setNode] = React.useState<NodeId>("course");
   const [dialog, setDialog] = React.useState<null | "approve" | "reject" | "regenerate">(null);
   const [applied, setApplied] = React.useState<ApplyOut | null>(null);
+  const [applyTarget, setApplyTarget] = React.useState(false);
+  const knownCourse = gen.course_id ?? (typeof gen.input?.course_id === "string" ? gen.input.course_id : null);
+  const startApply = () => {
+    if (NEEDS_COURSE.has(gen.kind) && !knownCourse) setApplyTarget(true);
+    else apply.mutate({});
+  };
   const editable = (gen.status === "completed" || gen.status === "approved") && can("courses.edit");
 
   const save = useAutosave(async (d: Doc) => {
@@ -675,11 +751,15 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
     onError: (e) => toast.error(problemsMessage(e)),
   });
   const apply = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (target: { course_id?: string | null; module_id?: string | null } = {}) => {
       await save.flush();
-      return api.post<ApplyOut>(`/ai/generations/${gen.id}/apply`, {});
+      return api.post<ApplyOut>(`/ai/generations/${gen.id}/apply`, {
+        course_id: target.course_id || null,
+        module_id: target.module_id || null,
+      });
     },
     onSuccess: (res) => {
+      setApplyTarget(false);
       setApplied(res);
       refresh(res.generation);
       qc.invalidateQueries({ queryKey: ["courses"] });
@@ -701,7 +781,7 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
             : gen.applied_entity_type === "rubric"
               ? `/app/instructor/rubrics/${gen.applied_entity_id}`
               : gen.applied_entity_type === "simulation"
-                ? `/app/instructor/simulations/${gen.applied_entity_id}/builder`
+                ? `/app/instructor/simulations/${gen.applied_entity_id}`
                 : null
       : null;
 
@@ -780,7 +860,7 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
               </Button>
             )}
             {gen.status === "approved" && can("courses.edit") && (
-              <Button variant="gradient" leftIcon={<Plus />} loading={apply.isPending} onClick={() => apply.mutate()}>
+              <Button variant="gradient" leftIcon={<Plus />} loading={apply.isPending} onClick={startApply}>
                 {gen.kind === "course" ? "Create draft course" : `Create draft ${gen.kind.replace("_", " ")}`}
               </Button>
             )}
@@ -808,7 +888,7 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
       )}
 
       {doc && isCourse ? (
-        <div className="grid items-start gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
           <Card className="p-2 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:scrollbar-thin">
             <p className="px-2 pb-2 pt-1 text-2xs font-bold uppercase tracking-wider text-slate-500">Proposed structure</p>
             <ul className="space-y-0.5" aria-label="Proposed course structure">
@@ -840,6 +920,13 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
         </Card>
       ) : null}
 
+      <ApplyTargetDialog
+        open={applyTarget}
+        onOpenChange={setApplyTarget}
+        kind={gen.kind}
+        busy={apply.isPending}
+        onSubmit={(t) => apply.mutate(t)}
+      />
       <NotesDialog
         open={dialog === "approve"}
         onOpenChange={(o) => !o && setDialog(null)}

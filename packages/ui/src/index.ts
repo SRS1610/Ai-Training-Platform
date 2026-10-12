@@ -33,3 +33,4 @@ export * from "./components/data-table";
 export * from "./components/filter-bar";
 export * from "./components/confirm-dialog";
 export * from "./components/file-dropzone";
+export * from "./components/qr-code";

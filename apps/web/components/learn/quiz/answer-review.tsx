@@ -148,7 +148,7 @@ function AnswerDetail({ q }: { q: ResultQuestion }) {
       );
     }
     case "code":
-      return <pre className="max-h-72 overflow-auto rounded-xl bg-slate-900 p-3 font-mono text-xs text-slate-100 scrollbar-thin">{String(r.code ?? "")}</pre>;
+      return <pre className="max-h-72 overflow-auto rounded-xl bg-slate-50 p-3 font-mono text-xs text-slate-800 ring-1 ring-slate-200 scrollbar-thin">{String(r.code ?? "")}</pre>;
     case "decision_tree": {
       const nodes = (o.nodes ?? {}) as Record<string, { prompt?: string; choices?: { id: string; text: string }[] }>;
       const path = Array.isArray(r.path) ? (r.path as { node_id: string; choice_id: string }[]) : [];

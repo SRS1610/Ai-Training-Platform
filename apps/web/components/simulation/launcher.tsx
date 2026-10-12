@@ -1,7 +1,7 @@
 "use client";
 
 import { BandChip, Button, cn, EmptyState, Pagination, Skeleton, StatusPill, bandMeta, colorClasses } from "@praxis/ui";
-import { ArrowRight, CheckCircle2, Clock, Gauge, History, MonitorPlay, PlayCircle, Sparkles, Trophy } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, Gauge, History, MonitorPlay, PlayCircle, ScrollText, Sparkles, Trophy, Wrench } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
@@ -76,10 +76,32 @@ export function LauncherHero({
               </Button>
             </div>
           )}
+          {!active && finished.length === 0 && (
+            <ol className="mt-auto grid gap-2 sm:grid-cols-3" aria-label="How simulations work">
+              {[
+                { icon: ScrollText, title: "Read the brief", text: "Role, goals and scoring" },
+                { icon: Wrench, title: "Work the problem", text: "Talk, investigate, decide" },
+                { icon: Trophy, title: "Get debriefed", text: "Band, coaching, replay" },
+              ].map((s, i) => (
+                <li key={s.title} className="flex items-start gap-3 rounded-2xl bg-white/10 p-3 ring-1 ring-inset ring-white/20 backdrop-blur">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-white text-sm font-bold text-brand-700 shadow-sm">
+                    <s.icon className="size-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">
+                      <span className="sr-only">Step {i + 1}: </span>
+                      {s.title}
+                    </span>
+                    <span className="block text-xs text-white/85">{s.text}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
           {!active && finished.length > 0 && (
             <div className="mt-auto">
               <p className="mb-2 text-xs font-medium text-white/80">Your band history</p>
-              <div className="flex h-2.5 overflow-hidden rounded-full bg-white/15" role="img" aria-label={bands.map((b) => `${bandMeta(b.band).label}: ${b.count}`).join(", ")}>
+              <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-white/15 ring-1 ring-white/30" role="img" aria-label={bands.map((b) => `${bandMeta(b.band).label}: ${b.count}`).join(", ")}>
                 {bands.map((b) =>
                   b.count ? <span key={b.band} className={colorClasses(bandMeta(b.band).color).solid} style={{ width: `${(b.count / finished.length) * 100}%` }} /> : null,
                 )}
@@ -89,7 +111,7 @@ export function LauncherHero({
                   .filter((b) => b.count)
                   .map((b) => (
                     <span key={b.band} className="inline-flex items-center gap-1">
-                      <span className={cn("size-2 rounded-full", colorClasses(bandMeta(b.band).color).solid)} aria-hidden />
+                      <span className={cn("size-2 rounded-full ring-1 ring-white/70", colorClasses(bandMeta(b.band).color).solid)} aria-hidden />
                       {bandMeta(b.band).label} · {b.count}
                     </span>
                   ))}

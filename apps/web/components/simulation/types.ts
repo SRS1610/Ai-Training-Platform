@@ -271,15 +271,27 @@ export interface Replay {
   transcript: TranscriptEntry[];
 }
 
-/** Subset of the scenario definition read by authors' briefing preview (GET /simulations/{id}/versions/{n}). */
-export interface DefinitionPreview {
-  meta?: Partial<SessionView["meta"]> & { tags?: string[] };
-  scoring?: {
-    dimensions?: { id: string; name: string; weight: number }[];
-    efficiency?: { target_minutes?: number; max_minutes?: number } | null;
-    pass_mark?: number;
-    bands?: { name: string; min: number }[];
-    process?: { required_order?: string[] } | null;
-  };
-  phases?: { id: string; name: string; terminal?: boolean }[];
+/** Learner-safe pre-start briefing (GET /simulations/{id}/briefing). */
+export interface SimBriefing {
+  simulation_id: string;
+  version: number;
+  title: string;
+  description: string;
+  industry: string;
+  environment_type: string;
+  difficulty: string;
+  estimated_minutes: number;
+  briefing: string;
+  learner_role: string;
+  objectives: string[];
+  tags: string[];
+  phases: string[];
+  characters: { name: string; role: string }[];
+  tools: { name: string; description: string; icon: string | null }[];
+  dimensions: { id: string; name: string; weight: number; description: string }[];
+  bands: { name: string; min: number }[];
+  pass_mark: number;
+  critical_cap: number | null;
+  target_minutes: number | null;
+  max_minutes: number | null;
 }

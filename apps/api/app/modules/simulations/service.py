@@ -658,6 +658,48 @@ async def load_session(
     return session
 
 
+async def briefing(ctx: Ctx, sim_id: uuid.UUID) -> s.BriefingOut:
+    """Pre-start briefing of the published version (learner-safe: meta, people and tools by name, phase
+    order and scoring model; never actions, facts, variables or feedback rules)."""
+    sim = await get_visible_simulation(ctx, sim_id)
+    if sim.current_scenario_id is None:
+        raise NotFound("This simulation has no published version yet")
+    sc = await _scenario(ctx.db, sim.current_scenario_id)
+    d = _definition(sc)
+    order = d.scoring.process.required_order if d.scoring.process else [p.id for p in d.phases]
+    eff = d.scoring.efficiency
+    return s.BriefingOut(
+        simulation_id=sim.id,
+        version=sc.version,
+        title=sim.title,
+        description=sim.description or d.meta.description,
+        industry=sim.industry,
+        environment_type=sim.environment_type,
+        difficulty=sim.difficulty,
+        estimated_minutes=sim.estimated_minutes,
+        briefing=d.meta.briefing,
+        learner_role=d.meta.learner_role,
+        objectives=list(d.meta.objectives),
+        tags=list(d.meta.tags),
+        phases=[ph.name for pid in order if (ph := d.phase(pid)) is not None],
+        characters=[s.BriefingPerson(name=c.name, role=c.role) for c in d.characters],
+        tools=[
+            s.BriefingTool(name=t.name, description=t.description, icon=t.icon)
+            for t in d.tools
+            if t.visible_when is None
+        ],
+        dimensions=[
+            s.BriefingDimension(id=x.id, name=x.name, weight=x.weight, description=x.description)
+            for x in d.scoring.dimensions
+        ],
+        bands=[s.BriefingBand(name=b.name, min=b.min) for b in d.scoring.bands],
+        pass_mark=d.scoring.pass_mark,
+        critical_cap=d.scoring.critical_cap,
+        target_minutes=eff.target_minutes if eff else None,
+        max_minutes=eff.max_minutes if eff else None,
+    )
+
+
 async def start_session(ctx: Ctx, sim_id: uuid.UUID, body: s.SessionStart) -> s.SessionOut:
     ctx.require("learning.access")
     require_feature(ctx.org, FEATURE)

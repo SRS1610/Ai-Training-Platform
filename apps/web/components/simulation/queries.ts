@@ -1,12 +1,12 @@
 /** Query keys + fetchers for the simulation player (local to this area). */
 import { api } from "@/lib/api";
-import type { DefinitionPreview, Page, Replay, SessionSummary, SimResult, SimSession, Simulation } from "./types";
+import type { Page, Replay, SessionSummary, SimBriefing, SimResult, SimSession, Simulation } from "./types";
 
 export const simKeys = {
   all: ["simulations"] as const,
   list: (params: Record<string, unknown> = {}) => ["simulations", "list", params] as const,
   detail: (id: string) => ["simulations", "detail", id] as const,
-  definition: (id: string, version: number | null | undefined) => ["simulations", "definition", id, version] as const,
+  briefing: (id: string) => ["simulations", "briefing", id] as const,
   mySessions: (params: Record<string, unknown> = {}) => ["simulation-sessions", "mine", params] as const,
   session: (id: string) => ["simulation-sessions", "detail", id] as const,
   result: (id: string) => ["simulation-sessions", "result", id] as const,
@@ -18,11 +18,8 @@ export const fetchSimulations = (query: Record<string, string | number | undefin
 
 export const fetchSimulation = (id: string, signal?: AbortSignal) => api.get<Simulation>(`/simulations/${id}`, { signal });
 
-/** Authors only (simulations.manage): the published definition, for a richer briefing preview. */
-export const fetchDefinition = async (id: string, version: number, signal?: AbortSignal) => {
-  const v = await api.get<{ definition: DefinitionPreview }>(`/simulations/${id}/versions/${version}`, { signal });
-  return v.definition;
-};
+/** Learner-safe briefing of the published version (role, objectives, people, phases, scoring model). */
+export const fetchBriefing = (id: string, signal?: AbortSignal) => api.get<SimBriefing>(`/simulations/${id}/briefing`, { signal });
 
 export const fetchMySessions = (query: Record<string, string | number | undefined>, signal?: AbortSignal) =>
   api.get<Page<SessionSummary>>("/simulation-sessions", { query, signal });

@@ -2,7 +2,7 @@
 
 import { Badge, Button, cn, toast } from "@praxis/ui";
 import { Check, Copy, ExternalLink, MousePointerClick, RotateCcw, ShieldCheck, WrapText } from "lucide-react";
-import { Highlight, themes } from "prism-react-renderer";
+import { Highlight, type PrismTheme, themes } from "prism-react-renderer";
 import * as React from "react";
 import { Markdown } from "@/components/common/markdown";
 import { isPlaceholderUrl, str, videoEmbedUrl } from "./media";
@@ -95,6 +95,16 @@ const LANG_ALIASES: Record<string, string> = {
   "c++": "cpp",
 };
 
+/** Light, AA-contrast syntax theme (VS light palette, tuned for a slate-50 surface). */
+const LIGHT_CODE_THEME: PrismTheme = {
+  plain: { color: "#1e293b", backgroundColor: "transparent" },
+  styles: [
+    ...themes.vsLight.styles.filter((s) => !s.types.includes("attr-name")),
+    { types: ["attr-name"], style: { color: "rgb(190, 18, 60)" } },
+    { types: ["comment"], style: { color: "rgb(21, 128, 61)", fontStyle: "italic" } },
+  ],
+};
+
 export function CodeBlock({ code, language, title, className }: { code: string; language?: string; title?: string; className?: string }) {
   const lang = LANG_ALIASES[(language ?? "").toLowerCase()] ?? (language ?? "text").toLowerCase();
   const [copied, setCopied] = React.useState(false);
@@ -109,37 +119,37 @@ export function CodeBlock({ code, language, title, className }: { code: string; 
     }
   };
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-slate-800 bg-[#0f172a] shadow-lift", className)}>
-      <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
+    <div className={cn("overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/80 shadow-soft", className)}>
+      <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-2">
         <span className="flex gap-1.5" aria-hidden>
-          <span className="size-2.5 rounded-full bg-rose-400/80" />
-          <span className="size-2.5 rounded-full bg-amber-400/80" />
-          <span className="size-2.5 rounded-full bg-emerald-400/80" />
+          <span className="size-2.5 rounded-full bg-rose-400" />
+          <span className="size-2.5 rounded-full bg-amber-400" />
+          <span className="size-2.5 rounded-full bg-emerald-400" />
         </span>
-        <span className="ml-2 truncate font-mono text-xs text-slate-300">{title ?? "Code example"}</span>
-        <span className="ml-auto rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-2xs uppercase text-slate-200">{lang}</span>
+        <span className="ml-2 truncate font-mono text-xs text-slate-600">{title ?? "Code example"}</span>
+        <span className="ml-auto rounded-md bg-indigo-50 px-1.5 py-0.5 font-mono text-2xs font-semibold uppercase text-indigo-700 ring-1 ring-inset ring-indigo-100">{lang}</span>
         <button
           type="button"
           onClick={() => setWrap((w) => !w)}
           aria-pressed={wrap}
           aria-label="Toggle line wrap"
-          className="grid size-7 place-items-center rounded-md text-slate-300 hover:bg-white/10 hover:text-white focus-visible:focus-ring"
+          className={cn("grid size-7 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:focus-ring", wrap && "bg-slate-100 text-slate-900")}
         >
           <WrapText className="size-3.5" aria-hidden />
         </button>
         <button
           type="button"
           onClick={copy}
-          className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-semibold text-slate-200 hover:bg-white/10 hover:text-white focus-visible:focus-ring"
+          className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:focus-ring"
         >
-          {copied ? <Check className="size-3.5 text-emerald-400" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
+          {copied ? <Check className="size-3.5 text-emerald-600" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
           {copied ? "Copied" : "Copy"}
         </button>
         <span className="sr-only" aria-live="polite">
           {copied ? "Code copied to clipboard" : ""}
         </span>
       </div>
-      <Highlight theme={themes.nightOwl} code={code.replace(/\n$/, "")} language={lang}>
+      <Highlight theme={LIGHT_CODE_THEME} code={code.replace(/\n$/, "")} language={lang}>
         {({ tokens, getLineProps, getTokenProps }) => (
           // Scrollable code must be keyboard-reachable (WCAG 2.1.1); a focusable <pre> is the standard pattern.
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
@@ -148,7 +158,7 @@ export function CodeBlock({ code, language, title, className }: { code: string; 
               const lineProps = getLineProps({ line });
               return (
                 <div key={i} style={lineProps.style} className="table-row">
-                  <span className="table-cell select-none pr-4 text-right text-slate-500" aria-hidden>
+                  <span className="table-cell select-none pr-4 text-right text-slate-400" aria-hidden>
                     {i + 1}
                   </span>
                   <span className="table-cell">

@@ -15,17 +15,33 @@ type Content = Record<string, unknown>;
 
 const TS_LINE = /^\s*\[?(\d{1,2}):(\d{2})(?::(\d{2}))?\]?\s*[-–—:]?\s*(.*)$/;
 
+/** Split a transcript into cues. Lines without a timestamp continue the previous cue (hard-wrapped scripts). */
 function parseTranscript(text: string): { t: number | null; text: string }[] {
-  return text
-    .split(/\n+/)
-    .map((line) => {
-      const m = line.match(TS_LINE);
-      if (!m) return { t: null, text: line };
+  const out: { t: number | null; text: string }[] = [];
+  let paragraphBreak = true;
+  for (const line of text.split("\n")) {
+    if (!line.trim()) {
+      paragraphBreak = true;
+      continue;
+    }
+    const m = line.match(TS_LINE);
+    if (m) {
       const [, a, b, c, rest] = m;
       const secs = c ? Number(a) * 3600 + Number(b) * 60 + Number(c) : Number(a) * 60 + Number(b);
-      return { t: secs, text: rest ?? "" };
-    })
-    .filter((l) => l.text.trim());
+      out.push({ t: secs, text: (rest ?? "").trim() });
+    } else if (out.length && !(paragraphBreak && out[out.length - 1]!.t === null)) {
+      const prev = out[out.length - 1]!;
+      prev.text = `${prev.text} ${line.trim()}`.trim();
+    } else {
+      out.push({ t: null, text: line.trim() });
+    }
+    paragraphBreak = false;
+  }
+  return out.filter((l) => l.text);
+}
+
+function clock(t: number) {
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
 }
 
 export function TranscriptPanel({ transcript, onSeek, defaultOpen = false }: { transcript: string; onSeek?: (secs: number) => void; defaultOpen?: boolean }) {
@@ -51,24 +67,23 @@ export function TranscriptPanel({ transcript, onSeek, defaultOpen = false }: { t
       {open && (
         <div id={id} className="max-h-80 overflow-y-auto border-t border-slate-100 px-4 py-3 scrollbar-thin">
           {timed ? (
-            <ol className="space-y-1.5">
+            <ol className="space-y-2.5">
               {lines.map((l, i) => (
-                <li key={i} className="flex gap-3 text-sm leading-relaxed text-slate-700">
+                <li key={i} className="flex items-start gap-3 text-sm leading-relaxed text-slate-700">
                   {l.t !== null && !onSeek ? (
-                    <span className="shrink-0 rounded-md bg-slate-100 px-1.5 font-mono text-xs font-semibold text-slate-600">
-                      {Math.floor(l.t / 60)}:{String(l.t % 60).padStart(2, "0")}
-                    </span>
+                    <span className="mt-0.5 w-12 shrink-0 rounded-md bg-slate-100 py-0.5 text-center font-mono text-xs font-semibold text-slate-600">{clock(l.t)}</span>
                   ) : null}
                   {l.t !== null && onSeek ? (
                     <button
                       type="button"
                       onClick={() => onSeek(l.t!)}
-                      className="shrink-0 rounded-md bg-sky-50 px-1.5 font-mono text-xs font-semibold text-sky-700 hover:bg-sky-100 focus-visible:focus-ring"
-                      aria-label={`Jump to ${Math.floor(l.t / 60)}:${String(l.t % 60).padStart(2, "0")}`}
+                      className="mt-0.5 w-12 shrink-0 rounded-md bg-sky-50 py-0.5 text-center font-mono text-xs font-semibold text-sky-700 hover:bg-sky-100 focus-visible:focus-ring"
+                      aria-label={`Jump to ${clock(l.t)}`}
                     >
-                      {Math.floor(l.t / 60)}:{String(l.t % 60).padStart(2, "0")}
+                      {clock(l.t)}
                     </button>
                   ) : null}
+                  {l.t === null && <span className="w-12 shrink-0" aria-hidden />}
                   <span>{l.text}</span>
                 </li>
               ))}
@@ -91,12 +106,13 @@ function MediaPlaceholder({ kind, title, reason }: { kind: "video" | "audio"; ti
       role="img"
       aria-label={`${kind === "video" ? "Video" : "Audio"} placeholder: ${reason}`}
       className={cn(
-        "relative grid place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-violet-950 text-center text-white",
+        "relative grid place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-700 text-center text-white shadow-lift",
         kind === "video" ? "aspect-video" : "h-40",
       )}
     >
-      <div className="pointer-events-none absolute -right-10 -top-10 size-48 rounded-full bg-fuchsia-500/25 blur-3xl" aria-hidden />
-      <div className="pointer-events-none absolute -bottom-12 left-6 size-48 rounded-full bg-sky-500/20 blur-3xl" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.18)_1px,transparent_0)] [background-size:22px_22px]" aria-hidden />
+      <div className="pointer-events-none absolute -right-12 -top-12 size-56 rounded-full bg-white/10" aria-hidden />
+      <div className="pointer-events-none absolute -bottom-16 left-8 size-48 rounded-full bg-white/10" aria-hidden />
       <div className="relative px-6">
         <span className="mx-auto grid size-14 place-items-center rounded-full bg-white/10 ring-1 ring-white/25">
           <Icon className="size-6" aria-hidden />

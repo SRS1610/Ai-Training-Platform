@@ -191,11 +191,13 @@ export function MarkdownEditor({
           ))}
         </div>
       </div>
-      <div className={cn("grid", mode === "split" && "lg:grid-cols-2")}>
-        <div className={cn(mode === "preview" && "hidden", mode === "split" && "lg:border-r lg:border-slate-100")}>
-          <label htmlFor={taId} className="sr-only">
-            {label}
-          </label>
+      <div className={cn("grid grid-cols-1", mode === "split" && "lg:grid-cols-2")}>
+        <div className={cn("min-w-0", mode === "preview" && "hidden", mode === "split" && "lg:border-r lg:border-slate-100")}>
+          {!id && (
+            <label htmlFor={taId} className="sr-only">
+              {label}
+            </label>
+          )}
           <textarea
             ref={ref}
             id={taId}
@@ -211,7 +213,7 @@ export function MarkdownEditor({
         </div>
         <div
           className={cn(
-            "min-h-[12rem] bg-gradient-to-b from-white to-slate-50/40 px-5 py-4",
+            "min-h-[12rem] min-w-0 bg-gradient-to-b from-white to-slate-50/40 px-5 py-4",
             mode === "write" && "hidden",
             mode === "split" && "hidden lg:block",
           )}

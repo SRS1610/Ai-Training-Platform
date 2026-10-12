@@ -84,6 +84,56 @@ class SimulationOut(BaseModel):
     draft_version: int | None = None
 
 
+class BriefingDimension(BaseModel):
+    id: str
+    name: str
+    weight: float
+    description: str = ""
+
+
+class BriefingBand(BaseModel):
+    name: str
+    min: float
+
+
+class BriefingPerson(BaseModel):
+    name: str
+    role: str
+
+
+class BriefingTool(BaseModel):
+    name: str
+    description: str
+    icon: str | None
+
+
+class BriefingOut(BaseModel):
+    """Learner-safe briefing of the published version, shown before an attempt starts: meta, the people and
+    tools by name, the phase order and the scoring model. No actions, facts, variables or answers."""
+
+    simulation_id: uuid.UUID
+    version: int
+    title: str
+    description: str
+    industry: str
+    environment_type: str
+    difficulty: str
+    estimated_minutes: int
+    briefing: str
+    learner_role: str
+    objectives: list[str]
+    tags: list[str]
+    phases: list[str]
+    characters: list[BriefingPerson]
+    tools: list[BriefingTool]
+    dimensions: list[BriefingDimension]
+    bands: list[BriefingBand]
+    pass_mark: float
+    critical_cap: float | None
+    target_minutes: float | None
+    max_minutes: float | None
+
+
 class TemplateOut(BaseModel):
     key: str
     title: str

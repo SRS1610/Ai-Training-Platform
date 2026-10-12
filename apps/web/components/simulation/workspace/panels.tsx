@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Button, cn, colorClasses, humanize, Input } from "@praxis/ui";
+import { Badge, Button, cn, colorClasses, humanize, Input, Tooltip } from "@praxis/ui";
 import {
   AlertOctagon,
   ArrowLeft,
@@ -334,7 +334,8 @@ function KnowledgePanel({ app }: { app: WorkspaceApp }) {
               <h3 className="mt-1 font-display text-xl font-semibold text-slate-900">{m.title}</h3>
               <div className="mt-4">
                 {m.content ? (
-                  <Markdown>{m.content}</Markdown>
+                  // The engine output repeats the article heading; it's already shown above.
+                  <Markdown>{m.id ? m.content.replace(new RegExp(`^\\s*(?:#+\\s*|\\*\\*)?${m.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^\\n]*\\n+`), "") : m.content}</Markdown>
                 ) : pending?.kind === "action" && pending.actionId === m.action?.id ? (
                   <div className="space-y-2" aria-busy>
                     {[90, 100, 75, 85].map((w, i) => (
@@ -443,7 +444,7 @@ function EmailPanel({ app }: { app: WorkspaceApp }) {
                 </div>
               )}
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <Markdown className="text-sm">{str(msg.body)}</Markdown>
+                <EmailBody text={str(msg.body)} />
               </div>
               {Array.isArray(msg.reported_by) && (
                 <p className="text-xs text-slate-500">
@@ -458,6 +459,41 @@ function EmailPanel({ app }: { app: WorkspaceApp }) {
         </div>
       </div>
     </PanelShell>
+  );
+}
+
+/**
+ * Email body as the recipient sees it. Links are inert (it's a simulation, and the URLs may be malicious):
+ * hovering or focusing one reveals its real destination, like hovering in a mail client.
+ */
+function EmailBody({ text }: { text: string }) {
+  const paragraphs = text.split(/\n{2,}/);
+  return (
+    <div className="space-y-3 text-sm leading-relaxed text-slate-800">
+      {paragraphs.map((para, i) => (
+        <p key={i} className="whitespace-pre-line">
+          {para.split(/(\[[^\]]+\]\([^)]+\))/g).map((part, j) => {
+            const m = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+            if (!m) return <React.Fragment key={j}>{part}</React.Fragment>;
+            return (
+              <Tooltip
+                key={j}
+                content={
+                  <span className="block max-w-xs break-all font-mono text-xs">
+                    {m[2]}
+                    <span className="mt-1 block font-sans text-2xs opacity-80">Links are disabled in the simulation.</span>
+                  </span>
+                }
+              >
+                <button type="button" className="cursor-help rounded font-medium text-blue-700 underline decoration-blue-300 underline-offset-2 focus-visible:focus-ring" aria-label={`${m[1]} (link to ${m[2]}, disabled)`}>
+                  {m[1]}
+                </button>
+              </Tooltip>
+            );
+          })}
+        </p>
+      ))}
+    </div>
   );
 }
 

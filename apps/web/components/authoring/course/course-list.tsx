@@ -323,7 +323,7 @@ export function CourseList() {
           onSearchChange={(q) => set({ q, page: null })}
           searchPlaceholder="Search courses…"
           actions={
-            <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Layout">
+            <div className="hidden items-center gap-1 rounded-xl bg-slate-100 p-1 sm:flex" role="radiogroup" aria-label="Layout">
               {(
                 [
                   ["grid", LayoutGrid, "Cards"],
@@ -367,7 +367,7 @@ export function CourseList() {
             value={difficulty || "all"}
             onValueChange={(v) => set({ difficulty: v === "all" ? null : v, page: null })}
             options={[{ value: "all", label: "Any level" }, ...DIFFICULTIES.map((d) => ({ value: d.value, label: d.label }))]}
-            className="h-9 w-40"
+            className="h-9 w-36 sm:w-40"
           />
         </FilterBar>
         <div className="no-scrollbar flex gap-1.5 overflow-x-auto" role="radiogroup" aria-label="Status">

@@ -38,7 +38,7 @@ import { useAuth } from "@/lib/auth";
 import { QuickGenerateDialog, type QuickKind } from "../ai/quick-generate";
 import { problemsFrom, useAutosave } from "../hooks";
 import { LESSON_TYPE_GROUPS, LESSON_TYPES, LINKED_LESSON_TYPES, lessonMeta, type LessonTypeKey } from "../meta";
-import { AIBadge, SaveIndicator, SectionCard, SkillPicker, TypeChip } from "../shared";
+import { AIBadge, AutoGrowTextarea, SaveIndicator, SectionCard, SkillPicker, TypeChip } from "../shared";
 import type { Lesson, LessonPatch, LinkedItem, StructureModule } from "../types";
 import { ActivitiesEditor } from "./activities-editor";
 import { useBuilder } from "./builder-context";
@@ -318,20 +318,22 @@ export function LessonEditor({
                 <label htmlFor={titleId} className="sr-only">
                   Lesson title
                 </label>
-                <input
+                <AutoGrowTextarea
                   id={titleId}
                   value={draft.title}
-                  onChange={(e) => update({ title: e.target.value })}
+                  singleLine
+                  maxLength={255}
+                  onChange={(v) => update({ title: v })}
                   placeholder="Lesson title"
-                  className="w-full rounded-lg bg-transparent font-display text-2xl font-bold tracking-tight text-slate-900 outline-none placeholder:text-slate-300 focus-visible:ring-2 focus-visible:ring-brand-500/30 sm:text-[1.75rem]"
+                  className="w-full rounded-lg bg-transparent font-display text-2xl font-bold leading-tight tracking-tight text-slate-900 outline-none placeholder:text-slate-300 focus-visible:ring-2 focus-visible:ring-brand-500/30 sm:text-[1.75rem]"
                 />
-                <textarea
+                <AutoGrowTextarea
                   aria-label="Lesson summary"
                   value={draft.summary}
-                  rows={1}
-                  onChange={(e) => update({ summary: e.target.value })}
+                  maxLength={2000}
+                  onChange={(v) => update({ summary: v })}
                   placeholder="Add a one-line summary learners see in the outline…"
-                  className="mt-1 w-full resize-none rounded-lg bg-transparent text-base text-slate-600 outline-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-brand-500/30"
+                  className="mt-1 w-full rounded-lg bg-transparent text-base text-slate-600 outline-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-brand-500/30"
                 />
               </div>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-slate-100 pt-4">
