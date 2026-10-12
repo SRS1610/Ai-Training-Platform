@@ -1,0 +1,68 @@
+[project]
+name = "praxis-api"
+version = "0.1.0"
+description = "AI-powered Training Management System API"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "sqlalchemy[asyncio]>=2.0.36",
+  "asyncpg>=0.30",
+  "alembic>=1.14",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "email-validator>=2.2",
+  "argon2-cffi>=23.1",
+  "pyjwt>=2.9",
+  "pyotp>=2.9",
+  "qrcode[pil]>=8.0",
+  "cryptography>=43",
+  "httpx>=0.27",
+  "redis>=5.2",
+  "celery>=5.4",
+  "stripe>=11",
+  "pgvector>=0.3",
+  "python-multipart>=0.0.12",
+  "reportlab>=4.2",
+  "openpyxl>=3.1",
+  "structlog>=24.4",
+  "sentry-sdk>=2.17",
+  "pypdf>=5.0",
+  "python-docx>=1.1",
+  "python-pptx>=1.0",
+  "beautifulsoup4>=4.12",
+  "boto3>=1.35",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "pytest-cov>=6.0", "ruff>=0.7", "mypy>=1.13", "psycopg2-binary>=2.9"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "ASYNC"]
+ignore = ["S101", "B008", "S311", "UP040"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]
+"app/seed/**" = ["S105", "S106"]
+
+[tool.coverage.run]
+source = ["app", "simulation_engine", "praxis_ai"]
+omit = ["app/seed/*", "app/workers/celery_app.py"]
