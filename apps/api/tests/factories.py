@@ -69,3 +69,16 @@ async def add_member(org_id: uuid.UUID, *role_keys: str, email: str | None = Non
         await s.commit()
         return Account(user.id, org_id, email, token,
                        {"Authorization": f"Bearer {token}", "X-Organisation-Id": str(org_id)})
+
+
+async def set_plan(org_id: uuid.UUID, plan_code: str = "business", **settings_overrides) -> None:
+    """Switch an organisation's plan (tests creating many courses / using paid features)."""
+    from app.models.tenancy import Organisation
+
+    async with get_sessionmaker()() as s:
+        s.info["rls_bypass"] = True
+        org = await s.get(Organisation, org_id)
+        org.plan_code = plan_code
+        if settings_overrides:
+            org.settings = {**(org.settings or {}), **settings_overrides}
+        await s.commit()
