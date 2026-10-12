@@ -116,8 +116,8 @@ function CreateKeyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
               <p className="mb-1 font-semibold text-slate-300">Example</p>
               <code className="block whitespace-pre-wrap break-all font-mono">{`curl -H "X-API-Key: ${created.key}" \\\n  ${typeof window !== "undefined" ? window.location.origin : ""}/api/v1/courses`}</code>
             </div>
-            <label className="flex items-center gap-3 text-sm font-medium text-slate-800">
-              <Checkbox checked={ack} onCheckedChange={(v) => setAck(v === true)} />
+            <label htmlFor="api-key-ack" className="flex items-center gap-3 text-sm font-medium text-slate-800">
+              <Checkbox id="api-key-ack" checked={ack} onCheckedChange={(v) => setAck(v === true)} />
               I&apos;ve stored this key somewhere safe
             </label>
             <DialogFooter>
@@ -320,8 +320,8 @@ function ApiKeysPage() {
           getRowId={(r) => r.id}
           columnToggle={false}
           toolbar={
-            <label className="flex items-center gap-2.5 text-sm font-medium text-slate-700">
-              <Switch checked={showRevoked} onCheckedChange={(v) => { setShowRevoked(v); setPagination((p) => ({ ...p, pageIndex: 0 })); }} aria-label="Show revoked keys" />
+            <label htmlFor="api-keys-show-revoked" className="flex items-center gap-2.5 text-sm font-medium text-slate-700">
+              <Switch id="api-keys-show-revoked" checked={showRevoked} onCheckedChange={(v) => { setShowRevoked(v); setPagination((p) => ({ ...p, pageIndex: 0 })); }} aria-label="Show revoked keys" />
               Show revoked &amp; expired keys
             </label>
           }

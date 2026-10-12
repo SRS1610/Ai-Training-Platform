@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
   FormField,
-  Input,
   RadioCard,
   RadioGroup,
   Switch,
@@ -164,12 +163,12 @@ export function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpen
                 </FormField>
               )}
             </fieldset>
-            <label className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-3">
+            <label htmlFor="create-user-send-email" className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-3">
               <span>
                 <span className="block text-sm font-medium text-slate-900">Send a welcome email</span>
                 <span className="block text-xs text-muted-foreground">Includes a sign-in link (never the password).</span>
               </span>
-              <Switch checked={sendEmail} onCheckedChange={setSendEmail} aria-label="Send a welcome email" />
+              <Switch id="create-user-send-email" checked={sendEmail} onCheckedChange={setSendEmail} aria-label="Send a welcome email" />
             </label>
             {error !== null &&
               (isPlanLimit(error) ? (

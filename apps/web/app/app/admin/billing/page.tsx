@@ -3,7 +3,6 @@
 import type { Page } from "@praxis/types";
 import {
   Alert,
-  Badge,
   Button,
   ConfirmDialog,
   DataTable,
@@ -49,7 +48,7 @@ import {
 import * as React from "react";
 import { ak } from "@/components/admin/keys";
 import type { BillingUsageOut, CheckoutOut, PaymentOut, PlanOut, SubscriptionOut } from "@/components/admin/types";
-import { PageGate, SectionCard, fmtCents, fmtNumber, fmtUsd, toastError } from "@/components/admin/ui";
+import { PageGate, SectionCard, deepGradient, fmtCents, fmtNumber, fmtUsd, toastError } from "@/components/admin/ui";
 import { ErrorState } from "@/components/common/error-state";
 import { api, errorMessage } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -110,7 +109,7 @@ function CurrentPlan({ sub, onSeats, onCancel, onResume, onPortal, portalBusy }:
   const paid = sub.plan.monthly_price_cents > 0;
   return (
     <section aria-labelledby="current-plan" className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
-      <div className={cn("relative overflow-hidden bg-gradient-to-br p-6 text-white sm:p-8", c.gradient)}>
+      <div className={cn("relative overflow-hidden bg-gradient-to-br p-6 text-white sm:p-8", deepGradient(style.color))}>
         <div className="pointer-events-none absolute inset-0 bg-grid-faint opacity-20 [background-size:28px_28px]" aria-hidden />
         <div className="pointer-events-none absolute -right-10 -top-16 size-64 rounded-full bg-white/20 blur-3xl" aria-hidden />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">

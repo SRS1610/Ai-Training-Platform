@@ -64,6 +64,7 @@ import {
   deriveEdges,
   entityId,
   graphToState,
+  hasOverlaps,
   mapIssues,
   newNodeData,
   phaseOrder,
@@ -265,11 +266,13 @@ function BuilderInner({ id }: { id: string }) {
   const dirty = graphDirty || defDirty || simDirty;
   const guard = useUnsavedGuard(dirty);
 
-  const loadGraph = React.useCallback((g: BuilderGraph) => {
+  const loadGraph = React.useCallback((g: BuilderGraph, arrange = false) => {
     const st = graphToState(g);
+    // Graphs that were never arranged (e.g. AI-built or seeded) come back with stacked default positions.
+    const placed = arrange && hasOverlaps(st.nodes) ? autoLayout(st.nodes, st.links, st.initial) : st.nodes;
     setNodes((prev) => {
       const sel = new Set(prev.filter((n) => n.selected).map((n) => n.id));
-      return st.nodes.map((n) => (sel.has(n.id) ? { ...n, selected: true } : n));
+      return placed.map((n) => (sel.has(n.id) ? { ...n, selected: true } : n));
     });
     setLinks(st.links);
     setInitial(st.initial);
@@ -280,7 +283,7 @@ function BuilderInner({ id }: { id: string }) {
   React.useEffect(() => {
     if (graphQ.data && !loaded.current.graph) {
       loaded.current.graph = true;
-      loadGraph(graphQ.data.graph as unknown as BuilderGraph);
+      loadGraph(graphQ.data.graph as unknown as BuilderGraph, true);
       setValidation(graphQ.data.validation);
     }
   }, [graphQ.data, loadGraph]);

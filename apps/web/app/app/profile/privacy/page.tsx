@@ -390,8 +390,8 @@ function DeleteAccountCard() {
             <button type="button" className="text-xs font-semibold text-brand-700 hover:underline" onClick={() => setMode((m) => (m === "password" ? "email" : "password"))}>
               {mode === "password" ? "Signed up with Google, Microsoft or SSO? Confirm with your email instead" : "I have a password — confirm with it instead"}
             </button>
-            <label className="flex items-start gap-3 text-sm text-slate-800">
-              <Checkbox checked={ack} onCheckedChange={(v) => setAck(v === true)} className="mt-0.5" />I understand my account will be permanently deleted.
+            <label htmlFor="delete-ack" className="flex items-start gap-3 text-sm text-slate-800">
+              <Checkbox id="delete-ack" checked={ack} onCheckedChange={(v) => setAck(v === true)} className="mt-0.5" />I understand my account will be permanently deleted.
             </label>
             {del.isError &&
               (sole ? (

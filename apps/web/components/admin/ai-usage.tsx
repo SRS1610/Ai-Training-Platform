@@ -1,9 +1,9 @@
 "use client";
 
 import { Avatar, Badge, Button, EmptyState, KpiTile, Skeleton, cn, toast } from "@praxis/ui";
-import { ColorBarChart, TrendAreaChart } from "@praxis/ui/charts";
+import { TrendAreaChart } from "@praxis/ui/charts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Bell, BookOpen, Bot, Coins, Cpu, Gauge, Hash, Layers, RefreshCw, ShieldAlert, Sparkles, Users, Zap } from "lucide-react";
+import { AlertTriangle, Bell, BookOpen, Bot, Coins, Cpu, Gauge, Hash, Layers, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Users, Zap } from "lucide-react";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
 import { api } from "@/lib/api";
@@ -72,6 +72,15 @@ export function BudgetGauge({ pct, thresholds, size = 240, label, sub }: { pct: 
 }
 
 /* ------------------------------------------------------------------ dashboard */
+
+const MODEL_COLORS = ["sky", "violet", "teal", "fuchsia", "amber", "indigo"] as const;
+
+/** Usage rows label people as "Full Name <email>". */
+function splitPerson(label: string | null | undefined): { name: string; email: string | null } {
+  if (!label) return { name: "System / API", email: null };
+  const m = label.match(/^(.*?)\s*<([^>]+)>\s*$/);
+  return m ? { name: m[1] || m[2]!, email: m[2]! } : { name: label, email: null };
+}
 
 const METRICS = [
   { key: "cost_usd", label: "Spend", color: "#d946ef" },
@@ -209,25 +218,22 @@ export function AIUsageDashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         <SectionCard title="Spend by feature" icon={Layers} color="indigo">
           <BarList
-            data={u.by_feature.map((f) => ({ key: f.key ?? "unknown", label: f.label ?? humanizeFeature(f.key), value: f.cost_usd, display: fmtUsd(f.cost_usd), hint: `${fmtNumber(f.requests)} requests` }))}
+            data={u.by_feature.map((f) => ({ key: f.key ?? "unknown", label: humanizeFeature(f.key ?? f.label), value: f.cost_usd, display: fmtUsd(f.cost_usd), hint: `${fmtNumber(f.requests)} requests` }))}
             empty="No AI usage yet this month"
           />
         </SectionCard>
         <SectionCard title="Spend by model" icon={Cpu} color="sky">
-          {u.by_model.length ? (
-            <ColorBarChart
-              data={u.by_model.map((x) => ({ model: x.label ?? x.key ?? "unknown", Spend: Number(x.cost_usd.toFixed(4)) }))}
-              xKey="model"
-              series={[{ key: "Spend" }]}
-              layout="horizontal"
-              colorByIndex
-              height={Math.max(160, u.by_model.length * 48)}
-              valueFormatter={(v) => fmtUsd(Number(v), { precise: true })}
-              aria-label="AI spend by model"
-            />
-          ) : (
-            <p className="py-6 text-center text-sm text-muted-foreground">No AI usage yet this month</p>
-          )}
+          <BarList
+            data={u.by_model.map((x, i) => ({
+              key: x.key ?? `m${i}`,
+              label: <span className="font-mono text-[13px]">{x.label ?? x.key ?? "unknown"}</span>,
+              value: x.cost_usd,
+              display: fmtUsd(x.cost_usd),
+              hint: `${fmtNumber(x.requests)} requests · ${fmtCompact(x.tokens_in + x.tokens_out)} tokens`,
+              color: MODEL_COLORS[i % MODEL_COLORS.length],
+            }))}
+            empty="No AI usage yet this month"
+          />
         </SectionCard>
         <SectionCard title="Spend by course" icon={BookOpen} color="emerald">
           <BarList
@@ -243,21 +249,55 @@ export function AIUsageDashboard() {
             <EmptyState size="sm" illustration="inbox" title="No usage yet" description="When people use the AI tutor or generation features they'll appear here." />
           ) : (
             <ol className="divide-y divide-slate-100">
-              {u.by_user.slice(0, 8).map((x, i) => (
+              {u.by_user.slice(0, 8).map((x, i) => {
+                const who = splitPerson(x.label);
+                return (
                 <li key={x.key ?? i} className="flex items-center gap-3 py-2.5">
-                  <span className="w-5 text-center text-xs font-semibold tabular-nums text-slate-400">{i + 1}</span>
-                  <Avatar name={x.label ?? "System"} size="sm" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{x.label ?? "System / API"}</span>
+                  <span className={cn("grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold tabular-nums", i < 3 ? "bg-amber-100 text-amber-800" : "text-slate-500")}>{i + 1}</span>
+                  <Avatar name={who.name} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-slate-900">{who.name}</span>
+                    {who.email && <span className="block truncate text-xs text-muted-foreground">{who.email}</span>}
+                  </span>
                   <span className="hidden text-xs tabular-nums text-muted-foreground sm:block">{fmtNumber(x.requests)} req · {fmtCompact(x.tokens_in + x.tokens_out)} tokens</span>
                   <span className="w-20 text-right text-sm font-semibold tabular-nums text-slate-900">{fmtUsd(x.cost_usd)}</span>
                 </li>
-              ))}
+                );
+              })}
             </ol>
           )}
         </SectionCard>
         <SectionCard title="Budget alerts" description="Raised when spend crosses a threshold" icon={Bell} color="rose" className="lg:col-span-2">
           {!u.alerts.length ? (
-            <p className="rounded-xl bg-emerald-50 px-3 py-6 text-center text-sm font-medium text-emerald-800">No alerts this period — spend is within thresholds.</p>
+            <div className="space-y-4">
+              <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-3 text-sm font-medium text-emerald-800">
+                <ShieldCheck className="size-4 shrink-0" aria-hidden />
+                No alerts this period — spend is within thresholds.
+              </p>
+              {b.budget_usd !== null && b.alert_thresholds.length > 0 && (
+                <ul className="space-y-2.5" aria-label="Alert thresholds">
+                  {b.alert_thresholds.map((t) => {
+                    const tone = budgetTone(t);
+                    const at = (b.budget_usd ?? 0) * (t / 100);
+                    const progress = at > 0 ? Math.min(100, (b.spent_usd / at) * 100) : 0;
+                    return (
+                      <li key={t} className="flex items-center gap-3">
+                        <span className={cn("w-12 shrink-0 rounded-lg px-1.5 py-1 text-center text-xs font-bold tabular-nums", tone.bg, tone.text)}>{t}%</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex justify-between text-xs text-slate-600">
+                            <span>Alert at {fmtUsd(at)}</span>
+                            <span className="tabular-nums">{Math.round(progress)}% of the way</span>
+                          </span>
+                          <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <span className="block h-full rounded-full" style={{ width: `${Math.max(2, progress)}%`, background: tone.stroke }} />
+                          </span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           ) : (
             <ul className="space-y-2">
               {u.alerts.map((a, i) => {

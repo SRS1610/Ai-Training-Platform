@@ -58,7 +58,7 @@ import { useAuth } from "@/lib/auth";
 import { ak } from "./keys";
 import { DepartmentSelect, MemberMultiPicker, MemberSelect, useDepartments, useTeams, type Option } from "./pickers";
 import type { DepartmentNode, DepartmentOut, TeamMemberOut, TeamOut } from "./types";
-import { IconChip, Meta, fmtNumber, toastError } from "./ui";
+import { IconChip, Meta, deepGradient, fmtNumber, toastError } from "./ui";
 
 /* ================================================================== departments */
 
@@ -286,7 +286,7 @@ function DepartmentDetail({
   });
   return (
     <section aria-label={`${dept.name} details`} className="sticky top-24 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft">
-      <div className={cn("relative bg-gradient-to-br p-5 text-white", c.gradient)}>
+      <div className={cn("relative bg-gradient-to-br p-5 text-white", deepGradient(colorFor(dept.name)))}>
         <div className="pointer-events-none absolute -right-6 -top-10 size-32 rounded-full bg-white/20 blur-2xl" aria-hidden />
         <p className="text-xs font-semibold uppercase tracking-wider text-white/85">{parentName ? `Within ${parentName}` : "Top-level department"}</p>
         <h3 className="mt-1 font-display text-xl font-bold">{dept.name}</h3>

@@ -24,7 +24,7 @@ import { api } from "@/lib/api";
 import { problemsMessage } from "../hooks";
 import { ak } from "../keys";
 import { DIFFICULTIES } from "../meta";
-import { NumberInput, SkillPicker, StringListEditor } from "../shared";
+import { NumberInput, SkillPicker, STICKY_DIALOG_FOOTER, StringListEditor } from "../shared";
 import type { Course } from "../types";
 
 export function CreateCourseDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -174,7 +174,7 @@ export function CreateCourseDialog({ open, onOpenChange }: { open: boolean; onOp
             {() => <SkillPicker value={skills} onChange={setSkills} />}
           </FormField>
           {error && <Alert tone="danger">{error}</Alert>}
-          <DialogFooter>
+          <DialogFooter className={STICKY_DIALOG_FOOTER}>
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

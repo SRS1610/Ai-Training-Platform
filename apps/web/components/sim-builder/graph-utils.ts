@@ -248,6 +248,22 @@ export function autoLayout(nodes: SimNode[], links: BranchLink[], initial: strin
   return nodes.map((n) => (pos.has(n.id) ? { ...n, position: pos.get(n.id)! } : n));
 }
 
+/** True when any two nodes' boxes intersect — e.g. a graph generated server-side with default positions
+ * that were never arranged in the builder. Used to auto-arrange on first open. */
+export function hasOverlaps(nodes: SimNode[]): boolean {
+  const boxes = nodes.map((n) => {
+    const s = NODE_SIZE[(n.type ?? "action") as SimNodeType] ?? NODE_SIZE.action;
+    return { x: n.position.x, y: n.position.y, w: s.w, h: s.h };
+  });
+  for (let i = 0; i < boxes.length; i++)
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i]!;
+      const b = boxes[j]!;
+      if (a.x < b.x + b.w - 8 && b.x < a.x + a.w - 8 && a.y < b.y + b.h - 8 && b.y < a.y + a.h - 8) return true;
+    }
+  return false;
+}
+
 /* ------------------------------------------------------------------ validation mapping */
 
 export type BuilderTab = "flow" | "scenario" | "environment" | "characters" | "variables" | "scoring" | "feedback" | "json";

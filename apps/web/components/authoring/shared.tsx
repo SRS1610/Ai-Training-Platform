@@ -765,3 +765,6 @@ export function Kv({ label, children }: { label: React.ReactNode; children: Reac
     </div>
   );
 }
+
+/** Keeps a long dialog's primary actions in view while its body scrolls (pass to DialogFooter's className). */
+export const STICKY_DIALOG_FOOTER = "sticky -bottom-6 z-10 -mx-6 -mb-6 mt-2 border-t border-slate-100 bg-white/95 px-6 pb-5 pt-3 backdrop-blur";

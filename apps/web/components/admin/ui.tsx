@@ -464,6 +464,25 @@ export function RoleChip({ roleKey, name, size = "sm" }: { roleKey: string; name
   );
 }
 
+/* ------------------------------------------------------------------ deep gradients */
+
+/** Darker gradient pairs that keep white text at >= 4.5:1 (category `gradient` is for decoration only). */
+const DEEP_GRADIENT: Record<CategoryColor, string> = {
+  indigo: "from-indigo-600 to-violet-700",
+  sky: "from-sky-700 to-blue-700",
+  emerald: "from-emerald-700 to-teal-700",
+  amber: "from-amber-700 to-orange-700",
+  rose: "from-rose-600 to-pink-700",
+  fuchsia: "from-fuchsia-600 to-purple-700",
+  teal: "from-teal-700 to-cyan-800",
+  orange: "from-orange-700 to-rose-700",
+  violet: "from-violet-600 to-fuchsia-700",
+};
+
+export function deepGradient(color: CategoryColor): string {
+  return DEEP_GRADIENT[color] ?? DEEP_GRADIENT.indigo;
+}
+
 /* ------------------------------------------------------------------ misc */
 
 export function LiveRegion({ children }: { children: React.ReactNode }) {
@@ -518,6 +537,11 @@ const FEATURE_LABELS: Record<string, string> = {
   recommendations: "Recommendations",
   embeddings: "Knowledge embeddings",
   embedding: "Knowledge embeddings",
+  simulation: "Simulations",
+  simulation_character: "Simulation characters",
+  simulation_feedback: "Simulation feedback",
+  assessment_generation: "Assessment generation",
+  question_generation: "Question generation",
 };
 
 export function humanizeFeature(key: string | null | undefined): string {

@@ -22,7 +22,7 @@ import { api } from "@/lib/api";
 import { problemsMessage } from "../hooks";
 import { MediaField } from "../media-field";
 import { LESSON_TYPE_GROUPS, LESSON_TYPES, LINKED_LESSON_TYPES, type LessonTypeKey } from "../meta";
-import { TypeChip } from "../shared";
+import { STICKY_DIALOG_FOOTER, TypeChip } from "../shared";
 import type { Lesson, StructureModule } from "../types";
 import { useBuilder } from "./builder-context";
 import { contentProblems, defaultContent } from "./content-editors";
@@ -171,7 +171,7 @@ export function AddLessonDialog({
           )}
           {linkField && <LinkPicker kind={type as LinkKind} value={link?.id ?? null} courseId={courseId} defaultNewTitle={title} onChange={setLink} />}
           {error && <Alert tone="danger">{error}</Alert>}
-          <DialogFooter>
+          <DialogFooter className={STICKY_DIALOG_FOOTER}>
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

@@ -71,13 +71,13 @@ export function DateRangePicker({ value, onChange, className }: { value: DateRan
         </div>
         <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Custom</p>
         <div className="grid grid-cols-2 gap-2">
-          <label className="space-y-1 text-xs font-medium text-slate-700">
+          <label htmlFor="range-from" className="space-y-1 text-xs font-medium text-slate-700">
             From
-            <Input type="date" inputSize="sm" value={draft.start} max={draft.end || undefined} onChange={(e) => setDraft((d) => ({ ...d, start: e.target.value }))} />
+            <Input id="range-from" type="date" inputSize="sm" value={draft.start} max={draft.end || undefined} onChange={(e) => setDraft((d) => ({ ...d, start: e.target.value }))} />
           </label>
-          <label className="space-y-1 text-xs font-medium text-slate-700">
+          <label htmlFor="range-to" className="space-y-1 text-xs font-medium text-slate-700">
             To
-            <Input type="date" inputSize="sm" value={draft.end} min={draft.start || undefined} onChange={(e) => setDraft((d) => ({ ...d, end: e.target.value }))} />
+            <Input id="range-to" type="date" inputSize="sm" value={draft.end} min={draft.start || undefined} onChange={(e) => setDraft((d) => ({ ...d, end: e.target.value }))} />
           </label>
         </div>
         {invalid && <p className="mt-2 text-xs font-medium text-rose-700">Start must be before end.</p>}

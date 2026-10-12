@@ -22,15 +22,18 @@ export const EVIDENCE_ICON: Record<string, typeof FileText> = {
 
 export function EvidenceChecklist({ items, className }: { items: { item: EvidenceItem; met: boolean }[]; className?: string }) {
   if (!items.length) return null;
-  const done = items.filter((x) => x.met).length;
+  const required = items.filter((x) => x.item.required !== false);
+  const done = required.filter((x) => x.met).length;
+  const total = required.length || items.length;
+  const pct = required.length ? (done / required.length) * 100 : items.filter((x) => x.met).length / items.length * 100;
   return (
     <div className={className}>
-      <div className="mb-2 flex items-center justify-between text-xs font-medium text-slate-600">
+      <div className="mb-2 flex items-center justify-between text-xs font-medium text-slate-600" aria-live="polite">
         <span>
-          {done} of {items.length} ready
+          {required.length ? `${done} of ${total} required ready` : `${items.filter((x) => x.met).length} of ${items.length} ready`}
         </span>
         <span className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100" aria-hidden>
-          <span className="block h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-[width]" style={{ width: `${(done / items.length) * 100}%` }} />
+          <span className="block h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-[width]" style={{ width: `${pct}%` }} />
         </span>
       </div>
       <ul className="space-y-2" aria-label="Evidence checklist">
@@ -42,7 +45,9 @@ export function EvidenceChecklist({ items, className }: { items: { item: Evidenc
               <Icon className="size-4 shrink-0 text-slate-400" aria-hidden />
               <span className={cn("flex-1", met ? "text-emerald-900" : "text-slate-800")}>{item.label}</span>
               {item.required === false ? (
-                <span className="text-2xs font-semibold uppercase text-slate-500">Optional</span>
+                <span className="text-2xs font-semibold uppercase text-slate-500">
+                  Optional<span className="sr-only">{met ? ", provided" : ", not provided"}</span>
+                </span>
               ) : (
                 <span className="sr-only">{met ? "ready" : "still needed"}</span>
               )}

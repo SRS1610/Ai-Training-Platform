@@ -353,8 +353,8 @@ export function AIConfigForm() {
         {/* Budget */}
         <SectionCard title="Budget & limits" description="Control AI spend for the month." icon={Coins} color="emerald">
           <div className="space-y-5">
-            <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3">
-              <Switch checked={form.use_plan_budget} onCheckedChange={(v) => set("use_plan_budget", v)} aria-label="Use plan budget" className="mt-0.5" />
+            <label htmlFor="ai-use-plan-budget" className="flex items-start gap-3 rounded-xl border border-slate-200 p-3">
+              <Switch id="ai-use-plan-budget" checked={form.use_plan_budget} onCheckedChange={(v) => set("use_plan_budget", v)} aria-label="Use plan budget" className="mt-0.5" />
               <span>
                 <span className="block text-sm font-medium text-slate-900">Use the plan&apos;s included budget</span>
                 <span className="block text-xs text-muted-foreground">{c.plan_budget_usd === null ? "Your plan has no included AI budget." : `${fmtUsd(c.plan_budget_usd)} per month on your plan.`}</span>
@@ -389,11 +389,11 @@ export function AIConfigForm() {
               <p className="mt-1.5 text-xs text-muted-foreground">Admins with AI settings access are notified when spend crosses each threshold.</p>
             </fieldset>
             <div className="space-y-2">
-              <label className="flex items-center justify-between gap-3">
+              <label htmlFor="ai-unlimited-daily" className="flex items-center justify-between gap-3">
                 <span className="text-sm font-medium text-slate-800">Per-user daily request limit</span>
                 <span className="flex items-center gap-2 text-xs text-slate-600">
                   Unlimited
-                  <Switch checked={form.unlimited_daily} onCheckedChange={(v) => set("unlimited_daily", v)} aria-label="Unlimited daily requests" />
+                  <Switch id="ai-unlimited-daily" checked={form.unlimited_daily} onCheckedChange={(v) => set("unlimited_daily", v)} aria-label="Unlimited daily requests" />
                 </span>
               </label>
               {!form.unlimited_daily && (

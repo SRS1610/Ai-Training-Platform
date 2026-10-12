@@ -122,8 +122,8 @@ export function SystemHealth() {
           </p>
         </div>
         <div className="relative flex items-center gap-3 rounded-2xl bg-white/15 px-3 py-2 ring-1 ring-white/25">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <Switch checked={auto} onCheckedChange={setAuto} aria-label="Auto-refresh every 10 seconds" className="data-[state=checked]:bg-white/40" />
+          <label htmlFor="health-auto-refresh" className="flex items-center gap-2 text-sm font-medium">
+            <Switch id="health-auto-refresh" checked={auto} onCheckedChange={setAuto} aria-label="Auto-refresh every 10 seconds" className="data-[state=checked]:bg-white/40" />
             Auto-refresh
           </label>
           <Button size="icon-sm" variant="white" aria-label="Refresh now" onClick={() => q.refetch()} disabled={q.isFetching}>

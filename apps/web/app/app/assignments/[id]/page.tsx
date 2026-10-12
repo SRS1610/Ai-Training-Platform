@@ -276,6 +276,8 @@ function AssignmentDetail() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const due = s?.due_at ?? (a.due_days_after_enrolment !== null && course ? new Date(new Date(course.created_at).getTime() + a.due_days_after_enrolment * 86400000).toISOString() : null);
+  // After a resubmission the last grade still comes back, but it belongs to an earlier version.
+  const gradeIsCurrent = phase === "graded_passed" || phase === "graded_failed";
   const gradePct = grade ? (grade.max_score && grade.max_score !== 100 ? (grade.score / grade.max_score) * 100 : grade.score) : (s?.final_score ?? null);
 
   return (
@@ -344,7 +346,7 @@ function AssignmentDetail() {
           <div className="flex shrink-0 items-center gap-4 rounded-2xl bg-black/10 p-4 ring-1 ring-white/25 md:flex-col md:px-6">
             <div className="rounded-full bg-white p-1.5">
               {gradePct !== null ? (
-                <ProgressRing value={gradePct} size={96} stroke={9} color={s?.passed ? "emerald" : "amber"} aria-label={`Final score ${Math.round(gradePct)}%`} />
+                <ProgressRing value={gradePct} size={96} stroke={9} color={s?.passed ? "emerald" : "amber"} aria-label={`${gradeIsCurrent ? "Final" : "Previous"} score ${Math.round(gradePct)}%`} />
               ) : (
                 <span className="grid size-24 place-items-center rounded-full bg-gradient-to-br from-amber-50 to-orange-100 text-orange-600">
                   {phase === "ai_graded" || phase === "submitted" || phase === "ai_grading" || phase === "under_review" ? <Hourglass className="size-9" aria-hidden /> : <ClipboardCheck className="size-9" aria-hidden />}
@@ -352,8 +354,8 @@ function AssignmentDetail() {
               )}
             </div>
             <div className="md:text-center">
-              <p className="text-xs font-semibold uppercase tracking-wider text-white/90">{gradePct !== null ? "Final score" : "Status"}</p>
-              <p className="text-sm font-semibold">{gradePct !== null ? (s?.passed ? "Passed" : "Not passed") : meta.label}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/90">{gradePct === null ? "Status" : gradeIsCurrent ? "Final score" : "Previous score"}</p>
+              <p className="text-sm font-semibold">{gradePct !== null && gradeIsCurrent ? (s?.passed ? "Passed" : "Not passed") : meta.label}</p>
             </div>
           </div>
         </div>

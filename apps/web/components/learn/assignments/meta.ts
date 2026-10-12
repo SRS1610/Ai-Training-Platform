@@ -112,8 +112,13 @@ export function evidenceStatus(required: EvidenceItem[], fields: StructuredField
       used[t] = (used[t] ?? 0) + 1;
       met = used[t]! <= available;
     }
-    return { item, met: item.required === false ? true : met };
+    return { item, met };
   });
+}
+
+/** True when every *required* evidence item is present (optional items never block submission). */
+export function evidenceReady(items: { item: EvidenceItem; met: boolean }[]): boolean {
+  return items.every((c) => c.met || c.item.required === false);
 }
 
 export function needsText(a: LearnerAssignment): boolean {

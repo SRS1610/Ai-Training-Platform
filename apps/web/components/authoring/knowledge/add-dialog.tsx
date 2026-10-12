@@ -26,6 +26,7 @@ import * as React from "react";
 import { api, errorMessage } from "@/lib/api";
 import { problemsMessage } from "../hooks";
 import { ak } from "../keys";
+import { STICKY_DIALOG_FOOTER } from "../shared";
 import type { KnowledgeDocument } from "../types";
 import { useCourseOptions } from "../use-options";
 
@@ -170,16 +171,16 @@ export function AddKnowledgeDialog({ open, onOpenChange, mode, onModeChange, onA
           <DialogTitle>Add to the knowledge base</DialogTitle>
           <DialogDescription>Documents are split into searchable chunks. The AI tutor cites them in answers once they&apos;re ready.</DialogDescription>
         </DialogHeader>
-        <Tabs value={mode} onValueChange={(v) => onModeChange(v as AddMode)}>
+        <Tabs value={mode} onValueChange={(v) => onModeChange(v as AddMode)} className="min-w-0">
           <TabsList className="w-full">
-            <TabsTrigger value="upload" className="flex-1">
-              <FileUp aria-hidden /> Upload
+            <TabsTrigger value="upload" className="min-w-0 flex-1">
+              <FileUp aria-hidden className="max-sm:hidden" /> Upload
             </TabsTrigger>
-            <TabsTrigger value="url" className="flex-1">
-              <Globe aria-hidden /> Web page
+            <TabsTrigger value="url" className="min-w-0 flex-1">
+              <Globe aria-hidden className="max-sm:hidden" /> Web page
             </TabsTrigger>
-            <TabsTrigger value="text" className="flex-1">
-              <ScrollText aria-hidden /> Paste text
+            <TabsTrigger value="text" className="min-w-0 flex-1">
+              <ScrollText aria-hidden className="max-sm:hidden" /> Paste text
             </TabsTrigger>
           </TabsList>
           <TabsContent value="upload" className="space-y-4">
@@ -232,7 +233,7 @@ export function AddKnowledgeDialog({ open, onOpenChange, mode, onModeChange, onA
         </Tabs>
         <ScopeFields courseId={courseId} setCourseId={setCourseId} category={category} setCategory={setCategory} options={courses.options} />
         {error && <Alert tone="danger">{error}</Alert>}
-        <DialogFooter>
+        <DialogFooter className={STICKY_DIALOG_FOOTER}>
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={busy}>
             Cancel
           </Button>

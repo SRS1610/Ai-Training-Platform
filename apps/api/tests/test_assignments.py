@@ -446,6 +446,12 @@ async def test_max_submissions_and_return_for_resubmission(client):
     )
     sub = (await client.post(f"{API}/assignments/{aid}/submission/submit", headers=learner.headers)).json()
     r = await client.post(
+        f"{API}/grading/submissions/{sub['id']}/grade",
+        json={"rubric_scores": [{"criterion_id": "diag", "score": 1}, {"criterion_id": "comm", "score": 1}]},
+        headers=instructor.headers,
+    )
+    assert r.status_code == 201, r.text
+    r = await client.post(
         f"{API}/grading/submissions/{sub['id']}/return-for-resubmission",
         json={"feedback": "Add the root cause"},
         headers=instructor.headers,
@@ -461,11 +467,13 @@ async def test_max_submissions_and_return_for_resubmission(client):
     )
     sub = (await client.post(f"{API}/assignments/{aid}/submission/submit", headers=learner.headers)).json()
     assert sub["submit_count"] == 2 and sub["current_version"] == 2
-    await client.post(
+    r = await client.post(
         f"{API}/grading/submissions/{sub['id']}/grade",
         json={"rubric_scores": [{"criterion_id": "diag", "score": 0}, {"criterion_id": "comm", "score": 1}]},
         headers=instructor.headers,
     )
+    # A different score than v1's grade is a fresh grade of the new version, not an override.
+    assert r.status_code == 201, r.text
     # Failed, but no submissions remain.
     r = await client.put(
         f"{API}/assignments/{aid}/submission", json={"text_content": "v3"}, headers=learner.headers

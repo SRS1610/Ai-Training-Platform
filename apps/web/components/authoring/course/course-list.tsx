@@ -240,7 +240,7 @@ export function CourseList() {
           const c = row.original;
           const col = colorClasses(colorFor(c.category ?? c.title));
           return (
-            <div className="flex min-w-[220px] items-center gap-3">
+            <div className="flex min-w-[220px] max-w-[380px] items-center gap-3">
               <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white", col.gradient)} aria-hidden>
                 <BookOpen className="size-4" />
               </span>
@@ -248,13 +248,26 @@ export function CourseList() {
                 <Link href={`/app/instructor/courses/${c.id}`} className="block truncate font-semibold text-slate-900 hover:text-brand-700 focus-visible:focus-ring">
                   {c.title}
                 </Link>
-                <p className="truncate text-xs text-muted-foreground">{c.category ?? "Uncategorised"}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {c.category ?? "Uncategorised"}
+                  {c.duration_minutes ? ` · ${formatMinutes(c.duration_minutes)}` : ""}
+                </p>
               </div>
             </div>
           );
         },
       },
-      { id: "status", header: "Status", accessorKey: "status", cell: ({ row }) => <AStatus status={row.original.status} size="sm" /> },
+      {
+        id: "status",
+        header: "Status",
+        accessorKey: "status",
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-2 whitespace-nowrap">
+            <AStatus status={row.original.status} size="sm" />
+            {row.original.current_version_number ? <span className="text-xs tabular-nums text-muted-foreground">v{row.original.current_version_number}</span> : null}
+          </span>
+        ),
+      },
       {
         id: "difficulty",
         header: "Level",
@@ -267,12 +280,6 @@ export function CourseList() {
       },
       { id: "lessons", header: "Lessons", accessorKey: "lesson_count", meta: { cellClassName: "tabular-nums" } },
       { id: "enrolled", header: "Enrolled", accessorKey: "enrolment_count", meta: { cellClassName: "tabular-nums" } },
-      { id: "duration", header: "Duration", accessorKey: "duration_minutes", cell: ({ row }) => formatMinutes(row.original.duration_minutes || 0) },
-      {
-        id: "version",
-        header: "Version",
-        cell: ({ row }) => (row.original.current_version_number ? `v${row.original.current_version_number}` : "—"),
-      },
       { id: "updated", header: "Updated", accessorKey: "updated_at", cell: ({ row }) => <span className="whitespace-nowrap text-muted-foreground">{formatRelative(row.original.updated_at)}</span> },
       { id: "actions", header: () => <span className="sr-only">Actions</span>, enableSorting: false, cell: ({ row }) => <CourseActions course={row.original} onAction={onAction} /> },
     ],

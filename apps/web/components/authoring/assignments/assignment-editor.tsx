@@ -380,8 +380,8 @@ function ResourcesBuilder({ value, onChange }: { value: AssignmentResource[]; on
 function LearnerPreview({ title, form, rubric }: { title: string; form: Form; rubric?: Rubric | null }) {
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <Badge tone="violet">
-        <Eye aria-hidden /> Learner preview · expected output and assessor notes are hidden
+      <Badge tone="violet" className="max-w-full whitespace-normal rounded-xl py-1 text-left">
+        <Eye aria-hidden className="shrink-0" /> Learner preview · expected output and assessor notes are hidden
       </Badge>
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
         <div className="relative overflow-hidden border-b border-amber-100 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-6">

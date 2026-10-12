@@ -11,7 +11,7 @@ import { lk } from "../query-keys";
 import type { EvidenceItem, FileOut, LearnerAssignment, Submission, SubmitResult } from "../types";
 import { SectionTitle } from "../visuals";
 import { EvidenceChecklist } from "./brief";
-import { type DraftState, canEdit, evidenceStatus, fileCategory, needsCode, needsFiles, needsText, wordCount } from "./meta";
+import { type DraftState, canEdit, evidenceReady, evidenceStatus, fileCategory, needsCode, needsFiles, needsText, wordCount } from "./meta";
 
 function draftFrom(s: Submission | null | undefined): DraftState {
   const v = s?.latest_version;
@@ -139,7 +139,7 @@ export function AssignmentWorkspace({ assignment: a, submission: s, onSubmitted 
   }, [dirty]);
 
   const checklist = evidenceStatus(a.required_evidence, a.structured_fields, draft);
-  const ready = checklist.every((c) => c.met);
+  const ready = evidenceReady(checklist);
   const showText = needsText(a) || !!draft.text;
   const showCode = needsCode(a) || !!draft.code;
   const showFiles = needsFiles(a) || draft.files.length > 0;

@@ -43,7 +43,7 @@ import * as React from "react";
 import { ak } from "@/components/admin/keys";
 import { CourseSelect, DepartmentSelect, MemberSelect, type Option } from "@/components/admin/pickers";
 import type { ReportTypeOut } from "@/components/admin/types";
-import { PageGate } from "@/components/admin/ui";
+import { PageGate, deepGradient } from "@/components/admin/ui";
 import { ErrorState } from "@/components/common/error-state";
 import { api, errorMessage } from "@/lib/api";
 import { Can } from "@/lib/auth";
@@ -233,7 +233,7 @@ function ReportsPage() {
               return (
                 <li key={t.type}>
                   <article className={cn("group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lift", c.border)}>
-                    <div className={cn("relative overflow-hidden bg-gradient-to-br p-5 text-white", c.gradient)}>
+                    <div className={cn("relative overflow-hidden bg-gradient-to-br p-5 text-white", deepGradient(m.color))}>
                       <div className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full bg-white/20 blur-2xl" aria-hidden />
                       <div className="relative flex items-start justify-between gap-3">
                         <span className="grid size-11 place-items-center rounded-2xl bg-white/20 ring-1 ring-white/30 backdrop-blur">
@@ -242,7 +242,7 @@ function ReportsPage() {
                         {t.requires.includes("course_id") && <span className="rounded-full bg-white/20 px-2 py-0.5 text-2xs font-semibold ring-1 ring-white/30">Per course</span>}
                       </div>
                       <h2 className="relative mt-4 font-display text-lg font-semibold">{t.name}</h2>
-                      {m.audience && <p className="relative text-xs font-medium text-white/85">{m.audience}</p>}
+                      {m.audience && <p className="relative text-xs font-medium text-white/90">{m.audience}</p>}
                     </div>
                     <div className="flex flex-1 flex-col p-5">
                       <p className="text-sm text-slate-600">{m.blurb}</p>

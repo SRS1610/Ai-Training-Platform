@@ -71,7 +71,7 @@ export function FlowCanvas(props: FlowCanvasProps) {
   const { nodes, edges, ctx, selectedEdgeId, onNodesChange, onSelectEdge, onConnect, onDeleteSelection, onAdd, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onDragStart, focusKey } = props;
   const rf = useReactFlow<SimNode, SimEdge>();
   const wrapper = React.useRef<HTMLDivElement>(null);
-  const [legend, setLegend] = React.useState(true);
+  const [legend, setLegend] = React.useState(false);
   const [minimap, setMinimap] = React.useState(true);
 
   React.useEffect(() => {
@@ -139,6 +139,18 @@ export function FlowCanvas(props: FlowCanvasProps) {
           deleteKeyCode={null}
           fitView
           fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
+          onInit={(inst) => {
+            // Large scenarios fit at an unreadable zoom: start top-left on the phase row instead
+            // (the mini map and "Fit to screen" still give the overview).
+            requestAnimationFrame(() => {
+              if (inst.getZoom() >= 0.45 || !inst.getNodes().length) return;
+              const ns = inst.getNodes();
+              const minX = Math.min(...ns.map((n) => n.position.x));
+              const minY = Math.min(...ns.map((n) => n.position.y));
+              const zoom = 0.55;
+              inst.setViewport({ x: 40 - minX * zoom, y: 84 - minY * zoom, zoom });
+            });
+          }}
           minZoom={0.15}
           maxZoom={1.75}
           proOptions={{ hideAttribution: true }}

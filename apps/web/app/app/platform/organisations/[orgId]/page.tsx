@@ -26,7 +26,7 @@ import { useParams } from "next/navigation";
 import * as React from "react";
 import { ak } from "@/components/admin/keys";
 import type { PlanOut, PlatformOrgDetail } from "@/components/admin/types";
-import { Meta, PageGate, PlanBadge, SectionCard, fmtBytes, fmtNumber, fmtUsd, toastError } from "@/components/admin/ui";
+import { Meta, PageGate, PlanBadge, deepGradient, SectionCard, fmtBytes, fmtNumber, fmtUsd, toastError } from "@/components/admin/ui";
 import { ErrorState } from "@/components/common/error-state";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -114,7 +114,7 @@ function OrgDetail() {
         className="mb-4 [&_h1]:sr-only"
       />
       <section className="mb-6 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
-        <div className={cn("relative flex flex-col gap-4 bg-gradient-to-br p-6 text-white sm:flex-row sm:items-center", c.gradient)}>
+        <div className={cn("relative flex flex-col gap-4 bg-gradient-to-br p-6 text-white sm:flex-row sm:items-center", deepGradient(colorFor(o.name)))}>
           <div className="pointer-events-none absolute -right-8 -top-12 size-48 rounded-full bg-white/20 blur-3xl" aria-hidden />
           <span className="relative grid size-16 shrink-0 place-items-center rounded-2xl bg-white/20 font-display text-2xl font-bold ring-1 ring-white/30 backdrop-blur">{o.name.slice(0, 1)}</span>
           <div className="relative flex-1">

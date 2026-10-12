@@ -142,19 +142,19 @@ function ConnectionCard({ c, onEdit, onDelete, onChanged }: { c: SSOOut; onEdit:
         </div>
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Settings</p>
-          <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+          <label htmlFor={`sso-${c.id}-enabled`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
             <span>
               <span className="block text-sm font-medium text-slate-900">Enabled</span>
               <span className="block text-xs text-muted-foreground">Allow sign-in through this connection</span>
             </span>
-            <Switch checked={c.enabled} disabled={toggle.isPending} onCheckedChange={(v) => toggle.mutate({ enabled: v })} aria-label="Connection enabled" />
+            <Switch id={`sso-${c.id}-enabled`} checked={c.enabled} disabled={toggle.isPending} onCheckedChange={(v) => toggle.mutate({ enabled: v })} aria-label="Connection enabled" />
           </label>
-          <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+          <label htmlFor={`sso-${c.id}-enforce`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
             <span>
               <span className="block text-sm font-medium text-slate-900">Enforce SSO</span>
               <span className="block text-xs text-muted-foreground">Verified-domain users must use SSO (no passwords)</span>
             </span>
-            <Switch checked={c.enforce_sso} disabled={toggle.isPending} onCheckedChange={(v) => toggle.mutate({ enforce_sso: v })} aria-label="Enforce SSO" />
+            <Switch id={`sso-${c.id}-enforce`} checked={c.enforce_sso} disabled={toggle.isPending} onCheckedChange={(v) => toggle.mutate({ enforce_sso: v })} aria-label="Enforce SSO" />
           </label>
           {c.callback_url && (
             <div className="rounded-xl bg-slate-50 p-3">
@@ -342,13 +342,13 @@ function ConnectionDialog({ state, onClose, onSaved }: { state: SSOOut | "new" |
             </div>
           )}
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+            <label htmlFor="sso-form-enabled" className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
               <span className="text-sm font-medium text-slate-900">Enabled</span>
-              <Switch checked={f.enabled} onCheckedChange={(v) => set("enabled", v)} aria-label="Enabled" />
+              <Switch id="sso-form-enabled" checked={f.enabled} onCheckedChange={(v) => set("enabled", v)} aria-label="Enabled" />
             </label>
-            <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+            <label htmlFor="sso-form-enforce" className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
               <span className="text-sm font-medium text-slate-900">Enforce SSO for domains</span>
-              <Switch checked={f.enforce_sso} onCheckedChange={(v) => set("enforce_sso", v)} aria-label="Enforce SSO" />
+              <Switch id="sso-form-enforce" checked={f.enforce_sso} onCheckedChange={(v) => set("enforce_sso", v)} aria-label="Enforce SSO" />
             </label>
           </div>
           {save.isError &&

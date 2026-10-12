@@ -845,9 +845,14 @@ async def human_grade(ctx: Ctx, submission_id: uuid.UUID, data: HumanGradeIn) ->
     ai = await latest_ai_grade(ctx.db, s.id)
     previous_final = await _final_grade(ctx.db, s.id)
     reason = (data.override_reason or "").strip() or None
-    ai_differs = ai is not None and abs(_pct(ai) - pct) > 1e-9
+
+    def _same_version(g: Grade | None) -> bool:
+        # A grade of an earlier version (before a resubmission) is not being overridden.
+        return g is not None and (g.submission_version is None or g.submission_version == s.current_version)
+
+    ai_differs = _same_version(ai) and abs(_pct(ai) - pct) > 1e-9
     human_differs = (
-        previous_final is not None
+        _same_version(previous_final)
         and previous_final.source == GradeSource.HUMAN
         and abs(_pct(previous_final) - pct) > 1e-9
     )

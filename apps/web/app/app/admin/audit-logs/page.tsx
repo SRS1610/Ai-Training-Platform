@@ -207,13 +207,13 @@ function AuditPage() {
             >
               <DebouncedInput value={action} onChange={setAction} placeholder="Action, e.g. member. or role.updated" label="Action" className="w-full sm:w-64" />
               <DebouncedInput value={entity} onChange={setEntity} placeholder="Entity type" label="Entity type" className="w-full sm:w-36" />
-              <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+              <label htmlFor="audit-from" className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
                 From
-                <Input type="date" inputSize="sm" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className="w-[9.5rem]" />
+                <Input id="audit-from" type="date" inputSize="sm" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className="w-[9.5rem]" />
               </label>
-              <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+              <label htmlFor="audit-to" className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
                 To
-                <Input type="date" inputSize="sm" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className="w-[9.5rem]" />
+                <Input id="audit-to" type="date" inputSize="sm" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className="w-[9.5rem]" />
               </label>
             </FilterBar>
           }
@@ -270,7 +270,7 @@ function AuditPage() {
                     <p className="break-all font-mono text-2xs text-slate-700">{open.prev_hash ?? "— (first entry)"}</p>
                   </div>
                 </div>
-                <Badge tone="neutral">Entries are immutable and can't be edited or deleted.</Badge>
+                <Badge tone="neutral">Entries are immutable and can&apos;t be edited or deleted.</Badge>
               </div>
             </>
           )}
