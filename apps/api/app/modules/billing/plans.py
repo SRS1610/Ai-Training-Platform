@@ -34,7 +34,7 @@ PLANS: dict[str, Plan] = {
         0,
         0,
         False,
-        {"max_users": 5, "max_courses": 3, "ai_monthly_budget_usd": 5, "max_simulations": 1, "storage_gb": 1},
+        {"max_users": 5, "max_courses": 3, "ai_monthly_budget_usd": 5, "max_simulations": 0, "storage_gb": 1},
         {
             "ai_tutor": True,
             "simulations": False,

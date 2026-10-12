@@ -42,7 +42,7 @@ from simulation_engine import (
     to_graph,
     validate,
 )
-from sqlalchemy import func, select, update
+from sqlalchemy import func, inspect, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import Ctx
@@ -85,6 +85,13 @@ def now() -> datetime:
 
 def is_author(ctx: Ctx) -> bool:
     return ctx.can(MANAGE)
+
+
+async def fresh(db: AsyncSession, obj: Any) -> Any:
+    """Reload server-generated columns (``updated_at``) expired by a flush before serialising."""
+    if inspect(obj).expired_attributes:
+        await db.refresh(obj)
+    return obj
 
 
 def report_out(report: Any) -> s.ValidationOut:
@@ -178,7 +185,7 @@ async def simulation_out(ctx: Ctx, sim: Simulation) -> s.SimulationOut:
     ).all()
     published = next((v for v, _st, sid in rows if sid == sim.current_scenario_id), None)
     drafts = [v for v, st, _sid in rows if st == "draft"]
-    out = s.SimulationOut.model_validate(sim)
+    out = s.SimulationOut.model_validate(await fresh(ctx.db, sim))
     out.published_version = published
     out.draft_version = max(drafts) if drafts and is_author(ctx) else None
     return out
@@ -347,6 +354,7 @@ async def list_simulations(
 
 async def draft_out(ctx: Ctx, sim: Simulation, draft: SimulationScenario, report: Any = None) -> s.DraftOut:
     report = report or validate(draft.definition)
+    await fresh(ctx.db, draft)
     return s.DraftOut(
         simulation_id=sim.id,
         scenario_id=draft.id,
@@ -463,7 +471,7 @@ async def publish(ctx: Ctx, sim_id: uuid.UUID) -> s.PublishOut:
     )
     return s.PublishOut(
         simulation=await simulation_out(ctx, sim),
-        published=s.VersionOut.model_validate(draft),
+        published=s.VersionOut.model_validate(await fresh(ctx.db, draft)),
         validation=report_out(report),
     )
 
@@ -1235,7 +1243,13 @@ async def replay(ctx: Ctx, session_id: uuid.UUID) -> s.ReplayOut:
         raise Conflict("Replay is available once the session has finished", code="session_active")
     sc = await _scenario(ctx.db, session.scenario_id)
     d = _definition(sc)
-    secret = {k for k, v in d.variables.items() if v.visibility == "secret"}
+    public = {k for k, v in d.variables.items() if v.visibility == "public"}
+
+    def outcome_view(raw: dict[str, Any]) -> dict[str, Any]:
+        if staff:
+            return {k: v for k, v in raw.items() if k != "_reply"}
+        return public_outcome(d, raw, include_feedback=True)  # learners: grading yes, hidden state no
+
     actions = (
         (
             await ctx.db.execute(
@@ -1266,7 +1280,7 @@ async def replay(ctx: Ctx, session_id: uuid.UUID) -> s.ReplayOut:
                 "action_id": a.action_id,
                 "tool": a.tool,
                 "input": a.input,
-                "outcome": {k: v for k, v in a.outcome.items() if k != "_reply"},
+                "outcome": outcome_view(a.outcome),
                 "reply": a.outcome.get("_reply"),
                 "phase_before": a.phase_before,
                 "phase_after": a.phase_after,
@@ -1285,7 +1299,7 @@ async def replay(ctx: Ctx, session_id: uuid.UUID) -> s.ReplayOut:
                 "created_at": x.created_at,
                 "variables": x.variables
                 if staff
-                else {k: v for k, v in x.variables.items() if k not in secret},
+                else {k: v for k, v in x.variables.items() if k in public},
             }
             for x in states
         ],

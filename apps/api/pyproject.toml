@@ -37,6 +37,8 @@ dependencies = [
   # Local path dependency (monorepo): install with `pip install -e ../../packages/ai` before this package.
   # Provides `praxis_ai` (AI provider abstraction, chunking, extraction, safety, prompts).
   "praxis-ai>=0.1",
+  # Local path dependency: `pip install -e ../../packages/simulation-engine` (provides `simulation_engine`).
+  "praxis-simulation-engine>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -70,4 +72,5 @@ ignore = ["S101", "B008", "S311", "UP040"]
 
 [tool.coverage.run]
 source = ["app", "simulation_engine", "praxis_ai"]
+concurrency = ["greenlet", "thread"]
 omit = ["app/seed/*", "app/workers/celery_app.py"]
