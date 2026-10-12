@@ -129,7 +129,7 @@ export function AssignTrainingDialog({
                 {(aria) => <MemberMultiPicker id={aria.id} value={users} onChange={setUsers} />}
               </FormField>
               <div className="grid gap-4 sm:grid-cols-2">
-                <FormField label={<span className="inline-flex items-center gap-1.5"><Building2 className="size-4 text-teal-600" aria-hidden />Departments</span>} hint="Includes sub-teams' members">
+                <FormField label={<span className="inline-flex items-center gap-1.5"><Building2 className="size-4 text-teal-600" aria-hidden />Departments</span>} hint="Includes sub-departments">
                   {(aria) => <DepartmentMultiPicker id={aria.id} value={departments} onChange={setDepartments} />}
                 </FormField>
                 <FormField label={<span className="inline-flex items-center gap-1.5"><UsersRound className="size-4 text-violet-600" aria-hidden />Teams</span>}>
