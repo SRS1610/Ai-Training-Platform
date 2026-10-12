@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from fastapi import UploadFile
 
+from app.core.config import settings
 from app.core.errors import BadRequest
 from app.core.storage import get_storage, sanitize_filename, scan_bytes, sha256_hex, validate_upload
 from app.models.content import StoredFile
@@ -14,7 +15,15 @@ from app.models.content import StoredFile
 
 async def store_upload(ctx, upload: UploadFile, purpose: str, *, allowed_ext: set[str] | None = None) -> StoredFile:  # noqa: ANN001
     """Validate and persist an uploaded file for the current tenant. ``ctx`` is ``app.auth.deps.Ctx``."""
-    data = await upload.read()
+    limit = settings.MAX_UPLOAD_MB * 1024 * 1024
+    chunks: list[bytes] = []
+    size = 0
+    while chunk := await upload.read(1024 * 1024):  # stream; stop as soon as the limit is exceeded
+        size += len(chunk)
+        if size > limit:
+            raise BadRequest(f"File exceeds {settings.MAX_UPLOAD_MB} MB limit")
+        chunks.append(chunk)
+    data = b"".join(chunks)
     return await store_bytes(ctx, data, upload.filename or "file", upload.content_type or "", purpose,
                              allowed_ext=allowed_ext)
 

@@ -129,7 +129,7 @@ class LocalStorage(StorageBackend):
 
     def _path(self, key: str) -> Path:
         p = (self.root / key).resolve()
-        if not str(p).startswith(str(self.root)):
+        if not p.is_relative_to(self.root):
             raise BadRequest("Invalid storage key")
         return p
 

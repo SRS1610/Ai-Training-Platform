@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import func, or_, select
@@ -319,7 +319,7 @@ async def list_enrolments(
         .join(CourseVersion, CourseVersion.id == Enrolment.course_version_id)
         .where(Enrolment.organisation_id == ctx.org_id)
     )
-    today = date.today()
+    today = datetime.now(UTC).date()
     if course_id:
         stmt = stmt.where(Enrolment.course_id == course_id)
     if user_id:

@@ -141,7 +141,8 @@ class Lesson(UUIDPk, Timestamps, SoftDelete, TenantScoped, Base):
     title: Mapped[str] = mapped_column(String(255))
     summary: Mapped[str | None] = mapped_column(Text)
     lesson_type: Mapped[str] = mapped_column(String(32), default=LessonType.TEXT)
-    # Type specific payload, e.g. {"body_markdown": ...} | {"video_url": ..., "transcript": ..., "captions_url": ...}
+    # Type specific payload, e.g. {"body_markdown": ...} |
+    # {"video_url": ..., "transcript": ..., "captions_url": ...} (see app/modules/courses/content_rules.py)
     content: Mapped[dict[str, Any]] = mapped_column(default=dict)
     duration_minutes: Mapped[int] = mapped_column(Integer, default=5)
     position: Mapped[int] = mapped_column(Integer, default=0)
@@ -198,7 +199,9 @@ class LearningPath(UUIDPk, Timestamps, SoftDelete, TenantScoped, Base):
 class LearningPathItem(UUIDPk, TenantScoped, Base):
     __tablename__ = "learning_path_items"
 
-    path_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("learning_paths.id", ondelete="CASCADE"), index=True)
+    path_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("learning_paths.id", ondelete="CASCADE"), index=True
+    )
     course_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"))
     lesson_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"))
     position: Mapped[int] = mapped_column(Integer, default=0)
@@ -249,12 +252,15 @@ class FileScanStatus(StrEnum):
 class StoredFile(UUIDPk, Timestamps, SoftDelete, TenantScoped, Base):
     __tablename__ = "files"
 
-    owner_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     storage_key: Mapped[str] = mapped_column(String(512), unique=True)
     filename: Mapped[str] = mapped_column(String(255))
     content_type: Mapped[str] = mapped_column(String(120))
     size_bytes: Mapped[int] = mapped_column(BigInteger)
     sha256: Mapped[str] = mapped_column(String(64), index=True)
-    purpose: Mapped[str] = mapped_column(String(32))  # lesson_media | submission | knowledge | certificate | report
+    # lesson_media | submission | knowledge | certificate | report | other
+    purpose: Mapped[str] = mapped_column(String(32))
     scan_status: Mapped[str] = mapped_column(String(16), default=FileScanStatus.PENDING)
     scan_detail: Mapped[str | None] = mapped_column(String(255))

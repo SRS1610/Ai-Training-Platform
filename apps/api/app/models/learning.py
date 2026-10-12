@@ -34,7 +34,9 @@ class Enrolment(UUIDPk, Timestamps, TenantScoped, Base):
 
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     course_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), index=True)
-    course_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("course_versions.id", ondelete="RESTRICT"))
+    course_version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("course_versions.id", ondelete="RESTRICT")
+    )
     source: Mapped[str] = mapped_column(String(16), default=EnrolmentSource.SELF)
     learning_path_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("learning_paths.id", ondelete="SET NULL")
@@ -56,7 +58,9 @@ class LessonProgress(UUIDPk, Timestamps, TenantScoped, Base):
     __tablename__ = "lesson_progress"
     __table_args__ = (UniqueConstraint("enrolment_id", "lesson_id"),)
 
-    enrolment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("enrolments.id", ondelete="CASCADE"), index=True)
+    enrolment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("enrolments.id", ondelete="CASCADE"), index=True
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     lesson_id: Mapped[uuid.UUID] = mapped_column()  # lesson id from the pinned snapshot
     status: Mapped[str] = mapped_column(String(16), default="in_progress")  # in_progress | completed

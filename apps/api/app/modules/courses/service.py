@@ -729,7 +729,8 @@ def _lesson_linked(tree: Tree, lsn: Lesson) -> dict[str, Any] | None:
 
 def _lesson_out(tree: Tree, lsn: Lesson) -> s.LessonOut:
     cols = {k: getattr(lsn, k) for k in s.LessonOut.model_fields if k not in ("activities", "linked")}
-    out = s.LessonOut(**cols, activities=[s.ActivityOut.model_validate(a) for a in tree.activities.get(lsn.id, [])])
+    acts = [s.ActivityOut.model_validate(a) for a in tree.activities.get(lsn.id, [])]
+    out = s.LessonOut(**cols, activities=acts)
     linked = _lesson_linked(tree, lsn)
     if linked:
         out.linked = s.LinkedItem(

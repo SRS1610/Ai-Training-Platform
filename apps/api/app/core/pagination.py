@@ -34,7 +34,11 @@ class Page(BaseModel, Generic[T]):
     page_size: int
 
 
-async def paginate(session: AsyncSession, stmt: Select[Any], params: PageParams) -> tuple[list[Any], int]:
+async def paginate(
+    session: AsyncSession, stmt: Select[Any], params: PageParams, *, scalars: bool = True
+) -> tuple[list[Any], int]:
+    """Return one page plus the total count. ``scalars=False`` returns Row tuples (joined / multi-column selects)."""
     total = await session.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
-    rows = (await session.execute(stmt.limit(params.page_size).offset(params.offset))).scalars().all()
+    result = await session.execute(stmt.limit(params.page_size).offset(params.offset))
+    rows = result.scalars().all() if scalars else result.all()
     return list(rows), int(total or 0)

@@ -44,10 +44,18 @@ def subscribe(event: str) -> Callable[[Handler], Handler]:
     return decorator
 
 
-async def emit(db: AsyncSession, event: str, payload: dict[str, Any]) -> None:
+async def emit(db: AsyncSession, event: str, payload: dict[str, Any], *, strict: bool = False) -> None:
+    """Dispatch to subscribers. Each handler runs in its own SAVEPOINT: a failing subscriber is rolled back
+    and logged without undoing the emitter's change or other subscribers' work (``strict=True`` re-raises)."""
     for handler in list(_handlers.get(event, [])):
         log.debug("event.dispatch", event_name=event, handler=handler.__qualname__)
-        await handler(db, payload)
+        try:
+            async with db.begin_nested():
+                await handler(db, payload)
+        except Exception:
+            log.exception("event.handler_failed", event_name=event, handler=handler.__qualname__)
+            if strict:
+                raise
 
 
 def handlers_for(event: str) -> list[Handler]:
