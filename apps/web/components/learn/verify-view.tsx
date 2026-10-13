@@ -65,7 +65,7 @@ function Lookup({ initial = "", stacked = false }: { initial?: string; stacked?:
       }}
     >
       <div className="flex-1">
-        <Input value={value} onChange={(e) => setValue(e.target.value)} leftIcon={<Hash />} placeholder="e.g. CERT-2026-000111" aria-label="Certificate number" className="font-mono" />
+        <Input value={value} onChange={(e) => setValue(e.target.value)} leftIcon={<Hash />} placeholder="e.g. CERT-2026-000111" aria-label="Certificate number" className="min-w-0 font-mono placeholder:font-sans placeholder:tracking-normal" />
       </div>
       <Button type="submit" variant="secondary" leftIcon={<Search />}>
         Verify
@@ -105,7 +105,7 @@ export function VerifyView({ certificateNumber }: { certificateNumber: string })
 
   return (
     <div className="relative min-h-dvh overflow-hidden bg-[#f7f8fc]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-aurora opacity-80" aria-hidden />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-aurora opacity-80 [mask-image:linear-gradient(to_bottom,black_45%,transparent)]" aria-hidden />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-grid-faint opacity-40 [background-size:36px_36px] [mask-image:linear-gradient(to_bottom,black,transparent)]" aria-hidden />
       <header className="relative mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
         <Logo />

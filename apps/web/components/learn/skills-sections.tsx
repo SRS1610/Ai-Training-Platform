@@ -1,7 +1,6 @@
 "use client";
 
 import { Badge, Button, EmptyState, ProgressRing, Skeleton, bandMeta, categoryClasses, cn, colorClasses, toast } from "@praxis/ui";
-import { SkillRadarChart, Sparkline } from "@praxis/ui/charts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -28,6 +27,7 @@ import Link from "next/link";
 import * as React from "react";
 import { api, errorMessage } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
+import { MiniSparkline, SkillRadar } from "./skill-radar";
 import { targetHref } from "./meta";
 import { lk } from "./query-keys";
 import type { LearnerAnalytics, LearningPlan, MyCompetency, MyRecommendations, MySkill, RecommendationOut } from "./types";
@@ -68,14 +68,6 @@ function LevelChip({ p }: { p: number }) {
 
 /* ------------------------------------------------------------------ profile */
 
-/** Compact radar axis label ("Windows Administration" → "Windows A.") so edge labels never clip. */
-function shortLabel(name: string): string {
-  if (name.length <= 12) return name;
-  const [first = "", ...rest] = name.split(/\s+/);
-  if (!rest.length || first.length > 10) return `${name.slice(0, 11)}…`;
-  return `${first} ${rest.map((w) => w.charAt(0).toUpperCase()).join("")}.`;
-}
-
 /** Trend direction from evidence scores: mean of the recent half vs the earlier half. */
 function trendDelta(values: number[]): number | null {
   if (values.length < 4) return null;
@@ -113,7 +105,7 @@ export function SkillProfile({ skills, trends }: { skills: MySkill[]; trends: Re
     .map((s) => `${s.skill_id}:${Math.round(s.proficiency)}`)
     .join("|");
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const radar = React.useMemo(() => sorted.slice(0, 10).map((s) => ({ subject: shortLabel(s.name), value: Math.round(s.proficiency), benchmark: 70 })), [radarKey]);
+  const radar = React.useMemo(() => sorted.slice(0, 10).map((s) => ({ subject: s.name, value: Math.round(s.proficiency), benchmark: 70 })), [radarKey]);
   const strongest = sorted[0];
   const weakest = sorted[sorted.length - 1];
 
@@ -123,7 +115,7 @@ export function SkillProfile({ skills, trends }: { skills: MySkill[]; trends: Re
         <SectionTitle id="skill-radar" icon={Compass} color="violet" title="Skill profile" description="Your proficiency against the 70% competence line" />
         <figure className="mt-2">
           {radar.length >= 3 ? (
-            <SkillRadarChart data={radar} height={320} aria-label="Radar chart of skill proficiency" />
+            <SkillRadar data={radar} height={340} label={`Radar chart of skill proficiency: ${radar.map((r) => `${r.subject} ${r.value}%`).join(", ")}`} />
           ) : (
             <div className="grid h-64 place-items-center text-sm text-slate-500">Add a few more skills to see your profile shape.</div>
           )}
@@ -183,7 +175,7 @@ export function SkillProfile({ skills, trends }: { skills: MySkill[]; trends: Re
                     {s.evidence_count} piece{s.evidence_count === 1 ? "" : "s"} of evidence{s.last_assessed_at ? ` · last assessed ${formatRelative(s.last_assessed_at)}` : ""}
                   </p>
                 </div>
-                <div className="hidden sm:block">{trend.length >= 2 ? <Sparkline data={trend} color={c.hex} height={30} /> : null}</div>
+                <div className="hidden sm:block">{trend.length >= 2 ? <MiniSparkline data={trend} color={c.hex} height={30} /> : null}</div>
                 <div className="text-right">
                   <p className="font-display text-lg font-bold tabular-nums text-slate-900">{Math.round(s.proficiency)}%</p>
                   {delta !== null && Math.abs(delta) >= 3 ? (

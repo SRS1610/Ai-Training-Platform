@@ -112,7 +112,7 @@ export default function QuizResultPage() {
                   }
                 />
               )}
-              <span className={cn("absolute -bottom-1 -right-1 grid size-12 place-items-center rounded-2xl bg-gradient-to-br text-white shadow-lift", theme.wrap)}>
+              <span className={cn("absolute -bottom-1 -right-1 grid size-12 place-items-center rounded-2xl bg-gradient-to-br text-white shadow-lift", theme.wrap, pending && "hidden")}>
                 <theme.icon className="size-6" aria-hidden />
               </span>
             </div>

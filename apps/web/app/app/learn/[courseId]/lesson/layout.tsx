@@ -2,7 +2,7 @@
 
 import { Button, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton, Tooltip, cn, colorClasses, colorFor } from "@praxis/ui";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Bot, ListTree, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ArrowLeft, Bot, ListTree, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -16,6 +16,7 @@ import { ApiError, api } from "@/lib/api";
 const TutorPanel = dynamic(() => import("@/components/tutor/tutor-panel").then((m) => m.TutorPanel), { ssr: false });
 
 const SIDEBAR_KEY = "praxis.player.outline";
+const FOCUS_KEY = "praxis.player.focus";
 
 export default function LessonPlayerLayout({ children }: { children: React.ReactNode }) {
   const { courseId, lessonId } = useParams<{ courseId: string; lessonId?: string }>();
@@ -42,6 +43,41 @@ export default function LessonPlayerLayout({ children }: { children: React.React
       /* ignore */
     }
   }, []);
+  // Focus mode (lg+): the player covers the app shell (sidebar + top bar) so only the lesson and its
+  // outline remain. On by default; the learner's choice is remembered.
+  const [focus, setFocus] = React.useState(false);
+  const focusRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    try {
+      setFocus(localStorage.getItem(FOCUS_KEY) !== "0");
+    } catch {
+      setFocus(true);
+    }
+  }, []);
+  const toggleFocus = React.useCallback(() => {
+    setFocus((f) => {
+      try {
+        localStorage.setItem(FOCUS_KEY, f ? "0" : "1");
+      } catch {
+        /* ignore */
+      }
+      return !f;
+    });
+  }, []);
+  React.useEffect(() => {
+    if (!focus) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented || document.querySelector("[role=dialog],[role=alertdialog]")) return;
+      if (window.matchMedia("(min-width: 1024px)").matches) toggleFocus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focus, toggleFocus]);
+  // The focus overlay is its own scroll container, so reset it when moving between lessons.
+  React.useEffect(() => {
+    focusRef.current?.scrollTo({ top: 0 });
+  }, [lessonId]);
+
   const toggleOutline = () =>
     setOutlineOpen((o) => {
       try {
@@ -66,9 +102,10 @@ export default function LessonPlayerLayout({ children }: { children: React.React
 
   return (
     <PlayerContext.Provider value={ctx}>
+      <div ref={focusRef} className={cn(focus && "lg:fixed lg:inset-0 lg:z-40 lg:overflow-y-auto lg:overscroll-contain lg:bg-[#f5f6fb] lg:p-4 xl:p-5")}>
       <div className="overflow-clip rounded-3xl border border-slate-200/80 bg-white shadow-soft">
         {/* player bar */}
-        <div className="sticky top-16 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+        <div className={cn("sticky top-16 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl", focus && "lg:top-0")}>
           <div className="flex h-14 items-center gap-2 px-3 sm:gap-3 sm:px-4">
             {enrolled && (
               <>
@@ -102,6 +139,11 @@ export default function LessonPlayerLayout({ children }: { children: React.React
                   <span className="font-semibold tabular-nums text-slate-900">{pct}% complete</span>
                 </span>
               )}
+              <Tooltip content={focus ? "Exit focus mode (Esc)" : "Focus mode — hide the app menu"}>
+                <Button variant="ghost" size="icon-sm" className="hidden lg:inline-flex" onClick={toggleFocus} aria-label={focus ? "Exit focus mode" : "Enter focus mode"} aria-pressed={focus}>
+                  {focus ? <Minimize2 /> : <Maximize2 />}
+                </Button>
+              </Tooltip>
               {tutorEnabled && (
                 <Button size="sm" variant="soft" className="bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100" leftIcon={<Bot />} onClick={() => setTutorOpen(true)}>
                   <span className="hidden sm:inline">Ask AI tutor</span>
@@ -125,7 +167,7 @@ export default function LessonPlayerLayout({ children }: { children: React.React
         <div className="flex min-h-[calc(100dvh-12rem)]">
           {enrolled && outlineOpen && (
             <aside className="hidden w-80 shrink-0 border-r border-slate-200/80 bg-slate-50/60 lg:block" aria-label="Course outline">
-              <div className="sticky top-[7.75rem] h-[calc(100dvh-7.75rem)] overflow-y-auto p-3 scrollbar-thin">
+              <div className={cn("sticky top-[7.75rem] h-[calc(100dvh-7.75rem)] overflow-y-auto p-3 scrollbar-thin", focus && "lg:top-[3.75rem] lg:h-[calc(100dvh-5.75rem)] xl:h-[calc(100dvh-6.25rem)]")}>
               <div className="mb-3 rounded-2xl bg-white p-3 shadow-soft ring-1 ring-slate-200/70">
                 <p className="text-2xs font-semibold uppercase tracking-wider text-slate-500">Your progress</p>
                 <p className="mt-1 font-display text-lg font-bold text-slate-900">
@@ -149,6 +191,7 @@ export default function LessonPlayerLayout({ children }: { children: React.React
           )}
           <div className="min-w-0 flex-1">{children}</div>
         </div>
+      </div>
       </div>
 
       {enrolled && (

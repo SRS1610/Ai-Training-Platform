@@ -144,7 +144,7 @@ export function Flashcards({ content }: { content: Record<string, unknown> }) {
               onKeyDown={onKey}
               aria-roledescription="flashcard"
               aria-describedby={hintId}
-              className="relative block h-72 w-full cursor-pointer rounded-3xl transition-transform duration-500 ease-spring [transform-style:preserve-3d] focus-visible:focus-ring sm:h-80"
+              className="relative block h-72 w-full cursor-pointer rounded-3xl motion-safe:transition-transform motion-safe:duration-500 motion-safe:ease-spring [transform-style:preserve-3d] focus-visible:focus-ring sm:h-80"
               style={{ transform: flipped ? "rotateY(180deg)" : "none" }}
             >
               <span

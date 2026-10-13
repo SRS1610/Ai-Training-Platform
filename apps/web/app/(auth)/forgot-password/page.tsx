@@ -45,7 +45,7 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <AuthHeading icon={<KeyRound />} title="Forgot your password?" description="Enter your email and we'll send you a secure link to reset it." />
-      <form onSubmit={onSubmit} noValidate className="space-y-5">
+      <form method="post" onSubmit={onSubmit} noValidate className="space-y-5">
         {error && <Alert tone="danger">{error}</Alert>}
         <FormField label="Email" error={form.formState.errors.email?.message} required>
           <Input type="email" autoComplete="email" leftIcon={<Mail />} placeholder="you@company.com" autoFocus {...form.register("email")} />

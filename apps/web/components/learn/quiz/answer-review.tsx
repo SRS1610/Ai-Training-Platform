@@ -192,7 +192,7 @@ function AnswerDetail({ q }: { q: ResultQuestion }) {
       return (
         <div className="space-y-3">
           <div className="whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm text-slate-800 ring-1 ring-slate-200">{String(r.text ?? "—")}</div>
-          {key && typeof key.model_answer === "string" && (
+          {key && typeof key.model_answer === "string" && !!key.model_answer.trim() && (
             <div className="rounded-xl bg-sky-50 p-3 ring-1 ring-sky-200">
               <p className="text-2xs font-semibold uppercase tracking-wider text-sky-700">Model answer</p>
               <Markdown className="mt-1 text-sm">{key.model_answer}</Markdown>

@@ -52,7 +52,7 @@ export function ResetPasswordForm() {
   return (
     <>
       <AuthHeading icon={<LockKeyhole />} title="Choose a new password" description="For your security, all other sessions will be signed out." />
-      <form onSubmit={onSubmit} noValidate className="space-y-5">
+      <form method="post" onSubmit={onSubmit} noValidate className="space-y-5">
         {error && (
           <Alert tone="danger" action={<Link href="/forgot-password" className="text-sm font-semibold underline">New link</Link>}>
             {error}

@@ -147,7 +147,7 @@ export function AcceptInvite() {
           )}
         </div>
       ) : (
-        <form onSubmit={form.handleSubmit((v) => accept(v))} noValidate className="space-y-5">
+        <form method="post" onSubmit={form.handleSubmit((v) => accept(v))} noValidate className="space-y-5">
           <FormField label="Email">
             <Input value={inv.email} readOnly disabled leftIcon={<Mail />} />
           </FormField>
