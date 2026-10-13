@@ -473,7 +473,7 @@ export default function LandingPage() {
         <div className="container flex flex-col items-center justify-between gap-4 py-8 text-sm text-slate-600 sm:flex-row">
           <Logo />
           <p>© {new Date().getFullYear()} Praxis. Learn → Practise → Simulate → Perform → Assess → Improve.</p>
-          <nav aria-label="Footer" className="flex gap-4">
+          <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-4 gap-y-2">
             <Link href="/login" className="hover:text-slate-900">
               Sign in
             </Link>
@@ -483,6 +483,12 @@ export default function LandingPage() {
             <a href="#pricing" className="hover:text-slate-900">
               Pricing
             </a>
+            <Link href="/terms" className="hover:text-slate-900">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:text-slate-900">
+              Privacy
+            </Link>
           </nav>
         </div>
       </footer>

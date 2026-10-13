@@ -29,7 +29,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { AlertTriangle, Code2, KeyRound, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import * as React from "react";
 import { ak } from "@/components/admin/keys";
-import type { ApiKeyCreated, ApiKeyOut, PermissionOut } from "@/components/admin/types";
+import type { ApiKeyCreated, ApiKeyOut, PermissionOut, PlanOut } from "@/components/admin/types";
 import { CopyButton, PageGate, UpgradeNotice, isPlanLimit, toastError } from "@/components/admin/ui";
 import { ErrorState } from "@/components/common/error-state";
 import { api, errorMessage } from "@/lib/api";
@@ -206,10 +206,16 @@ function ApiKeysPage() {
   const [create, setCreate] = React.useState(false);
   const [revoke, setRevoke] = React.useState<ApiKeyOut | null>(null);
   const params = { include_revoked: showRevoked, page: pagination.pageIndex + 1, page_size: pagination.pageSize };
+  // Check the plan's api_access feature first (public catalogue) so plans without it get the upsell without a
+  // 402 round-trip; the 402 from /api-keys stays the source of truth if the catalogue is unavailable.
+  const { organisation } = useAuth();
+  const plans = useQuery({ queryKey: ak.billing.plans, queryFn: ({ signal }) => api.get<PlanOut[]>("/billing/plans", { signal }), staleTime: 300_000 });
+  const apiAccess = plans.data?.find((p) => p.code === organisation?.plan_code)?.features?.api_access;
   const list = useQuery({
     queryKey: ak.apiKeys.list(params),
     queryFn: ({ signal }) => api.get<Page<ApiKeyOut>>("/api-keys", { signal, query: params }),
     placeholderData: keepPreviousData,
+    enabled: !plans.isPending && apiAccess !== false,
   });
 
   const columns = React.useMemo<ColumnDef<ApiKeyOut, unknown>[]>(
@@ -272,7 +278,7 @@ function ApiKeysPage() {
     [],
   );
 
-  const gated = list.isError && isPlanLimit(list.error);
+  const gated = apiAccess === false || (list.isError && isPlanLimit(list.error));
 
   return (
     <>
@@ -291,7 +297,11 @@ function ApiKeysPage() {
       />
       {gated ? (
         <div className="space-y-6">
-          <UpgradeNotice error={list.error} title="API access isn't included in your plan" />
+          <UpgradeNotice
+            error={list.isError ? list.error : undefined}
+            title="API access isn't included in your plan"
+            description={list.isError ? undefined : "API keys and the REST API are available on plans that include API access."}
+          />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {[
               { icon: Code2, title: "REST API", body: "Everything in the web app — users, enrolments, progress, reports — over a documented JSON API." },
@@ -313,7 +323,7 @@ function ApiKeysPage() {
           aria-label="API keys"
           columns={columns}
           data={list.data?.items ?? []}
-          loading={list.isLoading}
+          loading={list.isLoading || plans.isPending}
           total={list.data?.total ?? 0}
           pagination={pagination}
           onPaginationChange={setPagination}

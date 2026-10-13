@@ -141,11 +141,11 @@ export function RegisterForm() {
                   />
                   <Label htmlFor="accept_terms" className="font-normal leading-snug text-slate-600">
                     I agree to the{" "}
-                    <a href="/terms" className="font-medium text-brand-700 underline-offset-2 hover:underline">
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-medium text-brand-700 underline-offset-2 hover:underline">
                       Terms of Service
                     </a>{" "}
                     and{" "}
-                    <a href="/privacy" className="font-medium text-brand-700 underline-offset-2 hover:underline">
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-brand-700 underline-offset-2 hover:underline">
                       Privacy Policy
                     </a>
                   </Label>

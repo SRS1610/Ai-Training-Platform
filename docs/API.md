@@ -64,7 +64,7 @@ Breaking changes ship under a new prefix (`/api/v2`). Additive changes (new fiel
 ## Endpoint index
 
 <!-- endpoint-index:start -->
-_326 operations across 40 groups (generated)._
+_328 operations across 40 groups (generated)._
 
 ### ai
 
@@ -520,11 +520,13 @@ _326 operations across 40 groups (generated)._
 | `GET` | `/api/v1/simulations/{sim_id}` | Get Simulation |
 | `PATCH` | `/api/v1/simulations/{sim_id}` | Update Simulation |
 | `GET` | `/api/v1/simulations/{sim_id}/analytics` | Simulation Analytics |
+| `GET` | `/api/v1/simulations/{sim_id}/briefing` | Get Briefing |
 | `GET` | `/api/v1/simulations/{sim_id}/draft` | Get Draft |
 | `PUT` | `/api/v1/simulations/{sim_id}/draft` | Save Draft |
 | `GET` | `/api/v1/simulations/{sim_id}/graph` | Get Graph |
 | `PUT` | `/api/v1/simulations/{sim_id}/graph` | Save Graph |
 | `POST` | `/api/v1/simulations/{sim_id}/publish` | Publish |
+| `POST` | `/api/v1/simulations/{sim_id}/restore` | Restore Simulation |
 | `GET` | `/api/v1/simulations/{sim_id}/sessions` | Simulation Sessions |
 | `POST` | `/api/v1/simulations/{sim_id}/sessions` | Start Session |
 | `POST` | `/api/v1/simulations/{sim_id}/validate` | Validate Definition |

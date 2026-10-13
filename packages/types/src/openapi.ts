@@ -3669,6 +3669,26 @@ export interface paths {
         patch: operations["update_simulation_api_v1_simulations__sim_id__patch"];
         trace?: never;
     };
+    "/api/v1/simulations/{sim_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Simulation
+         * @description Restore an archived simulation (list them with ``GET /simulations?status=archived``).
+         */
+        post: operations["restore_simulation_api_v1_simulations__sim_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/simulations/{sim_id}/draft": {
         parameters: {
             query?: never;
@@ -3809,6 +3829,27 @@ export interface paths {
          * @description Start (or resume the active) attempt of a published simulation.
          */
         post: operations["start_session_api_v1_simulations__sim_id__sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/simulations/{sim_id}/briefing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Briefing
+         * @description Learner-safe briefing of the published version (role, objectives, people, phases, scoring model),
+         *     shown before an attempt starts.
+         */
+        get: operations["get_briefing_api_v1_simulations__sim_id__briefing_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5289,6 +5330,8 @@ export interface components {
             integrity?: {
                 [key: string]: unknown;
             } | null;
+            /** Learner Name */
+            learner_name?: string | null;
         };
         /** AttemptSummary */
         AttemptSummary: {
@@ -5567,6 +5610,95 @@ export interface components {
             /** Favicon Url */
             favicon_url?: string | null;
         };
+        /** BriefingBand */
+        BriefingBand: {
+            /** Name */
+            name: string;
+            /** Min */
+            min: number;
+        };
+        /** BriefingDimension */
+        BriefingDimension: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Weight */
+            weight: number;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+        };
+        /**
+         * BriefingOut
+         * @description Learner-safe briefing of the published version, shown before an attempt starts: meta, the people and
+         *     tools by name, the phase order and the scoring model. No actions, facts, variables or answers.
+         */
+        BriefingOut: {
+            /**
+             * Simulation Id
+             * Format: uuid
+             */
+            simulation_id: string;
+            /** Version */
+            version: number;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Industry */
+            industry: string;
+            /** Environment Type */
+            environment_type: string;
+            /** Difficulty */
+            difficulty: string;
+            /** Estimated Minutes */
+            estimated_minutes: number;
+            /** Briefing */
+            briefing: string;
+            /** Learner Role */
+            learner_role: string;
+            /** Objectives */
+            objectives: string[];
+            /** Tags */
+            tags: string[];
+            /** Phases */
+            phases: string[];
+            /** Characters */
+            characters: components["schemas"]["BriefingPerson"][];
+            /** Tools */
+            tools: components["schemas"]["BriefingTool"][];
+            /** Dimensions */
+            dimensions: components["schemas"]["BriefingDimension"][];
+            /** Bands */
+            bands: components["schemas"]["BriefingBand"][];
+            /** Pass Mark */
+            pass_mark: number;
+            /** Critical Cap */
+            critical_cap: number | null;
+            /** Target Minutes */
+            target_minutes: number | null;
+            /** Max Minutes */
+            max_minutes: number | null;
+        };
+        /** BriefingPerson */
+        BriefingPerson: {
+            /** Name */
+            name: string;
+            /** Role */
+            role: string;
+        };
+        /** BriefingTool */
+        BriefingTool: {
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Icon */
+            icon: string | null;
+        };
         /** BudgetCheckOut */
         BudgetCheckOut: {
             /**
@@ -5686,6 +5818,21 @@ export interface components {
             outline: {
                 [key: string]: unknown;
             }[];
+            instructor?: components["schemas"]["CatalogInstructor"] | null;
+        };
+        /** CatalogInstructor */
+        CatalogInstructor: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Full Name */
+            full_name: string;
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /** Job Title */
+            job_title?: string | null;
         };
         /** CatalogItem */
         CatalogItem: {
@@ -6388,6 +6535,16 @@ export interface components {
              */
             created_at: string;
         };
+        /** DepartmentRef */
+        DepartmentRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /** DepartmentUpdate */
         DepartmentUpdate: {
             /** Name */
@@ -6805,6 +6962,7 @@ export interface components {
             recent_points: components["schemas"]["PointsEntry"][];
             /** Rank */
             rank: number | null;
+            department?: components["schemas"]["DepartmentRef"] | null;
         };
         /** GenerationCreate */
         GenerationCreate: {
@@ -9642,6 +9800,12 @@ export interface components {
             /** Integrity Flags */
             integrity_flags: number;
             ai_recommendation: components["schemas"]["AIRecommendation"] | null;
+            /** Final Score */
+            final_score?: number | null;
+            /** Passed */
+            passed?: boolean | null;
+            /** Graded At */
+            graded_at?: string | null;
         };
         /** RatingIn */
         RatingIn: {
@@ -10923,11 +11087,17 @@ export interface components {
             status: string;
             /** Billing Interval */
             billing_interval: string;
-            /** Seats Purchased */
+            /**
+             * Seats Purchased
+             * @description Seats bought on a seat-based plan; null when none are recorded.
+             */
             seats_purchased: number | null;
             /** Seats Used */
             seats_used: number;
-            /** Seat Limit */
+            /**
+             * Seat Limit
+             * @description Enforced member + invitation limit; null means unlimited.
+             */
             seat_limit: number | null;
             /** Trial Ends At */
             trial_ends_at: string | null;
@@ -19927,6 +20097,37 @@ export interface operations {
             };
         };
     };
+    restore_simulation_api_v1_simulations__sim_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_draft_api_v1_simulations__sim_id__draft_get: {
         parameters: {
             query?: never;
@@ -20278,6 +20479,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["app__modules__simulations__schemas__SessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_briefing_api_v1_simulations__sim_id__briefing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefingOut"];
                 };
             };
             /** @description Validation Error */
