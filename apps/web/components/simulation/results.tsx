@@ -51,6 +51,7 @@ import { formatDateTime } from "@/lib/format";
 import { EnteringEnvironment } from "./entering";
 import { aggregateAttempts, fetchMySessions, fetchReplay, fetchResult, fetchSimulation, simKeys, startSession } from "./queries";
 import { industryMeta } from "./theme";
+import { resultTutorPrompts } from "./tutor-prompts";
 import type { ReplayAction, SimResult, SimSession, TimelineItem } from "./types";
 import { simClock } from "./workspace/model";
 
@@ -84,6 +85,15 @@ function useCountUp(target: number, ms = 1200) {
   return v;
 }
 
+/** Blend two #rrggbb colours (t = share of `b`). */
+function mix(a: string, b: string, t: number) {
+  const pa = a.replace("#", "");
+  const pb = b.replace("#", "");
+  if (pa.length !== 6 || pb.length !== 6) return a;
+  const ch = (i: number) => Math.round(parseInt(pa.slice(i, i + 2), 16) * (1 - t) + parseInt(pb.slice(i, i + 2), 16) * t);
+  return `#${[0, 2, 4].map((i) => ch(i).toString(16).padStart(2, "0")).join("")}`;
+}
+
 function ScoreRing({ score, band }: { score: number; band: string | null }) {
   const meta = bandMeta(band);
   const c = colorClasses(meta.color);
@@ -97,9 +107,10 @@ function ScoreRing({ score, band }: { score: number; band: string | null }) {
     <div className="relative grid place-items-center" style={{ width: size, height: size }} role="img" aria-label={`Score ${Math.round(score)} out of 100, ${meta.label}`}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
         <defs>
+          {/* Stays within the band's hue (a violet end would read as the Advanced band). */}
           <linearGradient id={`sr${id}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={c.hex} />
-            <stop offset="100%" stopColor="#8b5cf6" />
+            <stop offset="0%" stopColor={mix(c.hex, "#ffffff", 0.3)} />
+            <stop offset="100%" stopColor={mix(c.hex, "#0f172a", 0.18)} />
           </linearGradient>
         </defs>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#eef2f7" strokeWidth={stroke} />
@@ -311,7 +322,18 @@ export function SessionResults({ session }: { session: SimSession }) {
 
       <Timeline items={r.feedback.timeline ?? []} actions={replay.data?.actions ?? []} loading={replay.isLoading} phases={session.view.phases} />
 
-      <TutorPanel open={tutor} onOpenChange={setTutor} courseId={s?.course_id ?? undefined} />
+      <TutorPanel
+        open={tutor}
+        onOpenChange={setTutor}
+        courseId={s?.course_id ?? undefined}
+        prompts={resultTutorPrompts(r, session.view.meta)}
+        contextNote={
+          <>
+            <span className="font-semibold">Debrief · {session.view.meta.title}</span> — attempt {r.attempt_number}: {Math.round(r.total_score ?? 0)}/100
+            {r.band ? ` (${meta.label})` : ""}. The suggestions below come from what this attempt missed.
+          </>
+        }
+      />
       <EnteringEnvironment open={entering} title={session.view.meta.title} environment={session.view.meta.environment_type} industry={session.view.meta.industry} />
       <span className="sr-only">{ind.label}</span>
     </div>
@@ -343,21 +365,27 @@ function Dimensions({ r }: { r: SimResult }) {
         </span>
         Performance by dimension
       </h2>
-      {data.length >= 3 && <SkillRadarChart data={data} height={280} className="mt-2" aria-label={`Dimension scores: ${data.map((d) => `${d.subject} ${d.value}%`).join(", ")}`} />}
+      {/* The radar's outer labels don't fit a phone-width card; the bars below carry the same numbers. */}
+      {data.length >= 3 && <SkillRadarChart data={data} height={280} className="mt-2 hidden sm:block" aria-label={`Dimension scores: ${data.map((d) => `${d.subject} ${d.value}%`).join(", ")}`} />}
       <ul className="mt-2 space-y-3.5">
         {r.dimensions.map((d, i) => {
           const c = colorClasses(CATEGORY_COLORS[i % CATEGORY_COLORS.length]!);
           const pct = Math.round(d.percent);
           return (
             <li key={d.id}>
-              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-sm">
-                <span className="flex items-center gap-2 font-medium text-slate-800">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="flex min-w-0 items-center gap-2 font-medium text-slate-800">
                   <span className={cn("size-2.5 shrink-0 rounded-full", c.solid)} aria-hidden />
-                  {d.name}
-                  <span className={cn("whitespace-nowrap rounded-full px-1.5 py-0.5 text-2xs font-bold", c.soft, c.text)}>{d.weight}%</span>
+                  <span className="truncate">{d.name}</span>
+                  <span className={cn("shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-2xs font-bold", c.soft, c.text)} title={`Weight ${d.weight}%`}>
+                    {d.weight}%
+                  </span>
                 </span>
-                <span className="whitespace-nowrap text-xs tabular-nums text-slate-600 sm:text-sm">
-                  <span className="font-semibold text-slate-900">{d.score.toFixed(1)}</span>/{d.weight} pts · {pct}%
+                <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-slate-600 sm:text-sm">
+                  <span className="hidden sm:inline">
+                    <span className="font-semibold text-slate-900">{d.score.toFixed(1)}</span>/{d.weight} pts ·{" "}
+                  </span>
+                  <span className="font-semibold text-slate-900 sm:font-normal sm:text-slate-600">{pct}%</span>
                 </span>
               </div>
               <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${d.name} ${pct}%`}>

@@ -130,16 +130,22 @@ export default function GradingWorkspacePage() {
         </Alert>
       )}
 
+      {/* Single column on mobile reads: submission → scoring → context. On desktop the scoring panel is a sticky right rail. */}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_460px]">
-        <div className="min-w-0 space-y-6">
+        <div className="min-w-0 lg:col-start-1">
           <SubmissionViewer versions={d.versions} fields={(a.structured_fields ?? []) as StructuredField[]} currentVersion={sub.current_version} />
+        </div>
+        <aside
+          aria-label="Scoring"
+          className="min-w-0 lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pb-2 lg:pr-1 lg:scrollbar-thin"
+        >
+          <GradeForm detail={d} />
+        </aside>
+        <div className="min-w-0 space-y-6 lg:col-start-1">
           <AssignmentBrief assignment={a} version={latest} />
           <IntegrityPanel signals={d.integrity_signals} submissionId={sub.id} />
           <GradeHistory grades={d.grades} />
         </div>
-        <aside aria-label="Scoring" className="min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pb-2 lg:pr-1 lg:scrollbar-thin">
-          <GradeForm detail={d} />
-        </aside>
       </div>
     </div>
   );

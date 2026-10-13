@@ -21,8 +21,8 @@ import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
 import { api, errorMessage } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
-import { TutorChat } from "./tutor-chat";
-import { type TutorSession, useCourseLessons, useMyEnrolments, useTutorSessions } from "./use-tutor";
+import { coursePrompts, DEFAULT_PROMPTS, LESSON_PROMPTS, TutorChat } from "./tutor-chat";
+import { type TutorSession, tutorKeys, useCourseLessons, useMyEnrolments, useTutorSessions } from "./use-tutor";
 
 function useFillHeight(ref: React.RefObject<HTMLElement | null>, min = 520) {
   const [h, setH] = React.useState<number | null>(null);
@@ -69,7 +69,11 @@ export function TutorPage() {
   const pathname = usePathname();
   const params = useSearchParams();
   const qc = useQueryClient();
-  const sessionId = params.get("session");
+  // Conversations deleted in this page: treated as closed immediately, before the URL update lands, so the
+  // chat never re-requests their (now 404) messages.
+  const [deleted, setDeleted] = React.useState<ReadonlySet<string>>(() => new Set());
+  const rawSession = params.get("session");
+  const sessionId = rawSession && !deleted.has(rawSession) ? rawSession : null;
   const courseParam = params.get("course");
   const lessonParam = params.get("lesson");
   const sessions = useTutorSessions();
@@ -112,17 +116,20 @@ export function TutorPage() {
   const remove = async () => {
     if (!toDelete) return;
     try {
-      await api.delete(`/ai/tutor/sessions/${toDelete.id}`);
-      toast.success("Conversation deleted");
+      const id = toDelete.id;
+      await api.delete(`/ai/tutor/sessions/${id}`);
+      setDeleted((d) => new Set(d).add(id));
+      if (id === sessionId) newChat(false);
+      qc.removeQueries({ queryKey: tutorKeys.messages(id) });
       qc.invalidateQueries({ queryKey: ["tutor", "sessions"] });
-      if (toDelete.id === sessionId) newChat(false);
       setToDelete(null);
+      toast.success("Conversation deleted");
     } catch (err) {
       toast.error(errorMessage(err));
     }
   };
 
-  const filtered = (sessions.data?.items ?? []).filter((s) => !q || (s.title ?? "").toLowerCase().includes(q.toLowerCase()));
+  const filtered = (sessions.data?.items ?? []).filter((s) => !deleted.has(s.id) && (!q || (s.title ?? "").toLowerCase().includes(q.toLowerCase())));
 
   const list = (
     <div className="flex h-full min-h-0 flex-col">
@@ -189,7 +196,11 @@ export function TutorPage() {
                           type="button"
                           onClick={() => setToDelete(s)}
                           aria-label={`Delete ${s.title || "conversation"}`}
-                          className="absolute right-1.5 top-2 grid size-7 place-items-center rounded-lg text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 focus-visible:opacity-100 focus-visible:focus-ring group-hover:opacity-100"
+                          className={cn(
+                            "absolute right-1.5 top-2 grid size-7 place-items-center rounded-lg text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 focus-visible:focus-ring",
+                            // Always visible on touch screens; revealed on hover/focus where a pointer can hover.
+                            !on && "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-visible:opacity-100 [@media(hover:hover)]:group-hover:opacity-100",
+                          )}
                         >
                           <Trash2 className="size-3.5" aria-hidden />
                         </button>
@@ -286,6 +297,7 @@ export function TutorPage() {
             courseId={ctxCourse}
             lessonId={ctxLesson}
             contextLabel={lessonTitle ? `${lessonTitle}` : courseTitle}
+            prompts={ctxLesson ? LESSON_PROMPTS : ctxCourse ? coursePrompts(courseById.get(ctxCourse)?.title) : DEFAULT_PROMPTS}
             composerAddon={contextBar}
             className="min-h-0 flex-1"
           />

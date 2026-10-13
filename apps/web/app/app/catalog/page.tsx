@@ -126,7 +126,13 @@ function Catalog() {
   const cats = useQuery({ queryKey: lk.catalog.categories, queryFn: ({ signal }) => api.get<CategoryCount[]>("/catalog/categories", { signal }), staleTime: 300_000 });
   const skills = useQuery({ queryKey: lk.skills.list, queryFn: ({ signal }) => api.get<SkillOut[]>("/skills", { signal }), staleTime: 300_000 });
 
-  const totalCourses = cats.data?.reduce((a, c) => a + c.count, 0);
+  // Uncategorised courses are missing from the category counts, so take the overall total from the list itself.
+  const everything = useQuery({
+    queryKey: lk.catalog.list({ page_size: 1 }),
+    queryFn: ({ signal }) => api.get<Page<CatalogItem>>("/catalog", { signal, query: { page_size: 1 } }),
+    staleTime: 300_000,
+  });
+  const totalCourses = everything.data?.total ?? cats.data?.reduce((a, c) => a + c.count, 0);
   const filtersActive = !!(q || category || difficulty || skill || show);
   const clear = () => url.set({ q: null, category: null, difficulty: null, skill: null, show: null, page: null });
   const skillName = skills.data?.find((s) => s.id === skill)?.name;

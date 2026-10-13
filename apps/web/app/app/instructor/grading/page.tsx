@@ -123,7 +123,7 @@ function GradingQueue() {
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <KpiTile label="Awaiting review" value={cNeeds.data ?? "—"} icon={<Inbox />} color="rose" hint="Submitted, AI-scored or review requested" />
-        <KpiTile label="AI recommendations" value={cAi.data ?? "—"} icon={<Bot />} color="violet" hint="Ready to confirm or override" />
+        <KpiTile label="AI recommended" value={cAi.data ?? "—"} icon={<Bot />} color="violet" hint="Ready to confirm or override" />
         <KpiTile label="High stakes" value={cHigh.data ?? "—"} icon={<AlertOctagon />} color="amber" hint="Always require a human grade" />
         <KpiTile label="Quiz answers" value={cQuiz.data ?? "—"} icon={<FileQuestion />} color="sky" hint="Attempts with answers to mark" />
       </div>

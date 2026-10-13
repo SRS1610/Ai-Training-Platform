@@ -254,7 +254,7 @@ export function RolesMatrix() {
         {!shown.length ? (
           <EmptyState size="sm" illustration="shield" title="No custom roles yet" description="Create a custom role to tailor access for your organisation." />
         ) : (
-          <div className="overflow-x-auto scrollbar-thin">
+          <div className="relative overflow-x-auto scrollbar-thin">
             <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
               <caption className="sr-only">Permissions granted to each role</caption>
               <thead>

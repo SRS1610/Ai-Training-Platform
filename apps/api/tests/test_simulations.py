@@ -568,6 +568,16 @@ async def test_idempotent_actions_and_sequence_conflicts(client):
     assert first.status_code == again.status_code == 200
     assert again.json()["replayed"] and again.json()["outcome"] == first.json()["outcome"]
     assert again.json()["next_seq"] == 2
+    # a stale tab re-using a processed seq for a *different* action must not get the old outcome
+    stale = await client.post(url, headers=learner.headers, json={**body, "input": {"text": "ping 8.8.8.8"}})
+    assert stale.status_code == 409 and stale.json()["error"]["code"] == "sequence_conflict"
+    assert stale.json()["error"]["details"]["expected"] == 2
+    stale_chat = await client.post(
+        f"/api/v1/simulation-sessions/{session['id']}/chat",
+        headers=learner.headers,
+        json={"character_id": "priya", "message": "Hi", "client_seq": 1},
+    )
+    assert stale_chat.status_code == 409 and stale_chat.json()["error"]["code"] == "sequence_conflict"
     r = await client.post(url, headers=learner.headers, json={**body, "client_seq": 5})
     assert r.status_code == 409 and r.json()["error"]["details"]["expected"] == 2
     chat = await client.post(

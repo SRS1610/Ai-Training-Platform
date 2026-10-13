@@ -52,6 +52,21 @@ export function LauncherHero({
       <div className="relative overflow-hidden rounded-3xl bg-brand-gradient p-6 text-white shadow-glow sm:p-7">
         <div className="pointer-events-none absolute -right-16 -top-20 size-72 rounded-full bg-white/10 blur-2xl" aria-hidden />
         <div className="pointer-events-none absolute -bottom-24 left-1/3 size-72 rounded-full bg-fuchsia-300/20 blur-3xl" aria-hidden />
+        {loading ? (
+          // Same footprint as the loaded hero so nothing jumps when sessions arrive.
+          <div className="relative flex h-full min-h-[12.5rem] flex-col gap-5" aria-busy aria-label="Loading your simulation progress">
+            <div className="flex items-start gap-4">
+              <span className="size-12 shrink-0 rounded-2xl bg-white/15 ring-1 ring-white/25" />
+              <div className="min-w-0 flex-1 space-y-2.5 pt-0.5">
+                <span className="block h-3 w-32 rounded-full bg-white/25 motion-safe:animate-pulse" />
+                <span className="block h-6 w-4/5 max-w-md rounded-lg bg-white/25 motion-safe:animate-pulse" />
+                <span className="block h-3.5 w-full max-w-xl rounded-full bg-white/20 motion-safe:animate-pulse" />
+                <span className="block h-3.5 w-2/3 max-w-sm rounded-full bg-white/20 motion-safe:animate-pulse" />
+              </div>
+            </div>
+            <span className="mt-auto block h-14 rounded-2xl bg-white/10 ring-1 ring-inset ring-white/20" />
+          </div>
+        ) : (
         <div className="relative flex h-full flex-col gap-5">
           <div className="flex items-start gap-4">
             <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur">
@@ -119,6 +134,7 @@ export function LauncherHero({
             </div>
           )}
         </div>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-4">
         {tiles.map((t) => {

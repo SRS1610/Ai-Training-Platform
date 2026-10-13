@@ -72,7 +72,8 @@ export function FlowCanvas(props: FlowCanvasProps) {
   const rf = useReactFlow<SimNode, SimEdge>();
   const wrapper = React.useRef<HTMLDivElement>(null);
   const [legend, setLegend] = React.useState(false);
-  const [minimap, setMinimap] = React.useState(true);
+  // The canvas mounts after data loads (client-only), so reading the viewport here is hydration-safe.
+  const [minimap, setMinimap] = React.useState(() => typeof window === "undefined" || window.matchMedia("(min-width: 768px)").matches);
 
   React.useEffect(() => {
     if (!focusKey) return;

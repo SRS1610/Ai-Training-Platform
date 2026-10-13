@@ -4,37 +4,43 @@ import { Button, Sheet, SheetContent, SheetDescription, SheetTitle, Tooltip } fr
 import { Maximize2, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
-import { DEFAULT_PROMPTS, TutorChat } from "./tutor-chat";
+import { coursePrompts, DEFAULT_PROMPTS, LESSON_PROMPTS, TutorChat } from "./tutor-chat";
 import { useMyEnrolments } from "./use-tutor";
-
-const LESSON_PROMPTS = [
-  "Explain this lesson in simpler terms",
-  "Give me a real-world example of this",
-  "Quiz me on the key points of this lesson",
-  "What mistakes do people usually make here?",
-];
 
 /**
  * Right-side AI tutor drawer, scoped to a course/lesson when given. Reuses the full tutor chat
  * (streaming, citations, hint mode, ratings). A conversation is created on the first question and kept
  * while the drawer's host stays mounted.
+ *
+ * The course scope is only used when the learner is enrolled in that course (the API refuses course
+ * tutors otherwise); without an enrolment the drawer falls back to a general tutor over all their courses.
+ * Hosts can pass page-specific starter `prompts` and a `contextNote` for the welcome state.
  */
 export function TutorPanel({
   courseId,
   lessonId,
   open,
   onOpenChange,
+  prompts,
+  contextNote,
 }: {
   courseId?: string;
   lessonId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  prompts?: string[];
+  contextNote?: React.ReactNode;
 }) {
-  const scope = `${courseId ?? ""}:${lessonId ?? ""}`;
-  const [sessions, setSessions] = React.useState<Record<string, string>>({});
-  const sessionId = sessions[scope] ?? null;
   const enrolments = useMyEnrolments();
   const course = enrolments.data?.find((e) => e.course_id === courseId);
+  // Unknown until enrolments load: keep the requested scope (the common case is an enrolled learner).
+  const notEnrolled = !!courseId && enrolments.isSuccess && !course;
+  const scopedCourse = notEnrolled ? undefined : courseId;
+  const scopedLesson = notEnrolled ? undefined : lessonId;
+  const scope = `${scopedCourse ?? ""}:${scopedLesson ?? ""}`;
+  const [sessions, setSessions] = React.useState<Record<string, string>>({});
+  const sessionId = sessions[scope] ?? null;
+  const starters = prompts?.length ? prompts : scopedLesson ? LESSON_PROMPTS : scopedCourse ? coursePrompts(course?.title) : DEFAULT_PROMPTS;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -60,7 +66,7 @@ export function TutorPanel({
             )}
             <Tooltip content="Open the full tutor">
               <Button size="xs" variant="white" leftIcon={<Maximize2 />} asChild>
-                <Link href={sessionId ? `/app/tutor?session=${sessionId}` : courseId ? `/app/tutor?course=${courseId}${lessonId ? `&lesson=${lessonId}` : ""}` : "/app/tutor"}>
+                <Link href={sessionId ? `/app/tutor?session=${sessionId}` : scopedCourse ? `/app/tutor?course=${scopedCourse}${scopedLesson ? `&lesson=${scopedLesson}` : ""}` : "/app/tutor"}>
                   Full screen
                 </Link>
               </Button>
@@ -72,10 +78,22 @@ export function TutorPanel({
           compact
           sessionId={sessionId || null}
           onSessionId={(id) => setSessions((s) => ({ ...s, [scope]: id }))}
-          courseId={courseId}
-          lessonId={lessonId}
+          courseId={scopedCourse}
+          lessonId={scopedLesson}
           contextLabel={course?.title}
-          prompts={lessonId ? LESSON_PROMPTS : DEFAULT_PROMPTS}
+          prompts={starters}
+          contextNote={
+            notEnrolled || contextNote ? (
+              <>
+                {contextNote}
+                {notEnrolled && (
+                  <span className={contextNote ? "mt-1.5 block text-violet-800/80" : undefined}>
+                    You aren&rsquo;t enrolled in the related course, so answers draw on all of your courses.
+                  </span>
+                )}
+              </>
+            ) : undefined
+          }
           className="min-h-0 flex-1"
         />
       </SheetContent>

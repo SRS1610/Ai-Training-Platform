@@ -12,7 +12,7 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import type { Citation } from "./use-tutor";
 
-export function CitationChip({ c, inline }: { c: Citation; inline?: boolean }) {
+function useHoverOpen() {
   const [open, setOpen] = React.useState(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const show = () => {
@@ -26,6 +26,55 @@ export function CitationChip({ c, inline }: { c: Citation; inline?: boolean }) {
   React.useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
   }, []);
+  return { open, setOpen, show, hide };
+}
+
+/** Hover/focus card for one document: its title, then each cited passage (heading + snippet). */
+function SourceCard({ cs }: { cs: Citation[] }) {
+  const first = cs[0]!;
+  return (
+    <>
+      <div className="flex items-start gap-2.5">
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-50 text-sky-600">
+          <FileText className="size-4" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-900">{first.title}</p>
+          {cs.length === 1 && first.heading && <p className="text-xs text-slate-500">{first.heading}</p>}
+        </div>
+      </div>
+      <div className={cn("mt-3 space-y-3", cs.length > 1 && "max-h-72 overflow-y-auto pr-1 scrollbar-thin")}>
+        {cs.map((c) => (
+          <div key={c.chunk_id}>
+            {cs.length > 1 && (
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-700">
+                <span className="grid size-4 shrink-0 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-[9px] font-bold text-white">{c.index}</span>
+                <span className="truncate">{c.heading || `Passage ${c.index}`}</span>
+              </p>
+            )}
+            {c.snippet && <p className={cn("border-l-2 border-sky-300 pl-3 text-xs leading-relaxed text-slate-600", cs.length > 1 ? "line-clamp-3" : "line-clamp-6")}>{c.snippet}</p>}
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-2xs font-medium uppercase tracking-wider text-slate-500">
+        Source {cs.map((c) => `[${c.index}]`).join(" ")} · course knowledge base
+      </p>
+    </>
+  );
+}
+
+export function CitationChip({ c, inline }: { c: Citation; inline?: boolean }) {
+  return <SourceChip cs={[c]} inline={inline} />;
+}
+
+/**
+ * One chip per cited document. Several passages from the same document collapse into a single chip with
+ * all of their numbers, and its card lists each passage by heading.
+ */
+function SourceChip({ cs, inline }: { cs: Citation[]; inline?: boolean }) {
+  const { open, setOpen, show, hide } = useHoverOpen();
+  const first = cs[0]!;
+  const label = `Source${cs.length > 1 ? "s" : ""} ${cs.map((c) => c.index).join(", ")}: ${first.title}`;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -37,9 +86,9 @@ export function CitationChip({ c, inline }: { c: Citation; inline?: boolean }) {
             onFocus={show}
             onBlur={hide}
             className="mx-0.5 inline-flex h-[18px] min-w-[18px] -translate-y-px items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 px-1 align-middle text-[10px] font-bold leading-none text-white shadow-sm transition-transform hover:scale-110 focus-visible:focus-ring"
-            aria-label={`Source ${c.index}: ${c.title}`}
+            aria-label={label}
           >
-            {c.index}
+            {first.index}
           </button>
         ) : (
           <button
@@ -48,28 +97,44 @@ export function CitationChip({ c, inline }: { c: Citation; inline?: boolean }) {
             onMouseLeave={hide}
             onFocus={show}
             onBlur={hide}
-            className="inline-flex max-w-[14rem] items-center gap-1.5 rounded-full bg-white py-0.5 pl-0.5 pr-2.5 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-200 transition-colors hover:bg-sky-50 hover:ring-sky-200 focus-visible:focus-ring"
-            aria-label={`Source ${c.index}: ${c.title}`}
+            className="inline-flex max-w-[16rem] items-center gap-1.5 rounded-full bg-white py-0.5 pl-0.5 pr-2.5 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-200 transition-colors hover:bg-sky-50 hover:ring-sky-200 focus-visible:focus-ring"
+            aria-label={label}
           >
-            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-[10px] font-bold text-white">{c.index}</span>
-            <span className="truncate">{c.title}</span>
+            <span className="flex shrink-0 -space-x-1">
+              {cs.map((c) => (
+                <span key={c.chunk_id} className="grid size-5 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-[10px] font-bold text-white ring-2 ring-white">
+                  {c.index}
+                </span>
+              ))}
+            </span>
+            <span className="truncate">{first.title}</span>
           </button>
         )}
       </PopoverTrigger>
       <PopoverContent side="top" align="start" className="w-80" onMouseEnter={show} onMouseLeave={hide} onOpenAutoFocus={(e) => e.preventDefault()}>
-        <div className="flex items-start gap-2.5">
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-sky-50 text-sky-600">
-            <FileText className="size-4" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-900">{c.title}</p>
-            {c.heading && <p className="text-xs text-slate-500">{c.heading}</p>}
-          </div>
-        </div>
-        {c.snippet && <p className="mt-3 line-clamp-6 border-l-2 border-sky-300 pl-3 text-xs leading-relaxed text-slate-600">{c.snippet}</p>}
-        <p className="mt-3 text-2xs font-medium uppercase tracking-wider text-slate-500">Source [{c.index}] · course knowledge base</p>
+        <SourceCard cs={cs} />
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** The "Sources" row under an answer: citations grouped by document, in first-cited order. */
+export function SourceChips({ citations }: { citations: Citation[] }) {
+  const groups = React.useMemo(() => {
+    const byDoc = new Map<string, Citation[]>();
+    for (const c of [...citations].sort((a, b) => a.index - b.index)) {
+      const list = byDoc.get(c.document_id);
+      if (list) list.push(c);
+      else byDoc.set(c.document_id, [c]);
+    }
+    return [...byDoc.values()];
+  }, [citations]);
+  return (
+    <>
+      {groups.map((cs) => (
+        <SourceChip key={cs[0]!.document_id} cs={cs} />
+      ))}
+    </>
   );
 }
 

@@ -2,8 +2,13 @@
 
 /**
  * Session driver: sends actions/chat with a strictly increasing `client_seq`, serialised through a queue
- * so rapid clicks never race. A 409 `sequence_conflict` (another tab, a lost response) refetches the
- * session and retries once with the server's `next_seq`; the server is idempotent per seq.
+ * so rapid clicks never race. A 409 `sequence_conflict` (another tab moved the session on, a lost
+ * response) refetches the session and retries once with the server's `next_seq`.
+ *
+ * The server is idempotent per seq: re-sending an already-processed seq with the *same* request returns
+ * the stored outcome with `replayed: true`. This client never re-sends a seq on purpose, so a replay means
+ * our cached `next_seq` was stale (e.g. the same command was already sent from another tab) — the
+ * learner's new input would be silently dropped. Resync and send it again under a fresh seq instead.
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -77,6 +82,16 @@ export function useSimSession(sessionId: string, onStep?: (step: StepOut, pendin
           for (let attempt = 0; ; attempt++) {
             try {
               const step = await api.post<StepOut>(path, { ...body, client_seq: seq });
+              if (step.replayed) {
+                // Stale seq: our action was never applied. Pick up the real state and send it again
+                // (never surface the replayed, older outcome as if it were the answer to this input).
+                const fresh = await resync();
+                if (attempt === 0 && fresh.status === "active") {
+                  seq = fresh.next_seq;
+                  continue;
+                }
+                return step;
+              }
               apply(step);
               onStepRef.current?.(step, p);
               return step;

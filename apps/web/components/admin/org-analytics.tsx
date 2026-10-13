@@ -223,7 +223,7 @@ export function DepartmentsCard({ data }: { data: OrgAnalytics }) {
             valueFormatter={(v) => `${v}%`}
             aria-label="Department completion rate and average score"
           />
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[480px] text-sm">
               <caption className="sr-only">Department breakdown</caption>
               <thead className="text-xs uppercase tracking-wider text-slate-500">
@@ -282,7 +282,7 @@ export function SkillGapsCard({ gaps }: { gaps: SkillGap[] }) {
         <EmptyState size="sm" illustration="chart" title="No competency requirements yet" description="Define competencies with minimum skill levels to see where your people need support." />
       ) : (
         <div className="space-y-3">
-          <div className="overflow-x-auto scrollbar-thin">
+          <div className="relative overflow-x-auto scrollbar-thin">
             <table className="w-full min-w-[640px] border-separate border-spacing-y-1 text-sm">
               <caption className="sr-only">Skill gaps by competency and skill</caption>
               <thead className="text-xs uppercase tracking-wider text-slate-500">

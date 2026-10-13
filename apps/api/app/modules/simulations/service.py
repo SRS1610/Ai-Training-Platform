@@ -875,8 +875,13 @@ async def _active_for_step(
 
 
 async def _replay_or_check_seq(
-    ctx: Ctx, session: SimulationSession, client_seq: int
+    ctx: Ctx, session: SimulationSession, client_seq: int, request: dict[str, Any]
 ) -> SimulationAction | None:
+    """Return the stored action for an already-processed ``client_seq`` (an idempotent retry).
+
+    A processed seq re-sent with a *different* request (e.g. from a stale tab) is a conflict, not
+    a retry: replaying the old outcome would silently drop the learner's new input.
+    """
     if client_seq <= session.action_count:
         prior = await ctx.db.scalar(
             select(SimulationAction).where(
@@ -885,6 +890,12 @@ async def _replay_or_check_seq(
         )
         if prior is None:  # pragma: no cover - persisted seqs are contiguous
             raise Conflict("Unknown action sequence", code="sequence_conflict")
+        if prior.input != request:
+            raise Conflict(
+                "This action sequence was already used for a different action",
+                code="sequence_conflict",
+                details={"expected": session.action_count + 1, "received": client_seq},
+            )
         return prior
     if client_seq != session.action_count + 1:
         raise Conflict(
@@ -918,14 +929,14 @@ async def _run_step(
         return await _step_out(ctx, session, sim, d, expired, replayed=False, persisted=False)
     if session.status != SimulationSessionStatus.ACTIVE:
         if client_seq is not None and client_seq <= session.action_count:
-            prior = await _replay_or_check_seq(ctx, session, client_seq)
+            prior = await _replay_or_check_seq(ctx, session, client_seq, request)
             if prior is not None:
                 return await _step_out(
                     ctx, session, sim, d, prior.outcome, replayed=True, reply=prior.outcome.get("_reply")
                 )
         raise Conflict(f"This session is {session.status}", code="session_not_active")
     seq = client_seq if client_seq is not None else session.action_count + 1
-    prior = await _replay_or_check_seq(ctx, session, seq)
+    prior = await _replay_or_check_seq(ctx, session, seq, request)
     if prior is not None:
         return await _step_out(
             ctx, session, sim, d, prior.outcome, replayed=True, reply=prior.outcome.get("_reply")

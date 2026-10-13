@@ -129,16 +129,30 @@ export function ChatPanel({
         </div>
         {chat.characters.length > 1 && (
           <div className="no-scrollbar flex gap-1 overflow-x-auto px-3 pb-2" role="tablist" aria-label="Conversations">
-            {chat.characters.map((c) => {
+            {chat.characters.map((c, i) => {
               const n = unread(c);
               const on = c.id === character.id;
               return (
                 <button
                   key={c.id}
+                  id={`sim-chat-tab-${c.id}`}
                   type="button"
                   role="tab"
                   aria-selected={on}
+                  aria-controls="sim-chat-panel"
+                  tabIndex={on ? 0 : -1}
                   onClick={() => onActiveChange(c.id)}
+                  onKeyDown={(e) => {
+                    // Roving tabindex (WAI-ARIA tabs): arrows/Home/End move and select.
+                    const len = chat.characters.length;
+                    const j =
+                      e.key === "ArrowRight" ? (i + 1) % len : e.key === "ArrowLeft" ? (i - 1 + len) % len : e.key === "Home" ? 0 : e.key === "End" ? len - 1 : -1;
+                    if (j < 0) return;
+                    e.preventDefault();
+                    const next = chat.characters[j]!;
+                    onActiveChange(next.id);
+                    requestAnimationFrame(() => document.getElementById(`sim-chat-tab-${next.id}`)?.focus());
+                  }}
                   className={cn(
                     "relative flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-colors focus-visible:focus-ring",
                     on ? "bg-violet-50 text-violet-900 ring-1 ring-violet-200" : "text-slate-600 hover:bg-slate-50",
@@ -176,6 +190,10 @@ export function ChatPanel({
         </div>
       </header>
 
+      <div
+        className="flex min-h-0 flex-1 flex-col"
+        {...(chat.characters.length > 1 ? { role: "tabpanel", id: "sim-chat-panel", "aria-labelledby": `sim-chat-tab-${character.id}` } : {})}
+      >
       <div ref={scroller} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto bg-gradient-to-b from-slate-50/80 to-white px-4 py-4 scrollbar-thin" role="log" aria-live="polite" aria-label={`Conversation with ${character.name}`}>
         {items.length === 0 && !sending && (
           <p className="mx-auto max-w-xs py-8 text-center text-sm text-muted-foreground">No messages with {firstName(character.name)} yet. Say hello to get started.</p>
@@ -279,6 +297,7 @@ export function ChatPanel({
             <Send className="size-4" aria-hidden />
           </Button>
         </form>
+      </div>
       </div>
     </section>
   );

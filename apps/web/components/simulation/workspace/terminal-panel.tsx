@@ -172,46 +172,55 @@ export function TerminalPanel({ app, focusRef }: { app: WorkspaceApp; focusRef?:
             </div>
           ),
         )}
-        {running !== null && (
-          <div className="mt-2 whitespace-pre-wrap">
-            <span className="text-teal-300">{prompt}</span> <span className="text-white">{running}</span>
-            <span className="ml-1 inline-block h-3.5 w-2 translate-y-0.5 bg-slate-300 motion-safe:animate-pulse" aria-hidden />
-          </div>
-        )}
-        {running === null && (
-          <form
-            className="-mx-1.5 mt-2 flex items-center gap-2 rounded-md px-1.5 py-0.5 ring-1 ring-transparent focus-within:bg-white/[0.04] focus-within:ring-teal-400/50"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void submit();
+        {/* The prompt stays mounted while a command runs (read-only, showing the running command) so
+            keyboard focus is never lost between commands. */}
+        <form
+          className="-mx-1.5 mt-2 flex items-center gap-2 rounded-md px-1.5 py-0.5 ring-1 ring-transparent focus-within:bg-white/[0.04] focus-within:ring-teal-400/50"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (running === null) void submit();
+          }}
+          aria-busy={running !== null}
+        >
+          <label htmlFor={`term-${app.key}`} className="shrink-0 text-teal-300">
+            {prompt}
+          </label>
+          <input
+            id={`term-${app.key}`}
+            ref={inputRef}
+            value={running ?? input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (running !== null) {
+                if (e.key === "Enter" || e.key === "ArrowUp" || e.key === "ArrowDown") e.preventDefault();
+                return;
+              }
+              onKeyDown(e);
             }}
-          >
-            <label htmlFor={`term-${app.key}`} className="shrink-0 text-teal-300">
-              {prompt}
-            </label>
-            <input
-              id={`term-${app.key}`}
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              disabled={ended || !tool}
-              autoComplete="off"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-              aria-label={`${tool?.name ?? "Terminal"} command`}
-              className={cn(
-                "min-w-0 flex-1 bg-transparent font-mono text-[12.5px] text-white caret-teal-300 outline-none placeholder:text-slate-600",
-                ended && "opacity-50",
-              )}
-              placeholder={ended ? "Session ended" : lines.length <= 2 ? "Type a command and press Enter (try: help)" : ""}
-            />
-          </form>
-        )}
+            readOnly={running !== null}
+            disabled={ended || !tool}
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-label={`${tool?.name ?? "Terminal"} command`}
+            className={cn(
+              "min-w-0 flex-1 bg-transparent font-mono text-[12.5px] text-white caret-teal-300 outline-none placeholder:text-slate-500",
+              running !== null && "caret-transparent",
+              ended && "opacity-50",
+            )}
+            placeholder={ended ? "Session ended" : lines.length <= 2 ? "Type a command and press Enter (try: help)" : ""}
+          />
+          {running !== null && (
+            <span className="flex shrink-0 items-center gap-1.5 text-2xs text-slate-400">
+              <span className="inline-block h-3.5 w-2 bg-slate-300 motion-safe:animate-pulse" aria-hidden />
+              running…
+            </span>
+          )}
+        </form>
         </div>
       </div>
-      <footer className="flex items-center justify-between gap-3 border-t border-white/10 bg-[#111a2e] px-4 py-1.5 font-mono text-2xs text-slate-500">
+      <footer className="flex items-center justify-between gap-3 border-t border-white/10 bg-[#111a2e] px-4 py-1.5 font-mono text-2xs text-slate-400">
         <span>↑/↓ history · cls to clear · Ctrl+L</span>
         <span className="hidden sm:inline">{entries.filter((e) => e.kind === "command").length} commands run</span>
       </footer>

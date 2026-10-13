@@ -27,7 +27,7 @@ import Link from "next/link";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
 import { useMemberName } from "@/components/grading/history-integrity";
-import { sk, type SessionSummary, type SimulationOut } from "@/components/sim-builder/types";
+import { sk, type DraftOut, type SessionSummary, type SimPhase, type SimulationOut } from "@/components/sim-builder/types";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatDateTime, formatMinutes } from "@/lib/format";
@@ -118,6 +118,29 @@ export function SimulationAnalyticsView({ id }: { id: string }) {
   const [replay, setReplay] = React.useState<string | null>(null);
   const sim = useQuery({ queryKey: sk.detail(id), queryFn: ({ signal }) => api.get<SimulationOut>(`/simulations/${id}`, { signal }) });
   const q = useQuery({ queryKey: sk.analytics(id), queryFn: ({ signal }) => api.get<SimAnalytics>(`/simulations/${id}/analytics`, { signal }) });
+  // Phase names + scenario order for the drop-off funnel (falls back to IDs sorted by reach).
+  const draft = useQuery({
+    queryKey: sk.draft(id),
+    queryFn: ({ signal }) => api.get<DraftOut>(`/simulations/${id}/draft`, { signal }),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const phaseMeta = React.useMemo(() => {
+    const def = (draft.data?.definition ?? null) as { initial_phase?: string; phases?: SimPhase[] } | null;
+    const phases = def?.phases ?? [];
+    const byId = new Map(phases.map((p) => [p.id, p]));
+    const order: string[] = [];
+    const todo = def?.initial_phase ? [def.initial_phase] : [];
+    while (todo.length) {
+      const cur = todo.shift()!;
+      if (order.includes(cur) || !byId.has(cur)) continue;
+      order.push(cur);
+      const p = byId.get(cur)!;
+      todo.push(...(p.transitions ?? []), ...(p.auto_advance ?? []).map((x) => x.to));
+    }
+    for (const p of phases) if (!order.includes(p.id)) order.push(p.id);
+    return { order, name: (pid: string) => byId.get(pid)?.name ?? pid };
+  }, [draft.data]);
 
   const header = (
     <>
@@ -164,7 +187,11 @@ export function SimulationAnalyticsView({ id }: { id: string }) {
   const bands = Object.entries(a.band_distribution)
     .sort(([x], [y]) => BAND_RANK.indexOf(bandKey(x)) - BAND_RANK.indexOf(bandKey(y)))
     .map(([name, value]) => ({ name: bandMeta(bandKey(name)).label === name ? name : bandMeta(bandKey(name)).label, value, color: colorClasses(bandMeta(bandKey(name)).color).hex }));
-  const reach = Object.entries(a.phase_reach).sort((x, y) => y[1] - x[1]);
+  const rank = (pid: string) => {
+    const i = phaseMeta.order.indexOf(pid);
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  const reach = Object.entries(a.phase_reach).sort((x, y) => rank(x[0]) - rank(y[0]) || y[1] - x[1]);
   const maxMistake = Math.max(1, ...a.common_mistakes.map((m) => m.count));
   const statusRows = [
     { k: "Completed", v: a.completed, c: "bg-emerald-500" },
@@ -255,7 +282,12 @@ export function SimulationAnalyticsView({ id }: { id: string }) {
                   max={a.attempts}
                   rows={reach.map(([p, n]) => ({
                     key: p,
-                    label: <span className="font-mono text-xs">{p}</span>,
+                    label: (
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate text-xs font-semibold text-slate-800">{phaseMeta.name(p)}</span>
+                        {phaseMeta.name(p) !== p && <span className="truncate font-mono text-2xs text-slate-500">{p}</span>}
+                      </span>
+                    ),
                     value: n,
                     sub: a.phase_dropoff[p] ? <span className="font-semibold text-rose-700">−{a.phase_dropoff[p]} stopped</span> : null,
                   }))}

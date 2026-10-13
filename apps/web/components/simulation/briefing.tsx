@@ -9,6 +9,7 @@ import {
   Card,
   cn,
   colorClasses,
+  EmptyState,
   Kbd,
   Skeleton,
   StatusPill,
@@ -91,7 +92,24 @@ export function SimulationBriefing({ id }: { id: string }) {
     }
   }
 
-  if (sim.isError) return <ErrorState error={sim.error} onRetry={() => sim.refetch()} size="lg" />;
+  if (sim.isError) {
+    // 404 (unknown/other org) and 422 (malformed id) both mean there's nothing to brief.
+    if (sim.error instanceof ApiError && (sim.error.status === 404 || sim.error.status === 422))
+      return (
+        <EmptyState
+          size="lg"
+          illustration="search"
+          title="Simulation not found"
+          description="This simulation doesn't exist, isn't published yet, or isn't available to your organisation."
+          action={
+            <Button asChild variant="secondary">
+              <Link href="/app/simulations">Back to simulations</Link>
+            </Button>
+          }
+        />
+      );
+    return <ErrorState error={sim.error} onRetry={() => sim.refetch()} size="lg" />;
+  }
   if (sim.isLoading || !sim.data)
     return (
       <div className="space-y-6" aria-busy aria-label="Loading simulation">
@@ -111,13 +129,18 @@ export function SimulationBriefing({ id }: { id: string }) {
   const used = stats?.attempts ?? 0;
   const remaining = s.max_attempts ? Math.max(0, s.max_attempts - used) : null;
   const outOfAttempts = remaining === 0 && !stats?.active;
+  const reviewSession = stats?.best ?? stats?.latest ?? null;
   const briefLoading = brief.isLoading && s.status === "published";
 
   const startCard = (
           <Card className="overflow-hidden">
             <div className={cn("bg-gradient-to-br p-5", ind.classes.tint)}>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">{stats?.active ? "Attempt in progress" : `Attempt ${used + 1}`}</p>
-              <p className="mt-1 font-display text-lg font-semibold text-slate-900">{stats?.active ? "Resume where you left off" : "Ready when you are"}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+                {stats?.active ? "Attempt in progress" : outOfAttempts ? "All attempts used" : `Attempt ${used + 1}${s.max_attempts ? ` of ${s.max_attempts}` : ""}`}
+              </p>
+              <p className="mt-1 font-display text-lg font-semibold text-slate-900">
+                {stats?.active ? "Resume where you left off" : outOfAttempts ? "Review your debrief" : "Ready when you are"}
+              </p>
               {stats?.best?.band && (
                 <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
                   Best so far <BandChip band={stats.best.band} size="sm" />
@@ -136,18 +159,24 @@ export function SimulationBriefing({ id }: { id: string }) {
                   Publish this simulation in the builder before starting a session.
                 </Alert>
               )}
-              <Button
-                variant="gradient"
-                size="lg"
-                block
-                onClick={start}
-                loading={entering}
-                disabled={outOfAttempts || !!blocked || s.status !== "published"}
-                leftIcon={stats?.active ? <PlayCircle /> : undefined}
-                rightIcon={stats?.active ? undefined : <ArrowRight />}
-              >
-                {stats?.active ? "Resume simulation" : used > 0 ? "Start new attempt" : "Start simulation"}
-              </Button>
+              {outOfAttempts && reviewSession ? (
+                <Button variant="gradient" size="lg" block asChild rightIcon={<ArrowRight />}>
+                  <Link href={`/app/simulations/session/${reviewSession.id}`}>{stats?.best ? "View best result" : "View results"}</Link>
+                </Button>
+              ) : (
+                <Button
+                  variant="gradient"
+                  size="lg"
+                  block
+                  onClick={start}
+                  loading={entering}
+                  disabled={outOfAttempts || !!blocked || s.status !== "published"}
+                  leftIcon={stats?.active ? <PlayCircle /> : undefined}
+                  rightIcon={stats?.active ? undefined : <ArrowRight />}
+                >
+                  {stats?.active ? "Resume simulation" : used > 0 ? "Start new attempt" : "Start simulation"}
+                </Button>
+              )}
               <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
                 <Lightbulb className="size-3.5 text-amber-500" aria-hidden />
                 Tip: press <Kbd>?</Kbd> in the workspace for shortcuts

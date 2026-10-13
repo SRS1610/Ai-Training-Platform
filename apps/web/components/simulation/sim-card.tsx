@@ -27,11 +27,14 @@ export function SimulationCard({ sim, stats, className }: { sim: Simulation; sta
   const IndIcon = ind.icon;
   const used = stats?.attempts ?? 0;
   const remaining = sim.max_attempts ? Math.max(0, sim.max_attempts - used) : null;
-  const cta = stats?.active ? "Resume" : used > 0 ? "Try again" : "Start";
-  const CtaIcon = stats?.active ? PlayCircle : used > 0 ? RotateCcw : ArrowRight;
+  // Out of attempts: the card leads to the best (or latest) debrief instead of a dead "Try again".
+  const exhausted = remaining === 0 && !stats?.active;
+  const review = exhausted ? (stats?.best ?? stats?.latest ?? null) : null;
+  const cta = stats?.active ? "Resume" : exhausted ? "View results" : used > 0 ? "Try again" : "Start";
+  const CtaIcon = stats?.active ? PlayCircle : exhausted ? Trophy : used > 0 ? RotateCcw : ArrowRight;
   return (
     <Link
-      href={`/app/simulations/${sim.id}`}
+      href={review ? `/app/simulations/session/${review.id}` : `/app/simulations/${sim.id}`}
       className={cn(
         "group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft transition-all duration-200 ease-spring hover:-translate-y-0.5 hover:shadow-lift focus-visible:focus-ring",
         className,
@@ -77,21 +80,24 @@ export function SimulationCard({ sim, stats, className }: { sim: Simulation; sta
           </span>
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
-          {stats?.best?.band ? (
-            <span className="inline-flex items-center gap-2 text-xs text-slate-600">
-              <Trophy className="size-3.5 text-amber-500" aria-hidden />
-              Best
-              <BandChip band={stats.best.band} size="sm" />
-              <span className="font-semibold tabular-nums text-slate-900">{Math.round(stats.best.total_score ?? 0)}</span>
-            </span>
-          ) : remaining === 0 ? (
-            <Badge tone="danger" size="sm">
-              No attempts left
-            </Badge>
-          ) : (
-            <span className="text-xs text-slate-500">Not attempted yet</span>
-          )}
-          <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+            {stats?.best?.band ? (
+              <span className="inline-flex items-center gap-2 text-xs text-slate-600">
+                <Trophy className="size-3.5 text-amber-500" aria-hidden />
+                Best
+                <BandChip band={stats.best.band} size="sm" />
+                <span className="font-semibold tabular-nums text-slate-900">{Math.round(stats.best.total_score ?? 0)}</span>
+              </span>
+            ) : !exhausted ? (
+              <span className="text-xs text-slate-500">{used > 0 ? "No scored attempt yet" : "Not attempted yet"}</span>
+            ) : null}
+            {exhausted && (
+              <Badge tone="danger" size="sm">
+                No attempts left
+              </Badge>
+            )}
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-brand-700">
             {cta}
             <CtaIcon className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
           </span>

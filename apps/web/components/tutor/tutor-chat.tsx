@@ -7,7 +7,7 @@ import * as React from "react";
 import { ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { firstName } from "@/lib/format";
-import { CitationChip, TutorMarkdown } from "./citations";
+import { SourceChips, TutorMarkdown } from "./citations";
 import {
   createTutorSession,
   fetchTutorMessages,
@@ -20,14 +20,38 @@ import {
 
 const MAX = 4000;
 
+/** Generic starters for an unscoped conversation (no course or lesson context). */
 export const DEFAULT_PROMPTS = [
-  "Why would DNS cause this problem?",
-  "Explain this lesson in simpler terms",
-  "Give me a real-world example",
-  "Quiz me on the key points",
-  "What mistakes do people usually make here?",
-  "Summarise what I should remember",
+  "Explain a tricky concept from my courses in simpler terms",
+  "Quiz me on what I've been learning",
+  "Give me a real-world example of something I'm studying",
+  "What should I focus on next?",
+  "What mistakes do people usually make when they start out?",
+  "Help me make a quick revision plan",
 ];
+
+/** Starters for a single lesson. */
+export const LESSON_PROMPTS = [
+  "Explain this lesson in simpler terms",
+  "Give me a real-world example of this",
+  "Quiz me on the key points of this lesson",
+  "What mistakes do people usually make here?",
+];
+
+/** The flagship IT support course (network troubleshooting) keeps its signature starter. */
+const NETWORK_COURSE = /network|it support|service desk|help ?desk|troubleshoot|connectiv/i;
+
+/** Starters for a whole course; adds the DNS question for the flagship IT support course. */
+export function coursePrompts(courseTitle?: string | null): string[] {
+  const base = [
+    courseTitle ? `What are the key ideas in ${courseTitle}?` : "What are the key ideas in this course?",
+    "Quiz me on the key points",
+    "Give me a real-world example",
+    "What mistakes do people usually make here?",
+    "Summarise what I should remember",
+  ];
+  return courseTitle && NETWORK_COURSE.test(courseTitle) ? ["Why would DNS cause this problem?", ...base] : base;
+}
 
 /* ------------------------------------------------------------------ mode badge */
 
@@ -83,9 +107,7 @@ function AssistantMessage({ m, onRate }: { m: TutorMessage; onRate: (r: 1 | -1) 
         {!m.streaming && m.citations?.length > 0 && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <span className="text-2xs font-semibold uppercase tracking-wider text-slate-500">Sources</span>
-            {m.citations.map((c) => (
-              <CitationChip key={`${c.index}-${c.chunk_id}`} c={c} />
-            ))}
+            <SourceChips citations={m.citations} />
           </div>
         )}
         {!m.streaming && !m.pending && !m.id.startsWith("tmp-") && (
@@ -143,9 +165,11 @@ export interface TutorChatProps {
   className?: string;
   /** Rendered above the composer (e.g. context selector). */
   composerAddon?: React.ReactNode;
+  /** Shown in the welcome state, e.g. what the host page is about ("Debrief: …"). */
+  contextNote?: React.ReactNode;
 }
 
-export function TutorChat({ sessionId, onSessionId, courseId, lessonId, contextLabel, compact, prompts = DEFAULT_PROMPTS, className, composerAddon }: TutorChatProps) {
+export function TutorChat({ sessionId, onSessionId, courseId, lessonId, contextLabel, compact, prompts = DEFAULT_PROMPTS, className, composerAddon, contextNote }: TutorChatProps) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [messages, setMessages] = React.useState<TutorMessage[]>([]);
@@ -307,6 +331,11 @@ export function TutorChat({ sessionId, onSessionId, courseId, lessonId, contextL
                   "Ask about anything in your courses. Answers cite the materials they come from."
                 )}
               </p>
+              {contextNote && (
+                <div className="mx-auto mt-4 max-w-md rounded-2xl bg-violet-50/70 px-3.5 py-2.5 text-left text-xs leading-relaxed text-violet-950 ring-1 ring-inset ring-violet-200/80">
+                  {contextNote}
+                </div>
+              )}
               <div className={cn("mx-auto mt-6 grid gap-2 text-left", compact ? "grid-cols-1" : "max-w-2xl sm:grid-cols-2")}>
                 {prompts.slice(0, compact ? 4 : 6).map((p, i) => (
                   <button

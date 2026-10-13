@@ -79,11 +79,11 @@ export function FunnelBars({
             </span>
             <div className="h-7 overflow-hidden rounded-lg bg-slate-100">
               <div className={cn("flex h-full items-center rounded-lg bg-gradient-to-r px-2 transition-[width] duration-700 ease-spring", c.gradient)} style={{ width: `${pct}%` }}>
-                <span className="text-2xs font-bold tabular-nums text-white drop-shadow-sm">{pct > 14 ? valueLabel(r.value) : ""}</span>
+                <span className="whitespace-nowrap text-2xs font-bold tabular-nums text-white drop-shadow-sm">{pct > 22 ? valueLabel(r.value) : ""}</span>
               </div>
             </div>
             <span className="min-w-[4.5rem] text-right text-xs tabular-nums text-slate-600">
-              {pct <= 14 && <span className="mr-1 font-semibold text-slate-900">{valueLabel(r.value)}</span>}
+              {pct <= 22 && <span className="mr-1 font-semibold text-slate-900">{valueLabel(r.value)}</span>}
               {r.sub}
             </span>
           </li>

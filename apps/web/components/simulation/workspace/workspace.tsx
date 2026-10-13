@@ -27,7 +27,6 @@ import {
   SheetTitle,
   cn,
   colorClasses,
-  toast,
   Tooltip,
 } from "@praxis/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +34,9 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bell,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Command as CommandIcon,
   Flag,
   Frown,
@@ -57,6 +59,7 @@ import { TutorPanel } from "@/components/tutor/tutor-panel";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { fetchSimulation, simKeys } from "../queries";
 import { industryMeta } from "../theme";
+import { workspaceTutorPrompts } from "../tutor-prompts";
 import type { SimSession, StepOut, ViewAction } from "../types";
 import { ActionLauncher, INPUT_LABEL, kindMeta } from "./actions";
 import { ChatPanel } from "./chat-panel";
@@ -70,11 +73,23 @@ import type { ActionRequest, Pending } from "./use-sim-session";
 const FOCUS_KEY = "praxis.sim.focus";
 const CHAT_W_KEY = "praxis.sim.chatWidth";
 
-interface LiveAlert {
-  id: string;
+/**
+ * Step outcomes are announced in ONE notice per step, shown top-centre inside the workspace (never over
+ * the chat composer or the mobile tab bar). Items are ordered most-severe first.
+ */
+type NoticeTone = "danger" | "warning" | "message" | "info" | "success";
+const TONE_RANK: Record<NoticeTone, number> = { danger: 4, warning: 3, message: 2, info: 1, success: 0 };
+interface NoticeItem {
+  tone: NoticeTone;
   title: string;
-  text: string;
-  tone: "warning" | "danger" | "info";
+  text?: string;
+  icon?: React.ReactNode;
+}
+interface Notice {
+  id: string;
+  tone: NoticeTone;
+  items: NoticeItem[];
+  action?: { label: string; onClick: () => void };
 }
 
 export interface WorkspaceProps {
@@ -102,7 +117,7 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
   const [chatW, setChatW] = React.useState(380);
   const [ephemeral, setEphemeral] = React.useState<Ephemeral[]>([]);
   const [feedback, setFeedback] = React.useState<Record<number, StepFeedback>>({});
-  const [alerts, setAlerts] = React.useState<LiveAlert[]>([]);
+  const [notices, setNotices] = React.useState<Notice[]>([]);
   const [lastSeq, setLastSeq] = React.useState(0);
   // Messages up to this seq count as read (mobile "Chat" tab badge); everything on entry is read.
   const [chatSeenSeq, setChatSeenSeq] = React.useState(view.action_count);
@@ -196,6 +211,15 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
   }, []);
 
   /* ---------------------------------------------------------------- step outcomes → UI */
+  const pushNotice = React.useCallback((items: NoticeItem[], action?: Notice["action"]) => {
+    if (!items.length) return;
+    const sorted = [...items].sort((a, b) => TONE_RANK[b.tone] - TONE_RANK[a.tone]);
+    const notice: Notice = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, tone: sorted[0]!.tone, items: sorted, action };
+    // At most two on screen: the newest step and the one before it.
+    setNotices((n) => [...n.slice(-1), notice]);
+  }, []);
+  const dismissNotice = React.useCallback((id: string) => setNotices((n) => n.filter((x) => x.id !== id)), []);
+
   const onStep = React.useCallback(
     (step: StepOut, p: Pending) => {
       const o = step.outcome;
@@ -203,54 +227,56 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       if (!step.accepted) {
         const msg = o.message || "That isn't possible right now.";
-        if (o.reason === "session_expired") toast.error(msg);
+        if (o.reason === "session_expired") pushNotice([{ tone: "danger", title: "Session expired", text: msg, icon: <AlertTriangle /> }]);
         else if (p.kind === "chat")
           setEphemeral((e) => [...e, { id, afterSeq: step.view.action_count, scope: `chat:${p.character}`, learnerText: p.text, text: step.reply?.text ?? msg }]);
         else if (p.kind === "command") setEphemeral((e) => [...e, { id, afterSeq: step.view.action_count, scope: `tool:${p.tool}`, learnerText: p.text, text: msg }]);
-        else toast.warning(msg);
+        else pushNotice([{ tone: "warning", title: "Not possible right now", text: msg, icon: <AlertTriangle /> }]);
         return;
       }
+      const items: NoticeItem[] = [];
+      let action: Notice["action"];
       if (session.show_feedback && o.classification) {
         setFeedback((f) => ({ ...f, [o.seq]: { classification: o.classification, feedback: o.feedback, score_deltas: o.score_deltas } }));
         if (o.classification !== "neutral") {
-          const fn = o.classification === "correct" ? toast.success : o.classification === "critical" ? toast.error : toast.warning;
-          fn(o.classification === "correct" ? "Good call" : o.classification === "critical" ? "Critical mistake" : "Not ideal", {
-            description: o.feedback || o.label || undefined,
+          const tone: NoticeTone = o.classification === "correct" ? "success" : o.classification === "critical" ? "danger" : "warning";
+          items.push({
+            tone,
+            title: o.classification === "correct" ? "Good call" : o.classification === "critical" ? "Critical mistake" : "Not ideal",
+            text: o.feedback || o.label || undefined,
+            icon: o.classification === "correct" ? <CheckCircle2 /> : <AlertTriangle />,
           });
         }
       }
       if (o.phase_changed) {
         const ph = step.view.phases.find((x) => x.id === o.phase_after);
-        toast.success(`Phase: ${ph?.name ?? o.phase_after}`, { description: step.view.phase.description || undefined, icon: <Target className="size-4" /> });
+        items.push({ tone: "info", title: `Phase: ${ph?.name ?? o.phase_after}`, text: step.view.phase.description || undefined, icon: <Target /> });
       }
-      for (const ev of o.events ?? []) {
-        const alert: LiveAlert = { id: `${id}-${ev.id}`, title: ev.title || "Something happened", text: ev.notify, tone: /escalat|complain|fail/i.test(`${ev.title} ${ev.notify}`) ? "danger" : "warning" };
-        setAlerts((a) => [...a.slice(-2), alert]);
-        setTimeout(() => setAlerts((a) => a.filter((x) => x.id !== alert.id)), 9000);
-      }
-      for (const pr of o.problems_added ?? []) toast.error("New problem", { description: pr.text, icon: <AlertTriangle className="size-4" /> });
+      for (const ev of o.events ?? [])
+        items.push({ tone: /escalat|complain|fail/i.test(`${ev.title} ${ev.notify}`) ? "danger" : "warning", title: ev.title || "Something happened", text: ev.notify, icon: <Bell /> });
+      for (const pr of o.problems_added ?? []) items.push({ tone: "danger", title: "New problem", text: pr.text, icon: <AlertTriangle /> });
       // Customer mood: call out sharp drops in patience.
       for (const c of step.view.characters) {
         const before = viewRef.current.characters.find((x) => x.id === c.id)?.patience;
         if (typeof before === "number" && typeof c.patience === "number" && before - c.patience >= 10)
-          toast.warning(`${c.name} is losing patience`, {
-            description: `Patience ${Math.round(before)}% → ${Math.round(c.patience)}%. Keep them informed and avoid disruptive steps.`,
-            icon: <Frown className="size-4" />,
+          items.push({
+            tone: "warning",
+            title: `${c.name} is losing patience`,
+            text: `Patience ${Math.round(before)}% → ${Math.round(c.patience)}%. Keep them informed and avoid disruptive steps.`,
+            icon: <Frown />,
           });
       }
-      if (o.problems_removed?.length) toast.success("Problem resolved");
+      if (o.problems_removed?.length) items.push({ tone: "success", title: o.problems_removed.length > 1 ? "Problems resolved" : "Problem resolved", icon: <CheckCircle2 /> });
       // Unsolicited messages from people you're not currently talking to.
       const replyTo = p.kind === "chat" ? p.character : null;
+      const chatVisible = mobileTab === "chat" || window.matchMedia?.("(min-width: 1024px)").matches;
       for (const m of o.messages ?? []) {
-        const chatVisible = mobileTab === "chat" || window.matchMedia?.("(min-width: 1024px)").matches;
         if (m.from !== "system" && m.from !== replyTo && !(chatVisible && m.from === activeChar)) {
-          toast(`${m.name ?? m.from}`, {
-            description: m.text,
-            icon: <MessagesSquare className="size-4 text-violet-600" />,
-            action: { label: "Reply", onClick: () => openChat(m.from) },
-          });
+          items.push({ tone: "message", title: `${m.name ?? m.from}`, text: m.text, icon: <MessagesSquare /> });
+          action ??= { label: `Reply to ${(m.name ?? m.from).split(" ")[0]}`, onClick: () => openChat(m.from) };
         }
       }
+      pushNotice(items, action);
       // Actions launched from the palette: show the app that owns the tool.
       if (p.kind === "action") {
         const owner = buildApps(step.view).find((a) => a.tools.some((t) => t.id === o.tool));
@@ -258,7 +284,7 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
       }
       if (step.ended) qc.invalidateQueries({ queryKey: ["simulation-sessions"] });
     },
-    [session.show_feedback, activeChar, mobileTab, openChat, activeKey, qc],
+    [session.show_feedback, activeChar, mobileTab, openChat, activeKey, qc, pushNotice],
   );
   React.useEffect(() => registerStepHandler(onStep), [registerStepHandler, onStep]);
 
@@ -308,7 +334,8 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
       qc.invalidateQueries({ queryKey: ["simulation-sessions"] });
       setConfirm(null);
     } catch (err) {
-      toast.error(errorMessage(err));
+      setConfirm(null);
+      reportError(err);
     }
   };
   const abandon = async () => {
@@ -317,10 +344,10 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
       qc.setQueryData(simKeys.session(session.id), s);
       qc.invalidateQueries({ queryKey: ["simulation-sessions"] });
       setConfirm(null);
-      toast.success("Attempt abandoned");
     } catch (err) {
+      setConfirm(null);
       if (err instanceof ApiError && err.code === "session_not_active") qc.invalidateQueries({ queryKey: simKeys.session(session.id) });
-      toast.error(errorMessage(err));
+      reportError(err);
     }
   };
 
@@ -351,9 +378,35 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
     : 0;
   const orphans = orphanActions(view, apps);
 
+  // Failed requests (network, server, invalid action) get a notice; callers still see the rejection so
+  // they can restore the learner's input.
+  const reportError = React.useCallback(
+    (err: unknown) => {
+      if (err instanceof ApiError && err.code === "session_not_active") return; // the screen switches to results
+      pushNotice([{ tone: "danger", title: "That didn't go through", text: errorMessage(err), icon: <AlertTriangle /> }]);
+    },
+    [pushNotice],
+  );
+  const safeAct = React.useCallback(
+    (req: ActionRequest, p?: Pending) =>
+      act(req, p).catch((err: unknown) => {
+        reportError(err);
+        throw err;
+      }),
+    [act, reportError],
+  );
+  const safeChat = React.useCallback(
+    (characterId: string, message: string) =>
+      chat(characterId, message).catch((err: unknown) => {
+        reportError(err);
+        throw err;
+      }),
+    [chat, reportError],
+  );
+
   const ctx = React.useMemo(
-    () => ({ session, view, pending, ended, act, chat, ephemeral, lastSeq, openApp, openChat }),
-    [session, view, pending, ended, act, chat, ephemeral, lastSeq, openApp, openChat],
+    () => ({ session, view, pending, ended, act: safeAct, chat: safeChat, ephemeral, lastSeq, openApp, openChat }),
+    [session, view, pending, ended, safeAct, safeChat, ephemeral, lastSeq, openApp, openChat],
   );
 
   return (
@@ -460,33 +513,14 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
           </div>
         </header>
 
-        {/* ------------------------------------------------ live alerts (events) */}
-        <div className="pointer-events-none absolute inset-x-0 top-[6.75rem] z-20 flex flex-col items-center gap-2 px-4" aria-live="assertive">
-          {alerts.map((a) => (
-            <div
-              key={a.id}
-              role="alert"
-              className={cn(
-                "pointer-events-auto flex w-full max-w-xl items-start gap-3 rounded-2xl border px-4 py-3 shadow-lift backdrop-blur motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-4",
-                a.tone === "danger" ? "border-rose-200 bg-rose-50/95 text-rose-950" : "border-amber-200 bg-amber-50/95 text-amber-950",
-              )}
-            >
-              <span className={cn("grid size-8 shrink-0 place-items-center rounded-xl text-white", a.tone === "danger" ? "bg-rose-600" : "bg-amber-500")}>
-                <Bell className="size-4 motion-safe:animate-flicker" aria-hidden />
-              </span>
-              <div className="min-w-0 flex-1 text-sm">
-                <p className="font-semibold">{a.title}</p>
-                {a.text && <p className="mt-0.5 opacity-90">{a.text}</p>}
-              </div>
-              <button type="button" onClick={() => setAlerts((x) => x.filter((y) => y.id !== a.id))} className="grid size-7 place-items-center rounded-lg hover:bg-black/5 focus-visible:focus-ring" aria-label="Dismiss alert">
-                <X className="size-4" aria-hidden />
-              </button>
-            </div>
-          ))}
-        </div>
-
         {/* ------------------------------------------------ columns */}
-        <div className="flex min-h-0 flex-1 gap-0 lg:gap-2 lg:p-2">
+        <div className="relative flex min-h-0 flex-1 gap-0 lg:gap-2 lg:p-2">
+          {/* Step notices: top-centre, just under the header — clear of the composer and the tab bar. */}
+          <div className="pointer-events-none absolute inset-x-0 top-2 z-30 flex flex-col items-center gap-2 px-3 lg:top-4" aria-live="polite">
+            {notices.map((n) => (
+              <StepNotice key={n.id} notice={n} onDismiss={() => dismissNotice(n.id)} />
+            ))}
+          </div>
           <aside
             className={cn(
               "min-h-0 w-full flex-col overflow-hidden lg:w-[300px] lg:shrink-0 lg:rounded-2xl lg:border lg:border-slate-200/80 lg:shadow-soft",
@@ -499,7 +533,7 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
 
           <main className={cn("min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white lg:flex lg:rounded-2xl lg:border lg:border-slate-200/80 lg:shadow-soft", mobileTab === "work" ? "flex" : "hidden")}>
             <AppDock apps={apps} active={active?.key} onChange={openApp} />
-            <div className="min-h-0 flex-1" role="tabpanel" aria-label={active?.title}>
+            <div className="min-h-0 flex-1" role="tabpanel" id="sim-tool-panel" aria-labelledby={active ? `sim-tab-${active.key}` : undefined}>
               {active ? <PanelRenderer app={active} terminalRef={termInput} /> : <div className="grid h-full place-items-center text-sm text-muted-foreground">No tools available.</div>}
             </div>
             {orphans.length > 0 && (
@@ -601,7 +635,18 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
 
       <ShortcutsDialog open={shortcuts} onOpenChange={setShortcuts} apps={apps} />
       <BriefingDialog open={briefing} onOpenChange={setBriefing} session={session} onStart={() => setBriefing(false)} />
-      <TutorPanel open={tutor} onOpenChange={setTutor} courseId={sim.data?.course_id ?? undefined} />
+      <TutorPanel
+        open={tutor}
+        onOpenChange={setTutor}
+        courseId={sim.data?.course_id ?? undefined}
+        prompts={workspaceTutorPrompts(view)}
+        contextNote={
+          <>
+            <span className="font-semibold">{view.meta.title}</span> · {view.phase.name}
+            {session.is_graded ? ". This attempt is graded, so the tutor guides you with hints rather than answers." : "."}
+          </>
+        }
+      />
 
       <ConfirmDialog
         open={confirm === "finish"}
@@ -624,10 +669,123 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
   );
 }
 
+/* ------------------------------------------------------------------ step notice */
+
+const NOTICE_TONE: Record<NoticeTone, { card: string; icon: string }> = {
+  danger: { card: "border-rose-200 bg-rose-50/95 text-rose-950", icon: "bg-rose-600" },
+  warning: { card: "border-amber-200 bg-amber-50/95 text-amber-950", icon: "bg-amber-500" },
+  message: { card: "border-violet-200 bg-white/95 text-slate-900", icon: "bg-violet-600" },
+  info: { card: "border-sky-200 bg-sky-50/95 text-sky-950", icon: "bg-sky-600" },
+  success: { card: "border-emerald-200 bg-emerald-50/95 text-emerald-950", icon: "bg-emerald-600" },
+};
+
+/** One consolidated notice per step. Auto-dismisses (longer for serious or busy steps); hover/focus pauses. */
+function StepNotice({ notice, onDismiss }: { notice: Notice; onDismiss: () => void }) {
+  const [paused, setPaused] = React.useState(false);
+  const ms = Math.min(14_000, (notice.tone === "danger" ? 9000 : 6500) + (notice.items.length - 1) * 1500);
+  React.useEffect(() => {
+    if (paused) return;
+    const t = setTimeout(onDismiss, ms);
+    return () => clearTimeout(t);
+  }, [paused, ms, onDismiss]);
+  const t = NOTICE_TONE[notice.tone];
+  const [lead, ...rest] = notice.items;
+  if (!lead) return null;
+  return (
+    <div
+      role={notice.tone === "danger" ? "alert" : "status"}
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      className={cn(
+        "pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-2xl border px-3.5 py-3 shadow-lift backdrop-blur motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-4",
+        t.card,
+      )}
+    >
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-xl text-white [&_svg]:size-4", t.icon)} aria-hidden>
+        {lead.icon ?? <Bell />}
+      </span>
+      <div className="min-w-0 flex-1 text-sm">
+        <p className="font-semibold">{lead.title}</p>
+        {lead.text && <p className="mt-0.5 line-clamp-3 opacity-90">{lead.text}</p>}
+        {rest.length > 0 && (
+          <ul className="mt-2 space-y-1 border-t border-black/[0.06] pt-2 text-[13px]">
+            {rest.map((it, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", NOTICE_TONE[it.tone].icon)} aria-hidden />
+                <span className="min-w-0">
+                  <span className="font-semibold">{it.title}</span>
+                  {it.text && <span className="opacity-90"> — {it.text}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {notice.action && (
+          <Button
+            size="xs"
+            variant="secondary"
+            className="mt-2"
+            onClick={() => {
+              notice.action!.onClick();
+              onDismiss();
+            }}
+          >
+            {notice.action.label}
+          </Button>
+        )}
+      </div>
+      <button type="button" onClick={onDismiss} className="-mr-1 -mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg hover:bg-black/5 focus-visible:focus-ring" aria-label="Dismiss notification">
+        <X className="size-4" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ app dock (tabs) */
 
 function AppDock({ apps, active, onChange }: { apps: WorkspaceApp[]; active?: string; onChange: (k: string) => void }) {
   const refs = React.useRef<(HTMLButtonElement | null)[]>([]);
+  const strip = React.useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = React.useState({ left: false, right: false });
+
+  const measure = React.useCallback(() => {
+    const el = strip.current;
+    if (!el) return;
+    const left = el.scrollLeft > 4;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+    setEdges((e) => (e.left === left && e.right === right ? e : { left, right }));
+  }, []);
+  React.useEffect(() => {
+    measure();
+    const el = strip.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measure, apps.length]);
+
+  // Keep the active tab in view (keyboard shortcuts, auto-opened panels, palette actions).
+  const activeIndex = apps.findIndex((a) => a.key === active);
+  React.useEffect(() => {
+    const btn = refs.current[activeIndex];
+    const el = strip.current;
+    if (!btn || !el) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const pad = 32; // clear the edge fade
+    const l = btn.offsetLeft - el.offsetLeft;
+    if (l - pad < el.scrollLeft) el.scrollTo({ left: Math.max(0, l - pad), behavior: reduce ? "auto" : "smooth" });
+    else if (l + btn.offsetWidth + pad > el.scrollLeft + el.clientWidth)
+      el.scrollTo({ left: l + btn.offsetWidth + pad - el.clientWidth, behavior: reduce ? "auto" : "smooth" });
+  }, [activeIndex]);
+
+  const nudge = (dir: 1 | -1) => {
+    const el = strip.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(160, el.clientWidth * 0.7), behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  };
+
   const onKey = (e: React.KeyboardEvent, i: number) => {
     const n = apps.length;
     let j = -1;
@@ -642,40 +800,63 @@ function AppDock({ apps, active, onChange }: { apps: WorkspaceApp[]; active?: st
     }
   };
   return (
-    <div className="no-scrollbar flex shrink-0 gap-1 overflow-x-auto border-b border-slate-200/80 bg-slate-50/80 px-2 pt-2" role="tablist" aria-label="Workspace tools">
-      {apps.map((a, i) => {
-        const on = a.key === active;
-        const c = colorClasses(a.color);
-        const Icon = a.icon;
-        return (
-          <button
-            key={a.key}
-            ref={(el) => {
-              refs.current[i] = el;
-            }}
-            type="button"
-            role="tab"
-            aria-selected={on}
-            tabIndex={on ? 0 : -1}
-            onKeyDown={(e) => onKey(e, i)}
-            onClick={() => onChange(a.key)}
-            className={cn(
-              "group relative flex shrink-0 items-center gap-2 rounded-t-xl border border-b-0 px-3 py-2 text-sm font-medium transition-colors focus-visible:focus-ring",
-              on ? "border-slate-200/80 bg-white text-slate-900 shadow-[0_-1px_0_0_white_inset]" : "border-transparent text-slate-600 hover:bg-white/70 hover:text-slate-900",
-            )}
-          >
-            <span className={cn("grid size-6 place-items-center rounded-md transition-colors", on ? cn("bg-gradient-to-br text-white", c.gradient) : cn(c.soft, c.icon))}>
-              <Icon className="size-3.5" aria-hidden />
-            </span>
-            <span className="max-w-[11rem] truncate" title={a.title !== a.label ? a.title : undefined}>
-              {a.label}
-            </span>
-            {!a.panel && <span className="rounded bg-slate-200/70 px-1 text-[10px] font-semibold uppercase text-slate-500">closed</span>}
-            {i < 9 && <span className="hidden rounded border border-slate-200 bg-white px-1 font-mono text-[10px] leading-4 text-slate-500 xl:inline">{i + 1}</span>}
-            {on && <span className={cn("absolute inset-x-3 -bottom-px h-0.5 rounded-full", c.solid)} aria-hidden />}
+    <div className="relative shrink-0 border-b border-slate-200/80 bg-slate-50/80">
+      <div ref={strip} onScroll={measure} className="no-scrollbar flex gap-1 overflow-x-auto px-2 pt-2" role="tablist" aria-label="Workspace tools">
+        {apps.map((a, i) => {
+          const on = a.key === active;
+          const c = colorClasses(a.color);
+          const Icon = a.icon;
+          return (
+            <button
+              key={a.key}
+              ref={(el) => {
+                refs.current[i] = el;
+              }}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              aria-controls="sim-tool-panel"
+              id={`sim-tab-${a.key}`}
+              tabIndex={on ? 0 : -1}
+              onKeyDown={(e) => onKey(e, i)}
+              onClick={() => onChange(a.key)}
+              className={cn(
+                "group relative flex shrink-0 items-center gap-2 rounded-t-xl border border-b-0 px-3 py-2 text-sm font-medium transition-colors focus-visible:focus-ring",
+                on ? "border-slate-200/80 bg-white text-slate-900 shadow-[0_-1px_0_0_white_inset]" : "border-transparent text-slate-600 hover:bg-white/70 hover:text-slate-900",
+              )}
+            >
+              <span className={cn("grid size-6 place-items-center rounded-md transition-colors", on ? cn("bg-gradient-to-br text-white", c.gradient) : cn(c.soft, c.icon))}>
+                <Icon className="size-3.5" aria-hidden />
+              </span>
+              <span className="max-w-[11rem] truncate" title={a.title !== a.label ? a.title : undefined}>
+                {a.label}
+              </span>
+              {!a.panel && (
+                <span className="whitespace-nowrap rounded-full border border-dashed border-slate-300 px-1.5 text-[10px] font-medium leading-4 text-slate-500">
+                  Not opened
+                </span>
+              )}
+              {i < 9 && <span className="hidden rounded border border-slate-200 bg-white px-1 font-mono text-[10px] leading-4 text-slate-500 xl:inline">{i + 1}</span>}
+              {on && <span className={cn("absolute inset-x-3 -bottom-px h-0.5 rounded-full", c.solid)} aria-hidden />}
+            </button>
+          );
+        })}
+      </div>
+      {/* Overflow cues: edge fades with scroll buttons (pointer convenience; keyboard users use ←/→). */}
+      {edges.left && (
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex w-14 items-center bg-gradient-to-r from-slate-50 via-slate-50/90 to-transparent pl-1">
+          <button type="button" tabIndex={-1} aria-hidden onClick={() => nudge(-1)} className="pointer-events-auto grid size-7 place-items-center rounded-full bg-white text-slate-600 shadow-soft ring-1 ring-slate-200 hover:text-slate-900">
+            <ChevronLeft className="size-4" />
           </button>
-        );
-      })}
+        </div>
+      )}
+      {edges.right && (
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex w-14 items-center justify-end bg-gradient-to-l from-slate-50 via-slate-50/90 to-transparent pr-1">
+          <button type="button" tabIndex={-1} aria-hidden onClick={() => nudge(1)} className="pointer-events-auto grid size-7 place-items-center rounded-full bg-white text-slate-600 shadow-soft ring-1 ring-slate-200 hover:text-slate-900">
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -829,7 +1010,9 @@ function BriefingDialog({ open, onOpenChange, session, onStart }: { open: boolea
             </ol>
           )}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
-            <span>The clock is paused until your first action. Press <Kbd>?</Kbd> any time for shortcuts.</span>
+            <span>
+              {first ? "The clock is paused until your first action." : "Simulated time only moves when you act."} Press <Kbd>?</Kbd> any time for shortcuts.
+            </span>
           </div>
           <div className="flex justify-end">
             <Button variant="gradient" onClick={onStart}>
