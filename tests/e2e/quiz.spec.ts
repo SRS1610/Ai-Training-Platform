@@ -46,18 +46,22 @@ test("learner attempts a quiz, submits and sees the result", async ({ api, page 
     await page.getByRole("list", { name: "Question navigator" }).getByRole("button", { name: new RegExp(`^Question ${i},`) }).click();
     const group = page.getByRole("radiogroup");
     await expect(group).toBeVisible();
-    const name = await group.getAttribute("aria-label") ?? (await group.textContent()) ?? "";
-    const q = QUESTIONS.find((x) => name.includes(x.prompt)) ?? QUESTIONS.find(async (x) => await page.getByRole("radiogroup", { name: x.prompt }).isVisible());
-    const question = QUESTIONS.find((x) => x.prompt === name) ?? q!;
-    await page.getByRole("radiogroup", { name: question.prompt }).getByRole("radio", { name: question.choices[question.correct], exact: true }).check();
+    const shown = (await group.getAttribute("aria-label")) ?? (await page.getByRole("region", { name: /\?$/ }).textContent()) ?? "";
+    const question = QUESTIONS.find((x) => shown.includes(x.prompt));
+    expect(question, `unexpected question: ${shown}`).toBeTruthy();
+    const answer = question!.choices[question!.correct];
+    // The native radio is visually hidden inside its option card; click the card like a user would.
+    await group.getByText(answer, { exact: true }).click();
+    await expect(group.getByRole("radio", { name: answer, exact: true })).toBeChecked();
   }
   await expect(page.getByText(`${QUESTIONS.length}/${QUESTIONS.length} answered`)).toBeVisible();
 
   await page.getByRole("button", { name: "Submit", exact: true }).click();
-  const confirm = page.getByRole("alertdialog").or(page.getByRole("dialog"));
-  if (await confirm.isVisible().catch(() => false)) await confirm.getByRole("button", { name: /submit/i }).click();
+  const confirm = page.getByRole("alertdialog", { name: "Submit your answers?" }).or(page.getByRole("dialog", { name: "Submit your answers?" }));
+  await expect(confirm.getByText("You've answered every question.")).toBeVisible();
+  await confirm.getByRole("button", { name: "Submit attempt" }).click();
 
   await expect(page).toHaveURL(/\/result\//, { timeout: 20_000 });
-  await expect(page.getByText(/passed/i).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: /You passed!/ })).toBeVisible();
   await expect(page.getByText("100%").first()).toBeVisible();
 });

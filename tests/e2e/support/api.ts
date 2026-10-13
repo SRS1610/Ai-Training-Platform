@@ -205,6 +205,20 @@ export async function signIn(page: Page, email: string, password: string = DEMO_
   expect(body.mfa_required).toBe(false);
 }
 
+/**
+ * Close any open toasts. Sonner pauses a toast while the pointer hovers it, so a toast sitting over a
+ * sticky footer button would otherwise block that click indefinitely.
+ */
+export async function dismissToasts(page: Page) {
+  await page.mouse.move(0, 0); // un-hover so the toasts' timers resume
+  const toasts = page.locator("[data-sonner-toast]");
+  await expect(async () => {
+    const close = toasts.getByRole("button", { name: "Close toast" });
+    for (let i = await close.count(); i > 0; i--) await close.nth(i - 1).dispatchEvent("click").catch(() => {});
+    expect(await toasts.count()).toBe(0);
+  }).toPass({ timeout: 15_000 });
+}
+
 // ------------------------------------------------------------------------------------------- TOTP
 
 function base32Decode(input: string): Buffer {
@@ -237,11 +251,19 @@ export function totp(secret: string, at = Date.now(), step = 30, digits = 6): st
   return code.toString().padStart(digits, "0");
 }
 
-/** A TOTP code that stays valid for at least a few seconds (waits out the tail of a 30 s window). */
-export async function freshTotp(secret: string): Promise<string> {
-  const remaining = 30 - (Math.floor(Date.now() / 1000) % 30);
-  if (remaining < 5) await new Promise((r) => setTimeout(r, remaining * 1000 + 250));
-  return totp(secret);
+/**
+ * A TOTP code that stays valid for a few more seconds. With ``after`` (a code already used), waits for the
+ * next 30 s window so the server's replay protection does not reject a reused code.
+ */
+export async function freshTotp(secret: string, after?: string): Promise<string> {
+  for (;;) {
+    const remaining = 30 - (Math.floor(Date.now() / 1000) % 30);
+    if (remaining >= 5) {
+      const code = totp(secret);
+      if (code !== after) return code;
+    }
+    await new Promise((r) => setTimeout(r, remaining * 1000 + 250));
+  }
 }
 
 // ------------------------------------------------------------------------------------------- fixture

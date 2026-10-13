@@ -1,5 +1,10 @@
 {
   "extends": "../../packages/config/tsconfig.base.json",
-  "compilerOptions": { "noUncheckedIndexedAccess": false },
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": false,
+    // Node typings for the specs (fs, crypto, Buffer, process); the root workspace has no @types/node of its own.
+    "typeRoots": ["../../apps/web/node_modules/@types"],
+    "types": ["node"]
+  },
   "include": ["**/*.ts"]
 }

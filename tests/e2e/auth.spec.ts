@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { freshTotp } from "./support/api";
 
 /**
  * Core auth journey against the real API: register → dashboard → sign out → sign in.
@@ -57,6 +58,53 @@ test.describe("authentication", () => {
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(/\/app\/dashboard/);
     await expect(page.getByRole("heading", { level: 1, name: /Avery/ })).toBeVisible();
+  });
+
+  test("register → enrol MFA with an authenticator code → sign in with a second factor", async ({ page }) => {
+    test.setTimeout(120_000); // may wait for the next 30 s TOTP window
+    const email = uniqueEmail();
+
+    await page.goto("/register");
+    await page.getByRole("textbox", { name: "Full name" }).fill("Morgan Vale");
+    await page.getByRole("textbox", { name: "Email", exact: true }).fill(email);
+    await page.getByRole("textbox", { name: "Password", exact: true }).fill(password);
+    await page.getByRole("checkbox", { name: /I agree to the/ }).check();
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page).toHaveURL(/\/app\/dashboard/);
+
+    // Enrol: scan step shows the setup key; verify step takes the current TOTP code.
+    await page.goto("/app/profile/security");
+    const card = page.getByRole("heading", { name: /Two-step verification/ });
+    await expect(card).toContainText("Off");
+    await page.getByRole("button", { name: "Set up", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Set up two-step verification" });
+    await expect(dialog.getByRole("img", { name: "QR code for your authenticator app" })).toBeVisible();
+    const secret = (await dialog.locator("code").first().textContent())!.trim();
+    expect(secret).toMatch(/^[A-Z2-7]{16,}$/);
+    await dialog.getByRole("button", { name: "Next" }).click();
+
+    const enrolCode = await freshTotp(secret);
+    await dialog.getByRole("textbox", { name: "Digit 1 of 6" }).click();
+    await page.keyboard.type(enrolCode);
+    // Recovery codes are shown once and must be acknowledged.
+    await expect(dialog.getByRole("list", { name: "Recovery codes" }).getByRole("listitem")).not.toHaveCount(0);
+    await dialog.getByRole("checkbox", { name: /saved my recovery codes/ }).check();
+    await dialog.getByRole("button", { name: "Done" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(card).toContainText("On");
+
+    // Sign out and back in: the password alone is not enough any more.
+    await signOut(page);
+    await page.getByRole("textbox", { name: "Work email" }).fill(email);
+    await page.getByRole("textbox", { name: "Password", exact: true }).fill(password);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Two-step verification" })).toBeVisible();
+
+    const loginCode = await freshTotp(secret, enrolCode);
+    await page.getByRole("textbox", { name: "Digit 1 of 6" }).click();
+    await page.keyboard.type(loginCode);
+    await expect(page).toHaveURL(/\/app\/dashboard/);
+    await expect(page.getByRole("heading", { level: 1, name: /Morgan/ })).toBeVisible();
   });
 
   test("wrong password shows an inline error", async ({ page }) => {

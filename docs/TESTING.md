@@ -52,11 +52,32 @@ Coverage target: **≥ 80%** for backend business logic, enforced in CI with `--
 ## End-to-end (Playwright)
 
 ```bash
-# with the API (seeded) on :8000 — see DEPLOYMENT.md
-pnpm --filter web build && pnpm test:e2e        # starts `next start` on :3000 automatically
+# with the seeded API on :8000 and the web app on :3000 (see DEPLOYMENT.md)
+pnpm test:e2e --project=chromium                    # reuses a running web server, else starts `next start`
+E2E_BASE_URL=http://localhost:3000 pnpm test:e2e --project=chromium   # point at an existing server / deployment
+pnpm test:e2e --project=chromium tests/e2e/quiz.spec.ts               # a single journey
 ```
 
-Specs in `tests/e2e/` cover the critical journeys: registration, login (incl. MFA), dashboard, enrolment, lesson completion, quiz, assignment submission, simulation play-through, grading, certificate and verification.
+Configuration (`tests/e2e/playwright.config.ts`): Chromium from `PLAYWRIGHT_BROWSERS_PATH` (never `playwright install`), one worker (`E2E_WORKERS` to change), one retry, traces and screenshots kept on failure. `E2E_API_URL` (default `http://localhost:8000`) is used for test-data setup; `E2E_DEMO_PASSWORD` overrides the demo password. Every spec passes on its own without the retry.
+
+**Data isolation.** Setup goes straight to the API (`tests/e2e/support/api.ts`); the journey under test is driven through the UI with accessible roles and labels. Any spec that changes state registers a brand-new organisation (the platform super admin sets its plan) and creates its own members, so the suite can be re-run against the same seeded database. Seeded accounts are only used read-only (analytics, report export, platform health, tenant isolation); seeded learners' progress and simulation attempts are never touched. The API should run with `RATE_LIMIT_ENABLED=false` (as in local dev), since the suite signs in many times a minute.
+
+| Spec | Journey |
+|---|---|
+| `auth.spec.ts` | Unauthenticated redirect; register → dashboard → sign out → sign in; register → enrol MFA (TOTP computed from the setup key shown in the UI, RFC 6238) → sign in with a second factor; wrong-password error |
+| `catalog-enrolment.spec.ts` | Learner searches the catalog, opens a course, enrols and starts learning; enrolment shows under My learning |
+| `lesson-player.spec.ts` | Learner opens a lesson in the player, marks it complete; outline and course progress update and persist |
+| `quiz.spec.ts` | Learner starts a quiz attempt, answers every question, confirms submit and sees a passing 100% result |
+| `assignment-grading.spec.ts` | Learner drafts and saves (version 1), uploads screenshot evidence, submits; assessor sees the AI recommendation, changes a rubric level, is required to give an override reason, submits the final grade; the learner sees feedback |
+| `simulation.spec.ts` | “Corporate Laptop Cannot Connect to Network” played in the workspace along the optimal path (ticket, Teams chat, PowerShell, KB, system info, diagnosis, fix, validation, notes, close) to an Expert/Advanced band |
+| `ai-tutor.spec.ts` | From the lesson player the learner asks the AI tutor “Why would DNS cause this problem?” and gets an answer citing the approved knowledge-base article |
+| `certificate.spec.ts` | Completing a course issues a certificate; the learner downloads the PDF; the public `/verify/{number}` page (signed out) shows it verified; unknown numbers show “No certificate found” |
+| `instructor-course.spec.ts` | Instructor creates a course, adds a module and a text lesson in the builder, and publishes version 1 |
+| `ai-course-builder.spec.ts` | Instructor generates a full course with the AI builder, approves it and applies it as an unpublished draft course |
+| `admin-invite-assign.spec.ts` | Org admin invites a new person (pending invitation listed) and assigns a published course to an existing member from their profile |
+| `admin-analytics-reports.spec.ts` | Org admin (Northwind demo) sees organisation analytics and exports the Organisation overview report as CSV |
+| `platform-health.spec.ts` | Super admin sees platform totals and the System health tab (overall status, database check) |
+| `tenant-isolation.spec.ts` | A Contoso user opening a Northwind course URL gets “not in the catalog” / “not enrolled” in the UI and a 404 from the API, with no course details leaked |
 
 ## Frontend checks
 
