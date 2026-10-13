@@ -29,9 +29,10 @@ interface Step {
 
 /** Whether the org-admin setup checklist should render for the current user. */
 export function useShowOrgSetup(): boolean {
-  const { can, user } = useAuth();
+  const { can, user, organisation } = useAuth();
   const dismissed = Boolean((user?.preferences as Record<string, unknown> | undefined)?.[ORG_SETUP_DISMISSED]);
-  return can("organisation.manage") && !dismissed;
+  // An individual's personal workspace makes them its admin, but there is no organisation to set up there.
+  return can("organisation.manage") && organisation?.kind !== "personal" && !dismissed;
 }
 
 /**
