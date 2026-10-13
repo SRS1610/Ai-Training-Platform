@@ -67,3 +67,13 @@ variable "forwarded_trusted_hops" {
   default     = 1
   description = "Proxies in front of the API that append to X-Forwarded-For (1 = ALB; 2 = Cloudflare + ALB)"
 }
+variable "ai_default_model" {
+  type        = string
+  default     = "gpt-4o-mini"
+  description = "Chat model for the openai provider (any model the endpoint below serves)"
+}
+variable "ai_openai_base_url" {
+  type        = string
+  default     = "https://api.openai.com/v1"
+  description = "OpenAI-compatible endpoint, e.g. https://api.groq.com/openai/v1 for Groq"
+}

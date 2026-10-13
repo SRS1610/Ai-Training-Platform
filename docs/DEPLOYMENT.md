@@ -94,6 +94,11 @@ What it does:
    to the new images and waits until they are stable. A failed rollout rolls back automatically.
 9. Creates the Route 53 alias for `DOMAIN` (or prints the CNAME to create) and checks `/api/v1/health`.
 
+To use Groq (or another OpenAI-compatible service) instead of OpenAI, export `GROQ_API_KEY` (it is stored as
+`OPENAI_API_KEY` with Groq's endpoint and the `llama-3.3-70b-versatile` model), or set `OPENAI_API_KEY`,
+`AI_BASE_URL` and `AI_MODEL` yourself. Groq has no embeddings API, so knowledge-base search then uses the built-in
+offline embeddings: retrieval keeps working, with lower recall than OpenAI embeddings.
+
 Other options: `AWS_REGION` (default `ap-southeast-2`), `ACM_CERTIFICATE_ARN`, `IMAGE_TAG`, `--skip-build`,
 `AI_PROVIDER` (`openai`, `anthropic` or `offline`; chosen from the exported keys by default), `EMAIL_FROM`
 (default `Praxis <no-reply@DOMAIN>`) and `TRUSTED_PROXY_HOPS` (`1` for the ALB alone, `2` with Cloudflare in front).

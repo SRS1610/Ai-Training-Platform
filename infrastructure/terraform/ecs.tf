@@ -93,6 +93,8 @@ locals {
     { name = "EMAIL_PROVIDER", value = "ses" },
     { name = "EMAIL_FROM", value = local.email_from },
     { name = "AI_DEFAULT_PROVIDER", value = var.ai_default_provider },
+    { name = "AI_DEFAULT_MODEL", value = var.ai_default_model },
+    { name = "OPENAI_BASE_URL", value = var.ai_openai_base_url },
     { name = "FORWARDED_TRUSTED_HOPS", value = tostring(var.forwarded_trusted_hops) },
   ]
   email_from = var.email_from != "" ? var.email_from : "Praxis <no-reply@${var.domain_name}>"

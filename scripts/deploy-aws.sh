@@ -23,6 +23,9 @@
 #             IMAGE_TAG                    default: short git SHA (+ -dirty-<time> for uncommitted changes)
 #             AI_PROVIDER                  openai | anthropic | offline (default: openai if OPENAI_API_KEY is set,
 #                                          anthropic if ANTHROPIC_API_KEY is set, otherwise offline)
+#             AI_MODEL                     chat model (default gpt-4o-mini; llama-3.3-70b-versatile with Groq)
+#             AI_BASE_URL                  OpenAI-compatible endpoint (default https://api.openai.com/v1)
+#             GROQ_API_KEY                 use Groq: stored as the OpenAI-compatible key with Groq's endpoint
 #             EMAIL_FROM                   SES-verified sender, default "Praxis <no-reply@DOMAIN>"
 #             TRUSTED_PROXY_HOPS           proxies in front of the API: 1 = ALB (default), 2 = Cloudflare + ALB
 #             OPENAI_API_KEY ANTHROPIC_API_KEY STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET
@@ -103,6 +106,15 @@ if [[ -z "${IMAGE_TAG:-}" ]]; then
   IMAGE_TAG="$(git -C "$ROOT" rev-parse --short=12 HEAD)"
   [[ -z "$(git -C "$ROOT" status --porcelain)" ]] || IMAGE_TAG="$IMAGE_TAG-dirty-$(date -u +%Y%m%d%H%M%S)"
 fi
+if [[ -n "${GROQ_API_KEY:-}" ]]; then
+  [[ -z "${OPENAI_API_KEY:-}" ]] || die "set either GROQ_API_KEY or OPENAI_API_KEY, not both"
+  OPENAI_API_KEY="$GROQ_API_KEY"
+  AI_BASE_URL="${AI_BASE_URL:-https://api.groq.com/openai/v1}"
+  AI_MODEL="${AI_MODEL:-llama-3.3-70b-versatile}"
+  AI_PROVIDER="${AI_PROVIDER:-openai}"
+fi
+AI_BASE_URL="${AI_BASE_URL:-https://api.openai.com/v1}"
+AI_MODEL="${AI_MODEL:-gpt-4o-mini}"
 if [[ -z "${AI_PROVIDER:-}" ]]; then
   if [[ -n "${OPENAI_API_KEY:-}" ]]; then AI_PROVIDER=openai
   elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then AI_PROVIDER=anthropic
@@ -135,7 +147,11 @@ info "AWS account   $ACCOUNT_ID ($CALLER)"
 info "Region        $AWS_REGION"
 info "Domain        https://$DOMAIN"
 info "Image tag     $IMAGE_TAG$([[ "$SKIP_BUILD" == 1 ]] && echo ' (reusing pushed images)')"
-info "AI provider   $AI_PROVIDER"
+if [[ "$AI_PROVIDER" == openai ]]; then
+  info "AI provider   openai-compatible: $AI_MODEL at $AI_BASE_URL"
+else
+  info "AI provider   $AI_PROVIDER"
+fi
 info "Email from    $EMAIL_FROM"
 if [[ "$AI_PROVIDER" == offline ]]; then warn "no AI key exported: the AI features will use the offline provider (templated output)"; fi
 if [[ "$PLAN_ONLY" == 1 ]]; then info "Mode          plan only"; fi
@@ -267,7 +283,8 @@ TF_VARS=(
   -var-file="environments/$ENVIRONMENT.tfvars"
   -var "environment=$ENVIRONMENT" -var "region=$AWS_REGION" -var "domain_name=$DOMAIN"
   -var "acm_certificate_arn=$ACM_CERTIFICATE_ARN" -var "api_image=$API_IMAGE" -var "web_image=$WEB_IMAGE"
-  -var "ai_default_provider=$AI_PROVIDER" -var "email_from=$EMAIL_FROM"
+  -var "ai_default_provider=$AI_PROVIDER" -var "ai_default_model=$AI_MODEL" -var "ai_openai_base_url=$AI_BASE_URL"
+  -var "email_from=$EMAIL_FROM"
   -var "forwarded_trusted_hops=$TRUSTED_PROXY_HOPS"
 )
 PLAN_FILE="$(mktemp "${TMPDIR:-/tmp}/praxis-plan.XXXXXX")"
