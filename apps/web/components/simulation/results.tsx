@@ -330,7 +330,10 @@ export function SessionResults({ session }: { session: SimSession }) {
         contextNote={
           <>
             <span className="font-semibold">Debrief · {session.view.meta.title}</span> — attempt {r.attempt_number}: {Math.round(r.total_score ?? 0)}/100
-            {r.band ? ` (${meta.label})` : ""}. The suggestions below come from what this attempt missed.
+            {r.band ? ` (${meta.label})` : ""}.{" "}
+            {(r.feedback.missed_steps?.length ?? 0) + (r.feedback.incorrect_actions?.length ?? 0) + (r.feedback.critical_actions?.length ?? 0) > 0
+              ? "The suggestions below come from what this attempt missed."
+              : "Nothing was missed — use the tutor to go deeper or test yourself."}
           </>
         }
       />

@@ -128,7 +128,7 @@ export function ChatPanel({
           </Tooltip>
         </div>
         {chat.characters.length > 1 && (
-          <div className="no-scrollbar flex gap-1 overflow-x-auto px-3 pb-2" role="tablist" aria-label="Conversations">
+          <div className="no-scrollbar flex gap-1 overflow-x-auto px-3 pb-2 pt-1" role="tablist" aria-label="Conversations">
             {chat.characters.map((c, i) => {
               const n = unread(c);
               const on = c.id === character.id;
