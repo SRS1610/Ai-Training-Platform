@@ -211,7 +211,8 @@ export async function signIn(page: Page, email: string, password: string = DEMO_
  */
 export async function dismissToasts(page: Page) {
   await page.mouse.move(0, 0); // un-hover so the toasts' timers resume
-  const toasts = page.locator("[data-sonner-toast]");
+  // A closed toast keeps its node (data-removed="true", opacity 0) while Sonner animates it out; only live ones count.
+  const toasts = page.locator('[data-sonner-toast]:not([data-removed="true"])');
   await expect(async () => {
     const close = toasts.getByRole("button", { name: "Close toast" });
     for (let i = await close.count(); i > 0; i--) await close.nth(i - 1).dispatchEvent("click").catch(() => {});

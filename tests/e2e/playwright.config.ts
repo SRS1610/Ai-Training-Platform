@@ -13,7 +13,9 @@ export default defineConfig({
   testDir: ".",
   outputDir: "../../test-results/e2e",
   timeout: 60_000,
-  expect: { timeout: 10_000 },
+  // `next dev` disposes idle routes and recompiles them on the next client navigation (observed up to ~12s),
+  // so assertions that follow a navigation need more than the 5s default to stay deterministic.
+  expect: { timeout: 20_000 },
   fullyParallel: false,
   // The journeys share one dev stack (memory-constrained `next dev`), so run them one at a time by default.
   workers: Number(process.env.E2E_WORKERS ?? 1),

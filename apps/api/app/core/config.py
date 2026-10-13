@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -19,7 +20,8 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api/v1"
     PUBLIC_WEB_URL: str = "http://localhost:3000"
     PUBLIC_API_URL: str = "http://localhost:8000"
-    CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    # NoDecode: accept a comma-separated string (split by _split_origins) as well as a JSON list.
+    CORS_ORIGINS: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["http://localhost:3000"])
     LOG_LEVEL: str = "INFO"
     LOG_JSON: bool = False
 
@@ -112,7 +114,9 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:
-        if isinstance(value, str) and not value.startswith("["):
+        if isinstance(value, str):
+            if value.lstrip().startswith("["):
+                return json.loads(value)
             return [v.strip() for v in value.split(",") if v.strip()]
         return value
 
