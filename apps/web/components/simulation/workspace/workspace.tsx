@@ -136,6 +136,15 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
   const wide = rootW >= 1240; // room for the mission column
   const wideish = rootW >= 1080;
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const headerRef = React.useRef<HTMLElement>(null);
+  const [headerH, setHeaderH] = React.useState(92);
+  React.useEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setHeaderH(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const chatInput = React.useRef<HTMLTextAreaElement>(null);
   const termInput = React.useRef<HTMLInputElement>(null);
   const prevOpen = React.useRef(new Set(apps.filter((a) => a.panel).map((a) => a.key)));
@@ -422,7 +431,7 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
         )}
       >
         {/* ------------------------------------------------ top bar */}
-        <header className="relative z-10 border-b border-slate-200/80 bg-white/95 backdrop-blur">
+        <header ref={headerRef} className="relative z-10 border-b border-slate-200/80 bg-white/95 backdrop-blur">
           <div className={cn("pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r", ind.classes.gradient)} aria-hidden />
           <div className="flex items-center gap-2 px-2 py-2 sm:gap-3 sm:px-4">
             <Tooltip content="Leave — your progress is saved">
@@ -513,19 +522,24 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
           </div>
         </header>
 
+        {/* Step notices. Phones: over the workspace header (clear of the tool actions, the chat composer and
+            the tab bar). Desktop: centred over the tool panel, below its tab strip. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-1.5 z-30 flex flex-col items-center gap-2 px-2 max-lg:[&>*:not(:last-child)]:hidden lg:left-[var(--notice-l)] lg:right-[var(--notice-r)] lg:top-[var(--notice-t)] lg:px-3"
+          style={{
+            ["--notice-l" as string]: wide ? "308px" : "8px",
+            ["--notice-r" as string]: chatModel ? `${chatW + 16}px` : "8px",
+            ["--notice-t" as string]: `${headerH + 60}px`,
+          }}
+          aria-live="polite"
+        >
+          {notices.map((n) => (
+            <StepNotice key={n.id} notice={n} onDismiss={() => dismissNotice(n.id)} />
+          ))}
+        </div>
+
         {/* ------------------------------------------------ columns */}
-        <div className="relative flex min-h-0 flex-1 gap-0 lg:gap-2 lg:p-2">
-          {/* Step notices: top-centre, just under the header — clear of the composer and the tab bar. */}
-          {/* On desktop the stack is centred over the tool panel (between the mission and chat columns). */}
-          <div
-            className="pointer-events-none absolute inset-x-0 top-14 z-30 flex flex-col items-center gap-2 px-3 lg:left-[var(--notice-l)] lg:right-[var(--notice-r)] lg:top-16"
-            style={{ ["--notice-l" as string]: wide ? "308px" : "8px", ["--notice-r" as string]: chatModel ? `${chatW + 16}px` : "8px" }}
-            aria-live="polite"
-          >
-            {notices.map((n) => (
-              <StepNotice key={n.id} notice={n} onDismiss={() => dismissNotice(n.id)} />
-            ))}
-          </div>
+        <div className="flex min-h-0 flex-1 gap-0 lg:gap-2 lg:p-2">
           <aside
             className={cn(
               "min-h-0 w-full flex-col overflow-hidden lg:w-[300px] lg:shrink-0 lg:rounded-2xl lg:border lg:border-slate-200/80 lg:shadow-soft",
@@ -702,8 +716,8 @@ function StepNotice({ notice, onDismiss }: { notice: Notice; onDismiss: () => vo
   return (
     <div
       role={notice.tone === "danger" ? "alert" : "status"}
-      onPointerEnter={() => setPaused(true)}
-      onPointerLeave={() => setPaused(false)}
+      onPointerEnter={(e) => e.pointerType === "mouse" && setPaused(true)}
+      onPointerLeave={(e) => e.pointerType === "mouse" && setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
       className={cn(
@@ -716,13 +730,13 @@ function StepNotice({ notice, onDismiss }: { notice: Notice; onDismiss: () => vo
       </span>
       <div className="min-w-0 flex-1 text-sm">
         <p className="font-semibold">{lead.title}</p>
-        {lead.text && <p className="mt-0.5 line-clamp-3 opacity-90">{lead.text}</p>}
+        {lead.text && <p className="mt-0.5 line-clamp-2 opacity-90 lg:line-clamp-3">{lead.text}</p>}
         {rest.length > 0 && (
           <ul className="mt-2 space-y-1 border-t border-black/[0.06] pt-2 text-[13px]">
             {rest.map((it, i) => (
               <li key={i} className="flex items-start gap-2">
                 <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", NOTICE_TONE[it.tone].icon)} aria-hidden />
-                <span className="min-w-0">
+                <span className="line-clamp-2 min-w-0">
                   <span className="font-semibold">{it.title}</span>
                   {it.text && <span className="opacity-90"> — {it.text}</span>}
                 </span>

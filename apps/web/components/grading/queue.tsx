@@ -1,7 +1,7 @@
 "use client";
 
 import { Avatar, Badge, Button, EmptyState, Pagination, Skeleton, StatusPill, cn } from "@praxis/ui";
-import { AlertOctagon, ArrowRight, Bot, ChevronRight, Clock, FileQuestion, Flag, MessageSquareWarning, ShieldAlert } from "lucide-react";
+import { AlertOctagon, ArrowRight, Bot, CheckCircle2, ChevronRight, Clock, FileQuestion, Flag, MessageSquareWarning, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { formatRelative } from "@/lib/format";
@@ -41,7 +41,7 @@ export function ScoreChip({ score, passed, label = "AI", confidence }: { score: 
         )}
       >
         <Bot className="size-3.5" aria-hidden />
-        <span className="sr-only">{label} score</span>
+        <span className="sr-only">{label} recommended score</span>
         {Math.round(score)}%
       </span>
       {confidence !== null && confidence !== undefined && (
@@ -118,7 +118,14 @@ export function QueueList({ items, loading }: { items: QueueItem[]; loading?: bo
               )}
             </div>
             <div className="col-start-2 row-start-1 justify-self-end lg:col-start-auto lg:row-start-auto lg:justify-self-start">
-              <SlaChip submittedAt={it.submitted_at} />
+              {it.status === "graded" || it.status === "returned" ? (
+                // Closed items are no longer waiting, so the SLA colour would be misleading.
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
+                  <CheckCircle2 className="size-3" aria-hidden /> Closed
+                </span>
+              ) : (
+                <SlaChip submittedAt={it.submitted_at} />
+              )}
             </div>
             <ChevronRight className="hidden size-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-600 lg:block" aria-hidden />
           </RowShell>
