@@ -37,6 +37,8 @@ test("AI tutor answers “Why would DNS cause this problem?” with citations", 
   const conversation = panel.getByRole("log", { name: "Tutor conversation" });
   await expect(conversation).toContainText("Why would DNS cause this problem?");
   await expect(conversation).toHaveAttribute("aria-busy", "false", { timeout: 30_000 });
+  // The composer takes focus back on the next frame after an answer; wait for that so it can't steal focus from the source below.
+  await expect(panel.getByRole("textbox", { name: "Ask the tutor" })).toBeFocused();
   // The answer cites the approved knowledge-base article.
   await expect(conversation.getByText("Sources", { exact: true })).toBeVisible();
   const source = conversation.getByRole("button", { name: `Source 1: ${KB_TITLE}` }).last();
