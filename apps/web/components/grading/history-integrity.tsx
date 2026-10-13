@@ -7,7 +7,7 @@ import * as React from "react";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth, usePermission } from "@/lib/auth";
 import { formatDateTime, formatRelative } from "@/lib/format";
-import { gk, gradePct, type GradeOut, type IntegritySignal } from "./types";
+import { fmtPct, gk, gradePct, type GradeOut, type IntegritySignal } from "./types";
 
 /** Resolve a staff member's display name (users.view); falls back gracefully. */
 export function useMemberName(userId: string | null | undefined) {
@@ -69,7 +69,7 @@ export function GradeHistory({ grades }: { grades: GradeOut[] }) {
                       </p>
                       {!isReturn && (
                         <Badge tone={g.passed === false ? "danger" : g.passed ? "success" : "neutral"} size="sm">
-                          {gradePct(g)}%{g.passed === null || g.passed === undefined ? "" : g.passed ? " · pass" : " · fail"}
+                          {fmtPct(gradePct(g))}{g.passed === null || g.passed === undefined ? "" : g.passed ? " · pass" : " · fail"}
                         </Badge>
                       )}
                       {g.is_final && (
@@ -94,7 +94,7 @@ export function GradeHistory({ grades }: { grades: GradeOut[] }) {
                       <blockquote className="mt-2 rounded-xl border-l-4 border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-950">
                         <p className="mb-0.5 flex items-center gap-1 text-2xs font-bold uppercase tracking-wider text-amber-800">
                           <Quote className="size-3" aria-hidden /> Override reason
-                          {overridden && ` · replaced ${overridden.source === "ai" ? "AI" : "human"} ${gradePct(overridden)}%`}
+                          {overridden && ` · replaced ${overridden.source === "ai" ? "AI" : "human"} ${fmtPct(gradePct(overridden))}`}
                         </p>
                         {g.override_reason}
                       </blockquote>

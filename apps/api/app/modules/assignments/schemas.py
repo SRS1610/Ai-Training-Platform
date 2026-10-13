@@ -278,6 +278,9 @@ class QueueItem(BaseModel):
     review_requested: bool
     integrity_flags: int
     ai_recommendation: AIRecommendation | None
+    final_score: float | None = None
+    passed: bool | None = None
+    graded_at: datetime | None = None
 
 
 class IntegritySignalOut(BaseModel):

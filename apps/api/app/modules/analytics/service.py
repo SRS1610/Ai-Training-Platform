@@ -36,6 +36,22 @@ CASE jsonb_typeof(d.value)
     (d.value->>'score')::float)
 END"""
 
+# One row per (dimension, 0-100 value) of a session's ``dimension_scores``. The engine stores
+# ``{"dimensions": [{"id", "name", "percent", ...}]}``; older/imported rows are a flat ``{dimension: value}``
+# object. Use as ``CROSS JOIN LATERAL ({DIM_ROWS_SQL}) dim`` → ``dim.dimension``, ``dim.name``, ``dim.value``.
+DIM_ROWS_SQL = f"""
+SELECT e->>'id' AS dimension, COALESCE(e->>'name', e->>'id') AS name, COALESCE(
+    (e->>'percent')::float, (e->>'pct')::float, (e->>'percentage')::float,
+    CASE WHEN (e->>'max')::float > 0 THEN 100.0 * (e->>'score')::float / (e->>'max')::float END) AS value
+FROM jsonb_array_elements(CASE WHEN jsonb_typeof(ss.dimension_scores->'dimensions') = 'array'
+  THEN ss.dimension_scores->'dimensions' ELSE '[]'::jsonb END) e
+WHERE e->>'id' IS NOT NULL
+UNION ALL
+SELECT d.key AS dimension, d.key AS name, {DIM_VALUE_SQL} AS value
+FROM jsonb_each(CASE WHEN jsonb_typeof(ss.dimension_scores) = 'object'
+  AND jsonb_typeof(ss.dimension_scores->'dimensions') IS DISTINCT FROM 'array'
+  THEN ss.dimension_scores ELSE '{{}}'::jsonb END) d"""
+
 OPEN_STATUSES = "('not_started','in_progress')"
 
 
@@ -287,12 +303,10 @@ async def learner_analytics(
     dims = await _rows(
         db,
         f"""
-    SELECT d.key AS dimension, avg({DIM_VALUE_SQL}) AS avg_score, count(*) AS sessions
-    FROM simulation_sessions ss CROSS JOIN LATERAL jsonb_each(
-      CASE WHEN jsonb_typeof(ss.dimension_scores) = 'object' THEN ss.dimension_scores ELSE '{{}}'::jsonb
-        END) d
+    SELECT dim.dimension, max(dim.name) AS name, avg(dim.value) AS avg_score, count(*) AS sessions
+    FROM simulation_sessions ss CROSS JOIN LATERAL ({DIM_ROWS_SQL}) dim
     WHERE ss.organisation_id=:org AND ss.user_id=:uid AND ss.status='completed' {ss_rng}
-    GROUP BY d.key ORDER BY 2 ASC NULLS LAST""",
+    GROUP BY dim.dimension ORDER BY 3 ASC NULLS LAST""",
         p,
     )
     for d in dims:
@@ -543,7 +557,9 @@ async def simulation_results(
            count(ss.id) FILTER (WHERE ss.status='completed') AS completed,
            count(DISTINCT ss.user_id) AS learners,
            avg(ss.total_score) FILTER (WHERE ss.status='completed') AS avg_score,
-           avg(CASE WHEN ss.passed THEN 100.0 WHEN ss.passed IS NOT NULL THEN 0.0 END) AS pass_rate
+           -- Same denominator as GET /simulations/{id}/analytics: completed, scored sessions.
+           avg(CASE WHEN ss.passed THEN 100.0 ELSE 0.0 END)
+             FILTER (WHERE ss.status='completed' AND ss.total_score IS NOT NULL) AS pass_rate
     FROM simulations sim LEFT JOIN simulation_sessions ss ON ss.simulation_id = sim.id {ss_rng}
     WHERE sim.organisation_id=:org AND sim.deleted_at IS NULL {course_filter}
     GROUP BY sim.id, sim.title ORDER BY sim.title""",
@@ -561,20 +577,18 @@ async def simulation_results(
     dims = await _rows(
         db,
         f"""
-    SELECT ss.simulation_id, d.key AS dimension, avg({DIM_VALUE_SQL}) AS avg_score
+    SELECT ss.simulation_id, dim.dimension, max(dim.name) AS name, avg(dim.value) AS avg_score
     FROM simulation_sessions ss JOIN simulations sim ON sim.id = ss.simulation_id
-    CROSS JOIN LATERAL jsonb_each(
-      CASE WHEN jsonb_typeof(ss.dimension_scores) = 'object' THEN ss.dimension_scores ELSE '{{}}'::jsonb
-        END) d
+    CROSS JOIN LATERAL ({DIM_ROWS_SQL}) dim
     WHERE ss.organisation_id=:org AND ss.status='completed' {course_filter} {ss_rng}
-    GROUP BY 1, 2 ORDER BY 3""",
+    GROUP BY 1, 2 ORDER BY 4""",
         p,
     )
     for s in sims:
         s["avg_score"], s["pass_rate"] = _f(s["avg_score"]), _f(s["pass_rate"])
         s["bands"] = {b["band"]: b["n"] for b in bands if b["simulation_id"] == s["simulation_id"]}
         s["dimensions"] = [
-            {"dimension": d["dimension"], "avg_score": _f(d["avg_score"])}
+            {"dimension": d["dimension"], "name": d["name"], "avg_score": _f(d["avg_score"])}
             for d in dims
             if d["simulation_id"] == s["simulation_id"]
         ]

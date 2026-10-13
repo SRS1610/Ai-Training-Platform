@@ -244,6 +244,9 @@ async def queue(
                 )
                 if g
                 else None,
+                final_score=s.final_score,
+                passed=s.passed,
+                graded_at=s.graded_at,
             )
         )
     return Page(items=items, total=int(total or 0), page=params.page, page_size=params.page_size)

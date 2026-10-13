@@ -4,7 +4,7 @@ import { Badge, Button, Card, Progress, ProgressRing, cn } from "@praxis/ui";
 import { AlertTriangle, Bot, CheckCheck, ChevronDown, Lightbulb, ListX, Quote, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
 import * as React from "react";
 import { formatDateTime } from "@/lib/format";
-import { gradePct, type BreakdownRow, type GradeOut } from "./types";
+import { fmtPct, gradePct, type BreakdownRow, type GradeOut } from "./types";
 
 function ListBlock({ title, items, icon: Icon, tone }: { title: string; items: string[]; icon: typeof ThumbsUp; tone: "emerald" | "rose" | "amber" | "sky" }) {
   if (!items.length) return null;
@@ -63,7 +63,7 @@ export function AIRecommendationCard({
     <Card className="relative overflow-hidden border-violet-200/80">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" aria-hidden />
       <div className="flex items-start gap-4 p-5">
-        <ProgressRing value={pct} size={72} stroke={7} aria-label="AI recommended score" label={<span className="font-display text-lg font-bold tabular-nums text-slate-900">{Math.round(pct)}%</span>} />
+        <ProgressRing value={pct} size={72} stroke={7} aria-label="AI recommended score" label={<span className="font-display text-lg font-bold tabular-nums text-slate-900">{fmtPct(pct)}</span>} />
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-violet-700">
             <Sparkles className="size-3.5" aria-hidden /> AI recommendation

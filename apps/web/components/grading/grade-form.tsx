@@ -28,6 +28,7 @@ import { ListInput } from "./list-input";
 import {
   AI_AGREEMENT_TOLERANCE,
   criterionMax,
+  fmtPct,
   gk,
   gradePct,
   partialTotal,
@@ -201,8 +202,19 @@ export function GradeForm({ detail, onGraded }: { detail: GradingDetail; onGrade
     () => ((ai?.rubric_breakdown ?? []) as BreakdownRow[]).reduce<Record<string, BreakdownRow>>((a, r) => ({ ...a, [r.criterion_id]: r }), {}),
     [ai],
   );
+  // Only grades of the version under review are "overridden"; a grade of an earlier version (before a
+  // resubmission) is shown read-only and never pre-fills the form (mirrors the API's `_same_version`).
+  const sameVersion = React.useCallback(
+    (g: GradeOut | null | undefined) => !!g && (g.submission_version == null || g.submission_version === sub.current_version),
+    [sub.current_version],
+  );
   const previousFinal = React.useMemo(() => detail.grades.find((g) => g.is_final && g.target_type === "submission") ?? null, [detail.grades]);
-  const previousHuman = previousFinal && previousFinal.source === "human" ? previousFinal : null;
+  const previousHuman = previousFinal && previousFinal.source === "human" && sameVersion(previousFinal) ? previousFinal : null;
+  const olderHuman = React.useMemo(
+    () => detail.grades.find((g) => g.target_type === "submission" && g.source === "human" && !sameVersion(g)) ?? null,
+    [detail.grades, sameVersion],
+  );
+  const aiSameVersion = sameVersion(ai);
 
   const [form, setForm] = React.useState<FormState>(() => initialState(criteria, previousHuman));
   const [accepted, setAccepted] = React.useState(false);
@@ -228,11 +240,18 @@ export function GradeForm({ detail, onGraded }: { detail: GradingDetail; onGrade
   const total = criteria.length ? weightedTotal(criteria, form.scores) : form.score;
   const partial = criteria.length ? partialTotal(criteria, form.scores) : (form.score ?? 0);
   const scoredCount = criteria.filter((c) => form.scores[c.id] !== null && form.scores[c.id] !== undefined).length;
-  const aiPct = ai ? gradePct(ai) : null;
+  const aiPct = ai && aiSameVersion ? gradePct(ai) : null;
   const prevPct = previousHuman ? gradePct(previousHuman) : null;
   const differsFromAi = total !== null && aiPct !== null && Math.abs(total - aiPct) > AI_AGREEMENT_TOLERANCE;
   const differsFromPrev = total !== null && prevPct !== null && Math.abs(total - prevPct) > 0.004;
   const needsReason = differsFromAi || differsFromPrev;
+  // A reason typed for an earlier state must not linger (hidden) and turn a matching grade into an override.
+  React.useEffect(() => {
+    if (!needsReason) {
+      setForm((f) => (f.reason ? { ...f, reason: "" } : f));
+      setReasonError(null);
+    }
+  }, [needsReason]);
   const passing = Number(assignment.passing_score ?? 70);
   const gradable = ["submitted", "ai_grading", "ai_graded", "under_review", "graded"].includes(sub.status);
 
@@ -248,9 +267,11 @@ export function GradeForm({ detail, onGraded }: { detail: GradingDetail; onGrade
       weaknesses: (ai.weaknesses ?? []) as string[],
       improvements: (ai.improvements ?? []) as string[],
       missing: (ai.missing_requirements ?? []) as string[],
+      reason: "",
     }));
     setAccepted(true);
     setReasonError(null);
+    setFormError(null);
     toast.success("AI recommendation applied — review it before submitting");
   };
 
@@ -269,10 +290,10 @@ export function GradeForm({ detail, onGraded }: { detail: GradingDetail; onGrade
         weaknesses: form.weaknesses,
         improvements: form.improvements,
         missing_requirements: form.missing,
-        override_reason: form.reason.trim() || null,
+        override_reason: needsReason ? form.reason.trim() || null : null,
       }),
     onSuccess: (g) => {
-      toast.success(`Grade submitted: ${Math.round(gradePct(g))}% · ${g.passed ? "passed" : "not passed"}`);
+      toast.success(`Grade submitted: ${fmtPct(gradePct(g))} · ${g.passed ? "passed" : "not passed"}`);
       invalidate();
       onGraded?.();
     },
@@ -330,7 +351,7 @@ export function GradeForm({ detail, onGraded }: { detail: GradingDetail; onGrade
             stroke={8}
             color={passes ? "emerald" : "rose"}
             aria-label="Your weighted score"
-            label={<span className="font-display text-lg font-bold tabular-nums text-slate-900">{shown.toFixed(shown % 1 ? 1 : 0)}</span>}
+            label={<span className="font-display text-lg font-bold tabular-nums text-slate-900">{fmtPct(shown).replace("%", "")}</span>}
             sublabel={<span className="text-2xs">%</span>}
           />
           <div className="min-w-0 flex-1" aria-live="polite">
@@ -426,7 +447,7 @@ export function GradeForm({ detail, onGraded }: { detail: GradingDetail; onGrade
               htmlFor="override-reason"
               required
               error={reasonError}
-              hint={`Your score differs from ${differsFromAi ? `the AI recommendation (${aiPct}%)` : `the previous grade (${prevPct}%)`}. The reason is stored with the grade and the audit log.`}
+              hint={`Your score differs from ${differsFromAi ? `the AI recommendation (${fmtPct(aiPct)})` : `the previous grade (${fmtPct(prevPct)})`}. The reason is stored with the grade and the audit log.`}
             >
               <Textarea
                 id="override-reason"
@@ -461,7 +482,7 @@ export function GradeForm({ detail, onGraded }: { detail: GradingDetail; onGrade
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={`Submit a final grade of ${total?.toFixed(1)}%?`}
+        title={`Submit a final grade of ${fmtPct(total)}?`}
         description={
           needsReason
             ? "This overrides the existing recommendation. The learner will be notified and your reason is recorded."

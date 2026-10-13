@@ -963,13 +963,18 @@ async def submit(ctx: Ctx, attempt_id: uuid.UUID) -> AssessmentAttempt:
 # ============================================================================= finalize (public contract)
 
 
-async def finalize_attempt(db: AsyncSession, attempt: AssessmentAttempt) -> None:
+async def finalize_attempt(
+    db: AsyncSession, attempt: AssessmentAttempt, *, only_if_changed: bool = False
+) -> bool:
     """Recompute score / max / percentage / passed from the answers.
 
     Per answer ``final_score = manual_score ?? ai_score ?? auto_score`` (capped at the question maximum).
     The attempt becomes ``graded`` unless an answer is still ungraded (``needs_review``). When graded,
     emits ``assessment.attempt_graded``. Safe to call repeatedly (e.g. after AI or human re-grading).
+    With ``only_if_changed`` an already-graded attempt whose result is unchanged keeps its ``graded_at``
+    and emits nothing (so the learner is not re-notified). Returns whether a graded result was emitted.
     """
+    before = (attempt.status, attempt.percentage, attempt.passed)
     answers = await _answers(db, attempt.id)
     scores: list[float] = []
     max_total = 0.0
@@ -997,9 +1002,12 @@ async def finalize_attempt(db: AsyncSession, attempt: AssessmentAttempt) -> None
         attempt.status = AttemptStatus.NEEDS_REVIEW
         attempt.passed = None
         await db.flush()
-        return
+        return False
     pass_pct = float(settings_snap.get("pass_percentage", 70.0))
     attempt.passed = attempt.percentage >= pass_pct
+    if only_if_changed and before == (AttemptStatus.GRADED, attempt.percentage, attempt.passed):
+        await db.flush()
+        return False
     attempt.status = AttemptStatus.GRADED
     attempt.graded_at = utcnow()
     await db.flush()
@@ -1019,6 +1027,7 @@ async def finalize_attempt(db: AsyncSession, attempt: AssessmentAttempt) -> None
         },
     )
     # Learner notification is sent by the notifications module's subscriber to this event.
+    return True
 
 
 # ============================================================================= results
@@ -1221,8 +1230,9 @@ async def finalize_manual(ctx: Ctx, attempt_id: uuid.UUID) -> AssessmentAttempt:
     att = await get_attempt(ctx, attempt_id)
     if att.status not in (AttemptStatus.NEEDS_REVIEW, AttemptStatus.GRADED, AttemptStatus.SUBMITTED):
         raise Conflict("Only submitted attempts can be finalized", code="attempt_not_submitted")
+    previous_grader = att.graded_by
     att.graded_by = ctx.user_id
-    await finalize_attempt(ctx.db, att)
+    changed = await finalize_attempt(ctx.db, att, only_if_changed=True)
     if att.status != AttemptStatus.GRADED:
         answers = await _answers(ctx.db, att.id)
         raise Conflict(
@@ -1230,6 +1240,10 @@ async def finalize_manual(ctx: Ctx, attempt_id: uuid.UUID) -> AssessmentAttempt:
             code="answers_pending",
             details={"question_ids": [qid for qid, a in answers.items() if a.final_score is None]},
         )
+    if not changed:
+        # Already finalised with this exact result: idempotent — no new grade, audit entry or notification.
+        att.graded_by = previous_grader or ctx.user_id
+        return att
     ctx.db.add(
         Grade(
             organisation_id=ctx.org_id,

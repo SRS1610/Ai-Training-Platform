@@ -431,6 +431,13 @@ async def test_manual_review_flow_and_integrity(client):
     r = await client.post(f"{API}/attempts/{att['id']}/finalize", headers=assessor.headers)
     assert r.status_code == 200 and r.json()["status"] == "graded"
     assert r.json()["score"] == 6.0 and r.json()["percentage"] == round(6 / 7 * 100, 2)
+    # Finalising again is idempotent: same result, no second graded event (no re-notification) or grade.
+    events_before = sum(1 for e in GRADED_EVENTS if e["attempt_id"] == uuid.UUID(att["id"]))
+    graded_at = (await fetch(AssessmentAttempt, uuid.UUID(att["id"]))).graded_at
+    r = await client.post(f"{API}/attempts/{att['id']}/finalize", headers=assessor.headers)
+    assert r.status_code == 200 and r.json()["status"] == "graded" and r.json()["passed"] is True
+    assert (await fetch(AssessmentAttempt, uuid.UUID(att["id"]))).graded_at == graded_at
+    assert sum(1 for e in GRADED_EVENTS if e["attempt_id"] == uuid.UUID(att["id"])) == events_before == 1
     res = (await client.get(f"{API}/attempts/{att['id']}/result", headers=learner.headers)).json()
     lq = next(q for q in res["questions"] if q["id"] == long_q)
     assert lq["feedback"] == "Good structure" and lq["score"] == 4.0

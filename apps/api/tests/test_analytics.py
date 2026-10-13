@@ -117,6 +117,51 @@ async def test_course_analytics(client, scenario):
     assert overview[0]["course_id"] == str(sc.course.id) and overview[0]["enrolments"] == 3
 
 
+async def test_course_simulation_dimensions_engine_format_and_pass_rate(client, scenario):
+    """The engine stores ``{"dimensions": [{id, name, percent}]}``; course analytics must aggregate the list
+    (not the "dimensions" key) and use the same pass-rate denominator (completed sessions) as the
+    simulation's own analytics."""
+    from tests.ops_seed import seed_sim_session, seed_simulation
+
+    admin, sc = scenario
+    l1, l2, l3 = sc.learners
+
+    def engine(diag: float, comm: float) -> dict:
+        return {
+            "dimensions": [
+                {"id": "diag", "name": "Diagnosis", "percent": diag, "score": diag, "max": 100},
+                {"id": "comm", "name": "Communication", "percent": comm, "score": comm, "max": 100},
+            ]
+        }
+
+    async with tenant_session(admin.org_id) as s:
+        sim, scen = await seed_simulation(s, admin.org_id, sc.course.id, title="Zz engine-format sim")
+        await seed_sim_session(
+            s, admin.org_id, l1.user_id, sim, scen, score=80, band="Proficient", passed=True,
+            dimensions=engine(70, 90),
+        )
+        await seed_sim_session(
+            s, admin.org_id, l2.user_id, sim, scen, score=50, band="Developing", passed=False,
+            dimensions=engine(30, 50),
+        )
+        # An abandoned session (passed=False, no score) is not part of either pass-rate denominator.
+        gone = await seed_sim_session(
+            s, admin.org_id, l3.user_id, sim, scen, score=0, band="Novice", passed=False, dimensions={}
+        )
+        gone.status, gone.total_score = "abandoned", None
+        sim_id = sim.id
+
+    d = (await client.get(f"{API}/courses/{sc.course.id}", headers=admin.headers)).json()
+    row = next(x for x in d["simulations"] if x["simulation_id"] == str(sim_id))
+    assert {x["dimension"]: (x["name"], x["avg_score"]) for x in row["dimensions"]} == {
+        "diag": ("Diagnosis", 50.0),
+        "comm": ("Communication", 70.0),
+    }
+    assert row["sessions"] == 3 and row["completed"] == 2 and row["pass_rate"] == 50.0
+    own = (await client.get(f"/api/v1/simulations/{sim_id}/analytics", headers=admin.headers)).json()
+    assert own["pass_rate"] * 100 == row["pass_rate"]
+
+
 async def test_organisation_analytics(client, scenario):
     admin, sc = scenario
     r = await client.get(f"{API}/organisation", headers=admin.headers)

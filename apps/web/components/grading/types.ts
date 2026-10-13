@@ -116,6 +116,13 @@ export function gradePct(g: Pick<GradeOut, "score" | "max_score">): number {
   return Math.round(g.score * 100) / 100;
 }
 
+/** One percentage format everywhere in grading: one decimal place, trailing ".0" dropped (69.6% not "70%"). */
+export function fmtPct(v: number | null | undefined): string {
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
+  const r = Math.round(v * 10 + 1e-9) / 10;
+  return `${Number.isInteger(r) ? r : r.toFixed(1)}%`;
+}
+
 export const QUEUE_TABS = [
   { id: "needs_review", label: "Needs review", status: undefined, hint: "Everything awaiting a human decision" },
   { id: "ai_recommended", label: "AI recommended", status: "ai_graded", hint: "AI has scored — confirm or override" },
