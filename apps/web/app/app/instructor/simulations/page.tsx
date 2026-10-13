@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, Wand2, Workflow } from "lucide-react";
 import { Suspense, useState } from "react";
 import { ErrorState } from "@/components/common/error-state";
+import { AccessGate } from "@/components/grading/access-gate";
 import { useUrlState } from "@/components/grading/use-url-state";
 import { AIBuildDialog, CreateBlankDialog, TemplateDialog } from "@/components/sim-builder/create-dialogs";
 import { SimulationCard, SimulationGridSkeleton, StartCards, TemplateCard } from "@/components/sim-builder/list";
@@ -58,10 +59,12 @@ function SimulationsList() {
       <section aria-labelledby="start-heading">
         <SectionHeader title={<span id="start-heading">Start something new</span>} description="Pick an industry template, describe one to the AI, or start from a blank canvas." />
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          <StartCards onAI={() => setAiOpen(true)} onBlank={() => setBlankOpen(true)} />
-          {templates.isLoading
-            ? Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-72 rounded-3xl" />)
-            : (templates.data ?? []).map((t) => <TemplateCard key={t.key} t={t} onUse={() => setTemplate(t)} />)}
+          <Can permission="simulations.manage">
+            <StartCards onAI={() => setAiOpen(true)} onBlank={() => setBlankOpen(true)} />
+            {templates.isLoading
+              ? Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-72 rounded-3xl" />)
+              : (templates.data ?? []).map((t) => <TemplateCard key={t.key} t={t} onUse={() => setTemplate(t)} />)}
+          </Can>
         </div>
       </section>
 
@@ -129,8 +132,10 @@ function SimulationsList() {
 
 export default function SimulationsBuilderPage() {
   return (
-    <Suspense fallback={<SimulationGridSkeleton />}>
-      <SimulationsList />
-    </Suspense>
+    <AccessGate anyOf={["simulations.manage"]} area="the simulation builder">
+      <Suspense fallback={<SimulationGridSkeleton />}>
+        <SimulationsList />
+      </Suspense>
+    </AccessGate>
   );
 }

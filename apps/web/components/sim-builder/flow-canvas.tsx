@@ -141,15 +141,19 @@ export function FlowCanvas(props: FlowCanvasProps) {
           fitView
           fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
           onInit={(inst) => {
-            // Large scenarios fit at an unreadable zoom: start top-left on the phase row instead
-            // (the mini map and "Fit to screen" still give the overview).
+            // Large scenarios fit at an unreadable zoom (5–7px text): open at a readable zoom with the start
+            // phase near the top-left instead (the mini map and "Fit to screen" still give the overview).
             requestAnimationFrame(() => {
-              if (inst.getZoom() >= 0.45 || !inst.getNodes().length) return;
+              if (inst.getZoom() >= 0.75 || !inst.getNodes().length) return;
               const ns = inst.getNodes();
-              const minX = Math.min(...ns.map((n) => n.position.x));
-              const minY = Math.min(...ns.map((n) => n.position.y));
-              const zoom = 0.55;
-              inst.setViewport({ x: 40 - minX * zoom, y: 84 - minY * zoom, zoom });
+              const start = ns.find((n) => n.id === `phase:${ctx.initial}`) ?? ns.find((n) => n.type === "phase") ?? ns[0]!;
+              const box = wrapper.current?.getBoundingClientRect();
+              const w = box?.width ?? 1000;
+              const zoom = w < 640 ? 0.8 : 0.9;
+              // Leave room for the toolbar (top) and anything stacked above the phase row (events).
+              const above = Math.max(0, start.position.y - Math.min(...ns.map((n) => n.position.y)));
+              const top = Math.min(84 + above * zoom, (box?.height ?? 600) * 0.3);
+              inst.setViewport({ x: (w < 640 ? 24 : 56) - start.position.x * zoom, y: top - start.position.y * zoom, zoom });
             });
           }}
           minZoom={0.15}
@@ -159,7 +163,12 @@ export function FlowCanvas(props: FlowCanvasProps) {
           connectionLineStyle={{ stroke: "#6366f1", strokeWidth: 2, strokeDasharray: "6 4" }}
           snapToGrid
           snapGrid={[8, 8]}
-          className="bg-[radial-gradient(circle_at_20%_0%,rgba(99,102,241,0.06),transparent_40%),radial-gradient(circle_at_90%_90%,rgba(217,70,239,0.05),transparent_40%)]"
+          className={cn(
+            "bg-[radial-gradient(circle_at_20%_0%,rgba(99,102,241,0.06),transparent_40%),radial-gradient(circle_at_90%_90%,rgba(217,70,239,0.05),transparent_40%)]",
+            // WCAG 2.4.7: keyboard focus on a node (Tab) or an edge is always visible.
+            "[&_.react-flow__node:focus-visible]:rounded-2xl [&_.react-flow__node:focus-visible]:outline [&_.react-flow__node:focus-visible]:outline-[3px] [&_.react-flow__node:focus-visible]:outline-offset-4 [&_.react-flow__node:focus-visible]:outline-brand-500",
+            "[&_.react-flow__edge:focus-visible_.react-flow__edge-path]:!stroke-[4px] [&_.react-flow__edge:focus-visible]:outline-none",
+          )}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1.4} color="#cbd5e1" />
           <Controls showInteractive={false} position="bottom-left" className="!rounded-xl !border !border-slate-200 !shadow-lift [&>button]:!border-slate-100" />

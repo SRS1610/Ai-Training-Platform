@@ -333,6 +333,8 @@ export function SimEdgeView({ id, sourceX, sourceY, targetX, targetY, sourcePosi
             className="nodrag nopan pointer-events-auto absolute rounded-full px-2 py-0.5 text-2xs font-bold shadow-sm ring-1"
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              // Edges sit in their own z-indexed SVGs; lift the opaque label above every edge stroke.
+              zIndex: 1000,
               background: "white",
               color: style.text,
               boxShadow: `0 0 0 1px ${style.color}33`,

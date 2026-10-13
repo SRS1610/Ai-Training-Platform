@@ -87,14 +87,14 @@ export function IssueList({ issues }: { issues: MappedIssue[] }) {
   );
 }
 
-function Text({ label, value, onChange, multiline, rows, mono, hint, placeholder }: { label: string; value: string | null | undefined; onChange: (v: string) => void; multiline?: boolean; rows?: number; mono?: boolean; hint?: React.ReactNode; placeholder?: string }) {
+function Text({ label, value, onChange, multiline, rows, mono, hint, placeholder, className }: { label: string; value: string | null | undefined; onChange: (v: string) => void; multiline?: boolean; rows?: number; mono?: boolean; hint?: React.ReactNode; placeholder?: string; className?: string }) {
   const id = useFieldId();
   return (
-    <FieldRow label={label} htmlFor={id} hint={hint}>
+    <FieldRow label={label} htmlFor={id} hint={hint} className={className}>
       {multiline ? (
         <MiniTextarea id={id} rows={rows ?? 3} mono={mono} value={value ?? ""} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
       ) : (
-        <MiniInput id={id} mono={mono} value={value ?? ""} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+        <MiniInput id={id} mono={mono} value={value ?? ""} placeholder={placeholder} title={mono && value ? value : undefined} onChange={(e) => onChange(e.target.value)} />
       )}
     </FieldRow>
   );
@@ -598,8 +598,18 @@ const bandKey = (name: string) => name.toLowerCase().replace(/[\s-]+/g, "_");
 export function BandPreview({ bands, passMark }: { bands: BandSpec[]; passMark?: number }) {
   const sorted = [...bands].sort((a, b) => a.min - b.min);
   return (
-    <figure>
-      <div className="relative flex h-9 overflow-hidden rounded-xl ring-1 ring-slate-200" role="img" aria-label={`Bands: ${sorted.map((b) => `${b.name} from ${b.min}`).join(", ")}`}>
+    <figure className="relative pt-6">
+      {passMark !== undefined && (
+        // Marker label sits above the bar so it never covers a band name.
+        <span
+          className="absolute top-0 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-1.5 py-px text-2xs font-bold text-white"
+          style={{ left: `clamp(1.75rem, ${passMark}%, calc(100% - 1.75rem))` }}
+          aria-hidden
+        >
+          pass {passMark}
+        </span>
+      )}
+      <div className="relative flex h-9 overflow-hidden rounded-xl ring-1 ring-slate-200" role="img" aria-label={`Bands: ${sorted.map((b) => `${b.name} from ${b.min}`).join(", ")}${passMark !== undefined ? `; pass mark ${passMark}` : ""}`}>
         {sorted.map((b, i) => {
           const end = sorted[i + 1]?.min ?? 100;
           const width = Math.max(0, Math.min(100, end) - Math.max(0, b.min));
@@ -612,9 +622,7 @@ export function BandPreview({ bands, passMark }: { bands: BandSpec[]; passMark?:
           );
         })}
         {passMark !== undefined && (
-          <div className="absolute inset-y-0 w-0.5 bg-slate-900" style={{ left: `${passMark}%` }} aria-hidden>
-            <span className="absolute -top-0.5 left-1 rounded bg-slate-900 px-1 text-2xs font-bold text-white">pass {passMark}</span>
-          </div>
+          <div className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-slate-900 ring-1 ring-white/70" style={{ left: `${passMark}%` }} aria-hidden />
         )}
       </div>
       <figcaption className="mt-1 flex justify-between text-2xs tabular-nums text-slate-500">
@@ -677,8 +685,8 @@ export function ScoringTab({ def, onChange, ctx, issues }: TabProps) {
                   <span className={cn("size-3 shrink-0 rounded-full", dimColor(i).dot)} aria-hidden />
                   <MiniInput aria-label={`Dimension ${i + 1} name`} className="flex-1 font-semibold" value={d.name} onChange={(e) => update({ ...d, name: e.target.value })} />
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <Text label="Id" value={d.id} onChange={(v) => update({ ...d, id: v })} mono />
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]">
+                  <Text label="Id" value={d.id} onChange={(v) => update({ ...d, id: v })} mono className="col-span-2 lg:col-span-1" />
                   <FieldRow label="Weight %">
                     <NumberInput aria-label={`${d.name} weight`} min={0} max={100} step={1} value={d.weight} onChange={(n) => update({ ...d, weight: n ?? 0 })} />
                   </FieldRow>

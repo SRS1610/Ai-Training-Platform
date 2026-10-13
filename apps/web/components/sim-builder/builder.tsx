@@ -12,6 +12,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Sheet,
   SheetContent,
   SheetTitle,
@@ -33,6 +37,7 @@ import {
   History,
   Loader2,
   MessageSquare,
+  MoreHorizontal,
   PanelsTopLeft,
   PanelRightOpen,
   Play,
@@ -658,6 +663,8 @@ function BuilderInner({ id }: { id: string }) {
     }
   };
 
+  const playTestUnavailable = () => toast.info("Publish the simulation first — play testing runs the latest published version in the learner player.");
+
   const goToIssue = (i: MappedIssue) => {
     setProblemsOpen(false);
     if (i.nodeId) {
@@ -753,7 +760,7 @@ function BuilderInner({ id }: { id: string }) {
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap">
           {dirty && (
             <Button variant="ghost" size="sm" leftIcon={<RotateCcw />} onClick={() => setDiscardOpen(true)}>
               Discard
@@ -762,32 +769,56 @@ function BuilderInner({ id }: { id: string }) {
           <Button variant="secondary" size="sm" leftIcon={<ShieldCheck />} onClick={validate} loading={validating}>
             Validate
           </Button>
-          <Button variant="secondary" size="sm" leftIcon={<History />} onClick={() => setVersionsOpen(true)}>
-            Versions
-          </Button>
-          <Button variant="ghost" size="sm" leftIcon={<BarChart3 />} asChild>
-            <Link href={`/app/instructor/simulations/${id}/analytics`}>Analytics</Link>
-          </Button>
-          {published ? (
-            <Button variant="secondary" size="sm" leftIcon={<Play />} asChild>
-              <a href={`/app/simulations/${id}`} target="_blank" rel="noopener noreferrer" title={`Opens the learner player on published v${published} in a new tab`}>
-                Play test
-              </a>
+          {/* Secondary actions inline on very wide screens, in a "More" menu otherwise (no wrapping at 1440). */}
+          <div className="hidden items-center gap-2 2xl:flex">
+            <Button variant="secondary" size="sm" leftIcon={<History />} onClick={() => setVersionsOpen(true)}>
+              Versions
             </Button>
-          ) : (
-            <Tooltip content="Play testing runs the latest published version — publish first.">
-              <Button
-                variant="secondary"
-                size="sm"
-                leftIcon={<Play />}
-                aria-disabled
-                className="opacity-60"
-                onClick={() => toast.info("Publish the simulation first — play testing runs the latest published version in the learner player.")}
-              >
-                Play test
+            <Button variant="ghost" size="sm" leftIcon={<BarChart3 />} asChild>
+              <Link href={`/app/instructor/simulations/${id}/analytics`}>Analytics</Link>
+            </Button>
+            {published ? (
+              <Button variant="secondary" size="sm" leftIcon={<Play />} asChild>
+                <a href={`/app/simulations/${id}`} target="_blank" rel="noopener noreferrer" title={`Opens the learner player on published v${published} in a new tab`}>
+                  Play test
+                </a>
               </Button>
-            </Tooltip>
-          )}
+            ) : (
+              <Tooltip content="Play testing runs the latest published version — publish first.">
+                <Button variant="secondary" size="sm" leftIcon={<Play />} aria-disabled className="opacity-60" onClick={playTestUnavailable}>
+                  Play test
+                </Button>
+              </Tooltip>
+            )}
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="sm" leftIcon={<MoreHorizontal />} className="2xl:hidden">
+                More
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onSelect={() => setVersionsOpen(true)}>
+                <History aria-hidden /> Versions
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/app/instructor/simulations/${id}/analytics`}>
+                  <BarChart3 aria-hidden /> Analytics
+                </Link>
+              </DropdownMenuItem>
+              {published ? (
+                <DropdownMenuItem asChild>
+                  <a href={`/app/simulations/${id}`} target="_blank" rel="noopener noreferrer">
+                    <Play aria-hidden /> Play test v{published}
+                  </a>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onSelect={playTestUnavailable}>
+                  <Play aria-hidden /> Play test (publish first)
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" leftIcon={<Save />} onClick={() => void save()} loading={saving} disabled={!dirty}>
             Save
           </Button>

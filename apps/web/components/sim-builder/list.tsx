@@ -16,6 +16,7 @@ import {
   humanize,
   toast,
 } from "@praxis/ui";
+import type { Page } from "@praxis/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -198,7 +199,12 @@ export function SimulationCard({ s }: { s: SimulationOut }) {
     mutationFn: () => api.delete(`/simulations/${s.id}`),
     onSuccess: () => {
       toast.success("Simulation archived");
-      qc.invalidateQueries({ queryKey: sk.all });
+      // Drop the card immediately and forget its per-simulation queries (refetching them would 404).
+      for (const k of [sk.sessionsCount(s.id), sk.detail(s.id), sk.draft(s.id), sk.graph(s.id), sk.analytics(s.id)]) qc.removeQueries({ queryKey: k, exact: true });
+      qc.setQueriesData<Page<SimulationOut>>({ queryKey: ["simulations", "list"] }, (old) =>
+        old && old.items.some((x) => x.id === s.id) ? { ...old, items: old.items.filter((x) => x.id !== s.id), total: Math.max(0, old.total - 1) } : old,
+      );
+      qc.invalidateQueries({ queryKey: ["simulations", "list"] });
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
