@@ -4935,6 +4935,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Effective Grading Mode */
+            effective_grading_mode?: string | null;
             /**
              * Items
              * @default []
@@ -4995,6 +4997,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Effective Grading Mode */
+            effective_grading_mode?: string | null;
         };
         /** AssessmentStats */
         AssessmentStats: {
@@ -5178,6 +5182,8 @@ export interface components {
             created_by: string | null;
             /** Ai Generated */
             ai_generated: boolean;
+            /** Effective Grading Mode */
+            effective_grading_mode?: string | null;
         };
         /** AssignmentUpdate */
         AssignmentUpdate: {
@@ -9806,6 +9812,8 @@ export interface components {
             passed?: boolean | null;
             /** Graded At */
             graded_at?: string | null;
+            /** Effective Grading Mode */
+            effective_grading_mode?: string | null;
         };
         /** RatingIn */
         RatingIn: {
@@ -10257,6 +10265,8 @@ export interface components {
             high_stakes: boolean;
             /** Grading Mode */
             grading_mode: string;
+            /** Effective Grading Mode */
+            effective_grading_mode?: string | null;
         };
         /** RevokeIn */
         RevokeIn: {
