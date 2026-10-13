@@ -264,6 +264,8 @@ function dTone(d: number | null) {
 export function QuestionTable({ rows }: { rows: QuestionRow[] }) {
   const [sort, setSort] = React.useState<"p" | "d" | "responses">("p");
   const [onlyFlagged, setOnlyFlagged] = React.useState(false);
+  const [showAll, setShowAll] = React.useState(false);
+  const LIMIT = 12;
   const sorted = [...rows]
     .filter((r) => !onlyFlagged || r.needs_review)
     .sort((a, b) => (sort === "p" ? (a.p_value ?? 2) - (b.p_value ?? 2) : sort === "d" ? (a.discrimination ?? 2) - (b.discrimination ?? 2) : b.responses - a.responses));
@@ -290,7 +292,7 @@ export function QuestionTable({ rows }: { rows: QuestionRow[] }) {
           <span className="font-semibold">p-value</span> = share answering correctly (low = hard) · <span className="font-semibold">discrimination</span> = correlation with total score (&lt; 0.2 is weak)
         </p>
       </div>
-      <div className="overflow-hidden rounded-2xl border border-slate-200">
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 scrollbar-thin">
         <Table aria-label="Question difficulty and discrimination">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -303,7 +305,7 @@ export function QuestionTable({ rows }: { rows: QuestionRow[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sorted.map((q) => (
+            {(showAll ? sorted : sorted.slice(0, LIMIT)).map((q) => (
               <TableRow key={q.question_id}>
                 <TableCell className="max-w-md">
                   <p className="line-clamp-2 text-sm text-slate-800" title={q.prompt ?? undefined}>
@@ -338,6 +340,16 @@ export function QuestionTable({ rows }: { rows: QuestionRow[] }) {
           </TableBody>
         </Table>
       </div>
+      {sorted.length > LIMIT && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-slate-500" aria-live="polite">
+            Showing {showAll ? sorted.length : LIMIT} of {sorted.length} questions
+          </p>
+          <Button size="sm" variant="soft" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll}>
+            {showAll ? "Show fewer" : `Show all ${sorted.length}`}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

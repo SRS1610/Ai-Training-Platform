@@ -276,7 +276,6 @@ function DepartmentDetail({
   onDelete: () => void;
   onSelect: (id: string) => void;
 }) {
-  const c = colorClasses(colorFor(dept.name));
   const teams = useTeams();
   const deptTeams = (teams.data ?? []).filter((t) => t.department_id === dept.id);
   const manager = useQuery({

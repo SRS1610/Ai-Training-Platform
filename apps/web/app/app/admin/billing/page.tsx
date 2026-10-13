@@ -26,6 +26,7 @@ import {
   type CategoryColor,
   type ColumnDef,
 } from "@praxis/ui";
+import { Sparkline } from "@praxis/ui/charts";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -101,7 +102,6 @@ function planPrice(p: PlanOut, interval: "month" | "year") {
 
 function CurrentPlan({ sub, onSeats, onCancel, onResume, onPortal, portalBusy }: { sub: SubscriptionOut; onSeats: () => void; onCancel: () => void; onResume: () => void; onPortal: () => void; portalBusy: boolean }) {
   const style = PLAN_STYLE[sub.plan.code] ?? PLAN_STYLE.business!;
-  const c = colorClasses(style.color);
   const Icon = style.icon;
   const price = planPrice(sub.plan, sub.billing_interval === "year" ? "year" : "month");
   const limit = sub.seat_limit ?? sub.seats_purchased;
@@ -229,9 +229,15 @@ function AIUsageCard() {
           </div>
           <Progress value={pct} size="md" className="mt-2" color={pct >= 90 ? "rose" : pct >= 75 ? "orange" : pct >= 50 ? "amber" : "emerald"} aria-label="AI budget used" />
           <p className="mt-1.5 text-xs text-muted-foreground">
-            {u.budget_source === "plan" ? "Included in your plan" : u.budget_source === "custom" ? "Custom budget set in AI settings" : humanize(u.budget_source)} · {fmtNumber(u.requests)} requests
+            {u.budget_source === "plan" ? "Included in your plan" : u.budget_source === "custom" || u.budget_source === "ai_configuration" ? "Budget set in AI settings" : humanize(u.budget_source)} · {fmtNumber(u.requests)} requests
           </p>
         </div>
+        {u.by_day.some((d) => d.cost_usd > 0) && (
+          <div className="rounded-xl bg-gradient-to-br from-fuchsia-50 to-white p-3 ring-1 ring-inset ring-fuchsia-100">
+            <p className="text-xs font-medium text-fuchsia-800">Daily AI spend</p>
+            <Sparkline data={u.by_day.map((d) => d.cost_usd)} color="#d946ef" height={44} className="mt-1" />
+          </div>
+        )}
         <dl className="grid grid-cols-2 gap-2">
           <div className="rounded-xl bg-emerald-50 p-3">
             <dt className="text-xs font-medium text-emerald-800">Included</dt>
@@ -378,7 +384,7 @@ function Invoices() {
         accessorKey: "description",
         header: "Description",
         cell: ({ row }) => (
-          <div className="min-w-[12rem]">
+          <div className="min-w-[9rem] max-w-[15rem]">
             <p className="font-medium text-slate-900">{row.original.description ?? "Subscription"}</p>
             {row.original.period_start && (
               <p className="text-xs text-muted-foreground">

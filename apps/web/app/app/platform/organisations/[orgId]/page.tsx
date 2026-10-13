@@ -14,7 +14,6 @@ import {
   StatusPill,
   Textarea,
   cn,
-  colorClasses,
   colorFor,
   humanize,
   toast,
@@ -100,7 +99,6 @@ function OrgDetail() {
     );
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} size="lg" title={q.error instanceof ApiError && q.error.isNotFound ? "Organisation not found" : undefined} />;
   const o = q.data!;
-  const c = colorClasses(colorFor(o.name));
   const planDef = plans.data?.find((p) => p.code === plan);
   const dirty = plan !== o.plan_code || JSON.stringify(overrides) !== JSON.stringify(initOverrides(o)) || (seats !== "" && Number(seats) !== ((o.settings as { seats?: number }).seats ?? o.subscription?.seats ?? NaN));
   const suspended = o.status === "suspended";
@@ -277,7 +275,7 @@ function OrgDetail() {
           <SectionCard title="Settings snapshot" icon={Building2} color="indigo">
             <dl className="grid grid-cols-2 gap-3">
               {Object.entries(o.settings)
-                .filter(([k]) => !["feature_overrides", "seats"].includes(k))
+                .filter(([k, v]) => !["feature_overrides", "seats"].includes(k) && v !== null && ["string", "number", "boolean"].includes(typeof v))
                 .slice(0, 8)
                 .map(([k, v]) => (
                   <Meta key={k} label={humanize(k)}>
@@ -285,6 +283,7 @@ function OrgDetail() {
                   </Meta>
                 ))}
             </dl>
+            {!Object.values(o.settings).some((v) => v !== null && ["string", "number", "boolean"].includes(typeof v)) && <p className="text-sm text-muted-foreground">No custom settings.</p>}
           </SectionCard>
         </div>
       </div>

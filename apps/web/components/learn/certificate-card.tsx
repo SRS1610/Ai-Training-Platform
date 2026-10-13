@@ -123,7 +123,7 @@ export function CertificateCard({ cert }: { cert: Certificate }) {
                 <dt className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-slate-500">
                   <Star className="size-3.5 text-amber-500" aria-hidden /> Score
                 </dt>
-                <dd className="mt-1 text-sm font-semibold tabular-nums text-slate-900">{cert.score === null ? "—" : `${Math.round(cert.score)}%`}</dd>
+                <dd className="mt-1 text-sm font-semibold tabular-nums text-slate-900">{cert.score === null ? "Completion" : `${Math.round(cert.score)}%`}</dd>
               </div>
               <div className="col-span-2 rounded-2xl bg-white/80 p-3 ring-1 ring-slate-200/80 sm:col-span-1">
                 <dt className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-slate-500">

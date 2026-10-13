@@ -340,13 +340,32 @@ function SortableItem({
           {index + 1}
         </span>
         <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-semibold text-slate-900">{item.course_title}</p>
-            {item.course_status && item.course_status !== "published" && (
-              <Badge tone="warning" size="sm" title="Learners are only enrolled in published courses">
-                {item.course_status}
-              </Badge>
-            )}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 pt-1">
+              <p className="font-semibold text-slate-900">{item.course_title}</p>
+              {item.course_status && item.course_status !== "published" && (
+                <Badge tone="warning" size="sm" title="Learners are only enrolled in published courses">
+                  {item.course_status}
+                </Badge>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                <Switch checked={item.is_required} onCheckedChange={(v) => onChange({ is_required: v })} aria-label={`${item.course_title} required`} />
+                <span className="w-14">{item.is_required ? "Required" : "Optional"}</span>
+              </label>
+              <div className="flex">
+                <Button variant="ghost" size="icon-sm" aria-label="Move up" disabled={index === 0} onClick={() => onMove(-1)}>
+                  <ArrowUp />
+                </Button>
+                <Button variant="ghost" size="icon-sm" aria-label="Move down" disabled={index === count - 1} onClick={() => onMove(1)}>
+                  <ArrowDown />
+                </Button>
+                <Button variant="ghost" size="icon-sm" aria-label={`Remove ${item.course_title}`} className="text-rose-600 hover:bg-rose-50" onClick={onRemove}>
+                  <Trash2 />
+                </Button>
+              </div>
+            </div>
           </div>
           <Input
             inputSize="sm"
@@ -356,23 +375,6 @@ function SortableItem({
             aria-label={`Note for ${item.course_title}`}
             maxLength={2000}
           />
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-            <Switch checked={item.is_required} onCheckedChange={(v) => onChange({ is_required: v })} aria-label={`${item.course_title} required`} />
-            <span className="hidden sm:inline">{item.is_required ? "Required" : "Optional"}</span>
-          </label>
-          <div className="flex">
-            <Button variant="ghost" size="icon-sm" aria-label="Move up" disabled={index === 0} onClick={() => onMove(-1)}>
-              <ArrowUp />
-            </Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Move down" disabled={index === count - 1} onClick={() => onMove(1)}>
-              <ArrowDown />
-            </Button>
-            <Button variant="ghost" size="icon-sm" aria-label={`Remove ${item.course_title}`} className="text-rose-600 hover:bg-rose-50" onClick={onRemove}>
-              <Trash2 />
-            </Button>
-          </div>
         </div>
       </div>
     </li>

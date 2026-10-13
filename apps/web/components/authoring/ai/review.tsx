@@ -281,8 +281,8 @@ function courseTree(c: GenCourse): TreeNode[] {
   );
   c.assignments.forEach((a, i) => nodes.push({ id: `a:${i}`, label: a.title, icon: ClipboardCheck, color: "amber", meta: `Assignment · ${a.rubric.criteria.length}-criterion rubric` }));
   if (c.final_assessment) nodes.push({ id: "final", label: c.final_assessment.title, icon: FileQuestion, color: "rose", meta: `Final · ${c.final_assessment.questions.length} questions` });
-  if (c.flashcards) nodes.push({ id: "flashcards", label: c.flashcards.title, icon: Layers, color: "orange", meta: `${c.flashcards.cards.length} cards` });
-  if (c.revision_notes) nodes.push({ id: "notes", label: c.revision_notes.title, icon: NotebookText, color: "teal", meta: `${c.revision_notes.sections.length} sections` });
+  if (c.flashcards) nodes.push({ id: "flashcards", label: c.flashcards.title, icon: Layers, color: "orange", meta: `Flashcards · ${c.flashcards.cards.length} cards` });
+  if (c.revision_notes) nodes.push({ id: "notes", label: c.revision_notes.title, icon: NotebookText, color: "teal", meta: `Revision notes · ${c.revision_notes.sections.length} sections` });
   if (c.simulation_suggestion) nodes.push({ id: "sim", label: c.simulation_suggestion.title, icon: MonitorPlay, color: "fuchsia", meta: "Simulation idea" });
   return nodes;
 }
@@ -306,7 +306,7 @@ function TreeItem({ node, selected, onSelect, depth = 0 }: { node: TreeNode; sel
             <node.icon className="size-3.5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className={cn("block truncate text-sm", on ? "font-semibold text-brand-900" : depth === 0 ? "font-semibold text-slate-900" : "text-slate-700")}>{node.label}</span>
+            <span className={cn("line-clamp-2 block text-sm leading-snug", on ? "font-semibold text-brand-900" : depth === 0 ? "font-semibold text-slate-900" : "text-slate-700")}>{node.label}</span>
             {node.meta && <span className="block truncate text-2xs text-muted-foreground">{node.meta}</span>}
           </span>
         </button>
@@ -830,7 +830,7 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
                 </Badge>
               )}
             </div>
-            <h2 className="truncate font-display text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">{String((doc as { title?: string } | null)?.title ?? gen.title ?? "Generation")}</h2>
+            <h2 className="line-clamp-2 font-display text-xl font-bold tracking-tight text-slate-900 sm:line-clamp-1 sm:text-2xl">{String((doc as { title?: string } | null)?.title ?? gen.title ?? "Generation")}</h2>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <Cpu className="size-3.5" aria-hidden /> {gen.provider ?? "—"}

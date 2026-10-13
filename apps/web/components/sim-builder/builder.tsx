@@ -47,7 +47,7 @@ import {
   Workflow,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
 import { ApiError, api, errorMessage } from "@/lib/api";
@@ -226,11 +226,16 @@ function AddNodeDialog({
 
 function BuilderInner({ id }: { id: string }) {
   const qc = useQueryClient();
-  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const tab = (TABS.some((t) => t.id === params.get("tab")) ? params.get("tab") : "flow") as BuilderTab;
-  const setTab = (t: BuilderTab) => router.replace(t === "flow" ? pathname : `${pathname}?tab=${t}`, { scroll: false });
+  const urlTab = (TABS.some((t) => t.id === params.get("tab")) ? params.get("tab") : "flow") as BuilderTab;
+  // Local state for instant switching; the URL is kept in sync with a shallow history update.
+  const [tab, setTabState] = React.useState<BuilderTab>(urlTab);
+  React.useEffect(() => setTabState(urlTab), [urlTab]);
+  const setTab = (t: BuilderTab) => {
+    setTabState(t);
+    window.history.replaceState(null, "", t === "flow" ? pathname : `${pathname}?tab=${t}`);
+  };
 
   const simQ = useQuery({ queryKey: sk.detail(id), queryFn: ({ signal }) => api.get<SimulationOut>(`/simulations/${id}`, { signal }) });
   const graphQ = useQuery({ queryKey: sk.graph(id), queryFn: ({ signal }) => api.get<GraphOut>(`/simulations/${id}/graph`, { signal }), staleTime: Infinity, refetchOnWindowFocus: false });

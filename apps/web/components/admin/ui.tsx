@@ -80,10 +80,17 @@ export function fmtBytes(n: number | null | undefined): string {
 
 export function fmtDuration(seconds: number | null | undefined): string {
   if (!seconds) return "0m";
+  if (seconds < 60) return "<1m";
   const h = Math.floor(seconds / 3600);
   const m = Math.round((seconds % 3600) / 60);
   if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
   return h ? `${h}h ${m}m` : `${m}m`;
+}
+
+/** "1 request", "3 requests". */
+export function plural(n: number | null | undefined, word: string, pluralWord = `${word}s`): string {
+  const v = n ?? 0;
+  return `${fmtNumber(v)} ${v === 1 ? word : pluralWord}`;
 }
 
 /* ------------------------------------------------------------------ errors */

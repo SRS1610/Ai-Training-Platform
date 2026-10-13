@@ -3,6 +3,7 @@
 import type { Page } from "@praxis/types";
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
   DataTable,
@@ -14,6 +15,7 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
+  SimpleSelect,
   Skeleton,
   cn,
   colorClasses,
@@ -27,7 +29,9 @@ import { Bot, Download, FileClock, Fingerprint, Globe, KeyRound, Link2, ShieldCh
 import * as React from "react";
 import { Suspense } from "react";
 import { ak } from "@/components/admin/keys";
-import type { AuditLogOut, ChainVerification } from "@/components/admin/types";
+import { DateRangePicker } from "@/components/admin/date-range";
+import { MemberSelect } from "@/components/admin/pickers";
+import type { AuditLogOut, ChainVerification, MemberOut } from "@/components/admin/types";
 import { CopyButton, JsonView, Meta, PageGate, fmtNumber, toastError, useSetUrlParams, useUrlState } from "@/components/admin/ui";
 import { ErrorState } from "@/components/common/error-state";
 import { api } from "@/lib/api";
@@ -54,11 +58,45 @@ function ActorIcon({ type }: { type: string }) {
   );
 }
 
+const ALL = "all";
+const FAMILIES = [
+  { value: "auth.", label: "Sign-ins & sessions" },
+  { value: "member.", label: "Members" },
+  { value: "user.", label: "User accounts" },
+  { value: "invitation.", label: "Invitations" },
+  { value: "role.", label: "Roles" },
+  { value: "team.", label: "Teams" },
+  { value: "department.", label: "Departments" },
+  { value: "organisation.", label: "Organisation" },
+  { value: "sso.", label: "Single sign-on" },
+  { value: "api_key.", label: "API keys" },
+  { value: "course.", label: "Courses" },
+  { value: "learning_path.", label: "Learning paths" },
+  { value: "enrolment.", label: "Enrolments" },
+  { value: "assessment.", label: "Assessments" },
+  { value: "question.", label: "Questions" },
+  { value: "question_bank.", label: "Question banks" },
+  { value: "competency.", label: "Competencies" },
+  { value: "skill.", label: "Skills" },
+  { value: "assignment.", label: "Assignments" },
+  { value: "submission.", label: "Submissions" },
+  { value: "grade.", label: "Grading" },
+  { value: "certificate.", label: "Certificates" },
+  { value: "simulation.", label: "Simulations" },
+  { value: "knowledge.", label: "Knowledge base" },
+  { value: "ai.", label: "AI" },
+  { value: "report.", label: "Reports" },
+  { value: "billing.", label: "Billing" },
+  { value: "privacy.", label: "Privacy" },
+  { value: "platform.", label: "Platform" },
+];
+
 const toIso = (d: string, end = false) => (d ? new Date(`${d}T${end ? "23:59:59" : "00:00:00"}`).toISOString() : undefined);
 
 function AuditPage() {
   const [action, setAction] = useUrlState("action");
-  const [actor, setActor] = useUrlState("actor");
+  const [actor] = useUrlState("actor");
+  const [actorName] = useUrlState("actor_name");
   const [entity, setEntity] = useUrlState("entity");
   const [from, setFrom] = useUrlState("from");
   const [to, setTo] = useUrlState("to");
@@ -68,7 +106,25 @@ function AuditPage() {
   const [verify, setVerify] = React.useState<ChainVerification | null>(null);
   React.useEffect(() => setPagination((p) => ({ ...p, pageIndex: 0 })), [action, actor, entity, from, to]);
 
-  const filters = { action: action || undefined, actor: actor || undefined, entity_type: entity || undefined, date_from: toIso(from), date_to: toIso(to, true) };
+  // The log stores user ids only (no e-mails, so personal data stays erasable): resolve names client-side.
+  const people = useQuery({
+    queryKey: ak.members.list({ directory: true }),
+    queryFn: ({ signal }) => api.get<Page<MemberOut>>("/users", { signal, query: { page_size: 200 } }),
+    staleTime: 5 * 60_000,
+  });
+  const peopleById = React.useMemo(() => new Map((people.data?.items ?? []).map((m) => [m.user_id, m])), [people.data]);
+  const actorOf = React.useCallback(
+    (r: AuditLogOut) => {
+      const m = r.actor_user_id ? peopleById.get(r.actor_user_id) : undefined;
+      if (m) return { name: m.full_name, sub: m.email, avatar: m.avatar_url };
+      if (r.actor_label) return { name: r.actor_label, sub: humanize(r.actor_type), avatar: null };
+      if (r.actor_user_id) return { name: "Former or platform user", sub: `User ${r.actor_user_id.slice(0, 8)}`, avatar: null };
+      return { name: r.actor_type === "user" ? "System" : humanize(r.actor_type), sub: "Automated", avatar: null };
+    },
+    [peopleById],
+  );
+
+  const filters = { action: action || undefined, actor_user_id: actor || undefined, entity_type: entity || undefined, date_from: toIso(from), date_to: toIso(to, true) };
   const params = { ...filters, page: pagination.pageIndex + 1, page_size: pagination.pageSize };
   const list = useQuery({
     queryKey: ak.audit.list(params),
@@ -103,15 +159,19 @@ function AuditPage() {
         id: "actor",
         header: "Actor",
         enableSorting: false,
-        cell: ({ row }) => (
-          <div className="flex min-w-[11rem] items-center gap-2.5">
-            <ActorIcon type={row.original.actor_type} />
-            <div className="min-w-0">
-              <p className="truncate font-medium text-slate-900">{row.original.actor_label ?? "System"}</p>
-              <p className="text-xs text-muted-foreground">{humanize(row.original.actor_type)}</p>
+        cell: ({ row }) => {
+          const a = actorOf(row.original);
+          const known = !!(row.original.actor_user_id && peopleById.get(row.original.actor_user_id));
+          return (
+            <div className="flex min-w-[12rem] max-w-[18rem] items-center gap-2.5">
+              {known ? <Avatar name={a.name} src={a.avatar} size="sm" /> : <ActorIcon type={row.original.actor_type} />}
+              <div className="min-w-0">
+                <p className="truncate font-medium text-slate-900">{a.name}</p>
+                <p className="truncate text-xs text-muted-foreground">{a.sub}</p>
+              </div>
             </div>
-          </div>
-        ),
+          );
+        },
       },
       { accessorKey: "action", header: "Action", enableSorting: false, cell: ({ row }) => <ActionChip action={row.original.action} /> },
       {
@@ -130,12 +190,12 @@ function AuditPage() {
       },
       { accessorKey: "ip_address", header: "IP", enableSorting: false, meta: { label: "IP" }, cell: ({ row }) => <span className="font-mono text-xs text-slate-600">{row.original.ip_address ?? "—"}</span> },
     ],
-    [],
+    [actorOf, peopleById],
   );
 
   const chips = [
     action && { key: "action", label: `Action: ${action}`, onRemove: () => setAction("") },
-    actor && { key: "actor", label: `Actor: ${actor}`, onRemove: () => setActor("") },
+    actor && { key: "actor", label: `Actor: ${actorName || peopleById.get(actor)?.full_name || "selected person"}`, onRemove: () => setMany({ actor: null, actor_name: null }) },
     entity && { key: "entity", label: `Entity: ${entity}`, onRemove: () => setEntity("") },
     from && { key: "from", label: `From ${from}`, onRemove: () => setFrom("") },
     to && { key: "to", label: `To ${to}`, onRemove: () => setTo("") },
@@ -197,24 +257,34 @@ function AuditPage() {
           onPaginationChange={setPagination}
           getRowId={(r) => r.id}
           onRowClick={setOpen}
+          columnToggle={false}
           toolbar={
             <FilterBar
-              search={actor}
-              onSearchChange={setActor}
-              searchPlaceholder="Actor email or key…"
+              search={action}
+              onSearchChange={(v) => setAction(v.trim())}
+              searchPlaceholder="Action, e.g. member. or role.updated…"
               chips={chips}
-              onClearAll={chips.length > 1 ? () => setMany({ action: null, actor: null, entity: null, from: null, to: null }) : undefined}
+              onClearAll={chips.length > 1 ? () => setMany({ action: null, actor: null, actor_name: null, entity: null, from: null, to: null }) : undefined}
             >
-              <DebouncedInput value={action} onChange={setAction} placeholder="Action, e.g. member. or role.updated" label="Action" className="w-full sm:w-64" />
-              <DebouncedInput value={entity} onChange={setEntity} placeholder="Entity type" label="Entity type" className="w-full sm:w-36" />
-              <label htmlFor="audit-from" className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                From
-                <Input id="audit-from" type="date" inputSize="sm" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className="w-[9.5rem]" />
-              </label>
-              <label htmlFor="audit-to" className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                To
-                <Input id="audit-to" type="date" inputSize="sm" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className="w-[9.5rem]" />
-              </label>
+              <SimpleSelect
+                aria-label="Action family"
+                value={FAMILIES.some((f) => f.value === action) ? action : ALL}
+                onValueChange={(v) => setAction(v === ALL ? "" : v)}
+                className="h-9 w-full sm:w-[10.5rem]"
+                options={[{ value: ALL, label: "All activity" }, ...FAMILIES]}
+              />
+              <MemberSelect
+                compact
+                anyStatus
+                aria-label="Actor"
+                placeholder="Anyone"
+                value={actor ? { value: actor, label: actorName || peopleById.get(actor)?.full_name || "Selected person" } : null}
+                onChange={(o) => setMany({ actor: o?.value ?? null, actor_name: o?.label ?? null })}
+                allowClear={false}
+                className="w-full sm:w-[11rem]"
+              />
+              <DebouncedInput value={entity} onChange={setEntity} placeholder="Entity type, e.g. role" label="Entity type" className="w-full sm:w-36" />
+              <DateRangePicker value={{ start: from, end: to }} onChange={(v) => setMany({ from: v.start || null, to: v.end || null })} className="h-9 w-full sm:w-auto" />
             </FilterBar>
           }
           empty={{ title: chips.length ? "No entries match these filters" : "No audit events yet", description: "Administrative and security events are recorded here automatically." }}
@@ -234,7 +304,10 @@ function AuditPage() {
               </SheetHeader>
               <div className="space-y-6 px-6 pb-8">
                 <dl className="grid grid-cols-2 gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-                  <Meta label="Actor">{open.actor_label ?? "System"}</Meta>
+                  <Meta label="Actor">
+                    {actorOf(open).name}
+                    {open.actor_user_id && peopleById.get(open.actor_user_id) && <span className="block truncate text-xs font-normal text-muted-foreground">{actorOf(open).sub}</span>}
+                  </Meta>
                   <Meta label="Actor type">{humanize(open.actor_type)}</Meta>
                   <Meta label="Entity">{open.entity_type ? humanize(open.entity_type) : "—"}</Meta>
                   <Meta label="Entity ID">
@@ -291,7 +364,7 @@ function DebouncedInput({ value, onChange, placeholder, label, className }: { va
   }, [v]);
   return (
     <div className={className}>
-      <Input inputSize="sm" value={v} onChange={(e) => setV(e.target.value)} placeholder={placeholder} aria-label={label} className="font-mono text-xs" />
+      <Input inputSize="sm" value={v} onChange={(e) => setV(e.target.value)} placeholder={placeholder} aria-label={label} />
     </div>
   );
 }

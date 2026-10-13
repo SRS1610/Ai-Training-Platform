@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { ak } from "./keys";
 import type { AIUsageOut } from "./types";
-import { BarList, SectionCard, fmtCompact, fmtNumber, fmtUsd, humanizeFeature, toastError } from "./ui";
+import { BarList, SectionCard, plural, fmtCompact, fmtNumber, fmtUsd, humanizeFeature, toastError } from "./ui";
 
 /* ------------------------------------------------------------------ gauge */
 
@@ -218,7 +218,7 @@ export function AIUsageDashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         <SectionCard title="Spend by feature" icon={Layers} color="indigo">
           <BarList
-            data={u.by_feature.map((f) => ({ key: f.key ?? "unknown", label: humanizeFeature(f.key ?? f.label), value: f.cost_usd, display: fmtUsd(f.cost_usd), hint: `${fmtNumber(f.requests)} requests` }))}
+            data={u.by_feature.map((f) => ({ key: f.key ?? "unknown", label: humanizeFeature(f.key ?? f.label), value: f.cost_usd, display: fmtUsd(f.cost_usd), hint: plural(f.requests, "request") }))}
             empty="No AI usage yet this month"
           />
         </SectionCard>
@@ -229,7 +229,7 @@ export function AIUsageDashboard() {
               label: <span className="font-mono text-[13px]">{x.label ?? x.key ?? "unknown"}</span>,
               value: x.cost_usd,
               display: fmtUsd(x.cost_usd),
-              hint: `${fmtNumber(x.requests)} requests · ${fmtCompact(x.tokens_in + x.tokens_out)} tokens`,
+              hint: `${plural(x.requests, "request")} · ${fmtCompact(x.tokens_in + x.tokens_out)} tokens`,
               color: MODEL_COLORS[i % MODEL_COLORS.length],
             }))}
             empty="No AI usage yet this month"
@@ -237,7 +237,7 @@ export function AIUsageDashboard() {
         </SectionCard>
         <SectionCard title="Spend by course" icon={BookOpen} color="emerald">
           <BarList
-            data={u.by_course.slice(0, 8).map((f) => ({ key: f.key ?? "none", label: f.label ?? "Outside a course", value: f.cost_usd, display: fmtUsd(f.cost_usd), hint: `${fmtNumber(f.requests)} requests` }))}
+            data={u.by_course.slice(0, 8).map((f) => ({ key: f.key ?? "none", label: f.label ?? "Outside a course", value: f.cost_usd, display: fmtUsd(f.cost_usd), hint: plural(f.requests, "request") }))}
             empty="No course-linked usage yet"
           />
         </SectionCard>

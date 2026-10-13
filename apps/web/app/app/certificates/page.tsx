@@ -72,7 +72,7 @@ export default function CertificatesPage() {
       <section aria-label="Summary" className="stagger mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <KpiTile label="Certificates" value={q.isLoading ? "—" : certs.length} icon={<Award />} color="amber" hint="Earned in total" />
         <KpiTile label="Valid now" value={q.isLoading ? "—" : valid.length} icon={<ShieldCheck />} color="emerald" hint="Publicly verifiable" />
-        <KpiTile label="Average score" value={q.isLoading ? "—" : avg === null ? "—" : `${avg}%`} icon={<Star />} color="violet" hint="Across certified courses" />
+        <KpiTile label="Average score" value={q.isLoading ? "—" : avg === null ? "—" : `${avg}%`} icon={<Star />} color="violet" hint={avg === null && !q.isLoading ? "No scored courses yet" : "Across certified courses"} />
         <KpiTile label="Verified skills" value={q.isLoading ? "—" : skillCount} icon={<BadgeCheck />} color="sky" hint="Backed by a credential" />
       </section>
 

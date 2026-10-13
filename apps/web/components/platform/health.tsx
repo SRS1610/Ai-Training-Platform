@@ -107,7 +107,7 @@ export function SystemHealth() {
         aria-label="Overall status"
         className={cn(
           "relative flex flex-col gap-4 overflow-hidden rounded-3xl p-6 text-white shadow-glow sm:flex-row sm:items-center",
-          overall === "ok" ? "bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500" : overall === "warn" ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500" : "bg-gradient-to-r from-rose-600 via-rose-500 to-fuchsia-600",
+          overall === "ok" ? "bg-gradient-to-r from-emerald-700 via-teal-700 to-sky-700" : overall === "warn" ? "bg-gradient-to-r from-amber-700 via-orange-700 to-rose-700" : "bg-gradient-to-r from-rose-700 via-rose-600 to-fuchsia-700",
         )}
       >
         <div className="pointer-events-none absolute inset-0 bg-grid-faint opacity-20 [background-size:24px_24px]" aria-hidden />

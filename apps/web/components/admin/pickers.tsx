@@ -84,11 +84,11 @@ export function useCourseOptions(search: string, enabled = true) {
   });
 }
 
-export function useMemberSearch(search: string, enabled = true) {
+export function useMemberSearch(search: string, enabled = true, anyStatus = false) {
   const q = useDebounced(search);
   return useQuery({
-    queryKey: ak.members.search(q),
-    queryFn: ({ signal }) => api.get<Page<MemberOut>>("/users", { signal, query: { q: q || undefined, status: "active", page_size: 30 } }),
+    queryKey: [...ak.members.search(q), anyStatus],
+    queryFn: ({ signal }) => api.get<Page<MemberOut>>("/users", { signal, query: { q: q || undefined, status: anyStatus ? undefined : "active", page_size: 30 } }),
     enabled,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
@@ -452,6 +452,10 @@ export function MemberSelect({
   placeholder = "Choose a person",
   exclude,
   allowClear = true,
+  compact,
+  anyStatus,
+  className,
+  "aria-label": ariaLabel,
 }: {
   value: Option | null;
   onChange: (v: Option | null) => void;
@@ -459,20 +463,27 @@ export function MemberSelect({
   placeholder?: string;
   exclude?: string[];
   allowClear?: boolean;
+  /** 36px trigger for filter bars. */
+  compact?: boolean;
+  /** Include suspended / invited members in the search. */
+  anyStatus?: boolean;
+  className?: string;
+  "aria-label"?: string;
 }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState("");
-  const res = useMemberSearch(q, open);
+  const res = useMemberSearch(q, open, anyStatus);
   const items = (res.data?.items ?? []).filter((m) => !exclude?.includes(m.user_id));
   return (
-    <div className="flex items-center gap-2">
+    <div className={cn("flex items-center gap-2", className)}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             id={id}
             type="button"
             aria-expanded={open}
-            className="flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-input bg-white px-3.5 text-left text-sm shadow-sm transition-colors hover:border-slate-400 focus-visible:border-brand-500 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/15"
+            aria-label={ariaLabel ? `${ariaLabel}: ${value?.label ?? placeholder}` : undefined}
+            className={cn("flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-input bg-white text-left text-sm shadow-sm", "transition-colors hover:border-slate-400 focus-visible:border-brand-500 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/15", compact ? "h-9 px-3" : "h-11 px-3.5")}
           >
             <span className={cn("flex min-w-0 items-center gap-2 truncate", value ? "text-slate-900" : "text-slate-400")}>
               {value && <Avatar name={value.label} size="xs" />}
@@ -485,7 +496,7 @@ export function MemberSelect({
           <Command shouldFilter={false}>
             <CommandInput value={q} onValueChange={setQ} placeholder="Search people" className="h-11 text-sm" trailing={res.isFetching ? <Spinner label="Searching" /> : undefined} />
             <CommandList className="max-h-72">
-              <CommandEmpty>{res.isFetching ? "Searching…" : "No active members match"}</CommandEmpty>
+              <CommandEmpty>{res.isFetching ? "Searching…" : anyStatus ? "No members match" : "No active members match"}</CommandEmpty>
               <CommandGroup>
                 {items.map((m) => (
                   <CommandItem

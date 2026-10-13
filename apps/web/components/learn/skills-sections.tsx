@@ -33,6 +33,16 @@ import { lk } from "./query-keys";
 import type { LearnerAnalytics, LearningPlan, MyCompetency, MyRecommendations, MySkill, RecommendationOut } from "./types";
 import { SectionTitle } from "./visuals";
 
+/** Plain-text preview of question/plan text that may contain markdown (bold, code, links). */
+function stripMd(text: string): string {
+  return text
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/(\*\*|\*|~~)(\S(?:.*?\S)?)\1/g, "$2")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /* ------------------------------------------------------------------ proficiency bands */
 
 const LEVELS = [
@@ -303,7 +313,7 @@ export function PlanCard({ plan, recs }: { plan: LearningPlan; recs: Recommendat
                           <>
                             <Icon className={cn("mt-0.5 size-4 shrink-0", c.icon)} aria-hidden />
                             <span className="min-w-0 flex-1">
-                              <span className="line-clamp-2 text-sm text-slate-800">{act.title}</span>
+                              <span className="line-clamp-2 text-sm text-slate-800">{stripMd(act.title)}</span>
                             </span>
                             {href && <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-brand-600" aria-hidden />}
                           </>
@@ -398,7 +408,7 @@ function RecommendationRow({ r }: { r: RecommendationOut }) {
             {r.title}
           </Link>
         )}
-        <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">{r.reason}</p>
+        <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">{stripMd(r.reason)}</p>
       </div>
       <Button
         variant="ghost"
@@ -521,7 +531,7 @@ export function WeakAreas({ data }: { data: LearnerAnalytics }) {
                 <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-white font-display text-2xs font-bold text-rose-700 ring-1 ring-rose-200">
                   {q.incorrect}×
                 </span>
-                <p className="line-clamp-2 text-sm text-slate-700">{q.prompt ?? "Question"}</p>
+                <p className="line-clamp-2 text-sm text-slate-700">{q.prompt ? stripMd(q.prompt) : "Question"}</p>
               </li>
             ))}
           </ul>

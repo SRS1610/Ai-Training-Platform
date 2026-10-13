@@ -4,6 +4,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, SimpleSele
 import { Code2, FileStack, GitCompareArrows, ListTree, Paperclip, Type } from "lucide-react";
 import { Highlight, themes } from "prism-react-renderer";
 import * as React from "react";
+import { Markdown } from "@/components/common/markdown";
 import { formatDateTime } from "@/lib/format";
 import { EvidenceFiles } from "./evidence-files";
 import { SwitchChip } from "./list-input";
@@ -155,8 +156,8 @@ export function SubmissionViewer({ versions, fields, currentVersion }: { version
             {compare && b ? (
               <TextDiff before={b.text_content ?? ""} after={v.text_content ?? ""} />
             ) : (
-              <div className="whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/60 p-4 text-[15px] leading-7 text-slate-800">
-                {v.text_content}
+              <div className="break-words rounded-xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/60 p-4 sm:p-5">
+                <Markdown className="text-[15px] leading-7 text-slate-800">{v.text_content ?? ""}</Markdown>
               </div>
             )}
           </Section>

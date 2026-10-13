@@ -158,7 +158,7 @@ function Overview() {
                 <>
                   <ColorBarChart
                     aria-label="Completion rate and average score by course"
-                    data={top.map((c) => ({ name: c.title.length > 22 ? `${c.title.slice(0, 21)}…` : c.title, completion: c.completion_rate ?? 0, score: c.avg_final_score ?? 0 }))}
+                    data={top.map((c) => ({ name: c.title.length > 16 ? `${c.title.slice(0, 15).trimEnd()}…` : c.title, completion: c.completion_rate ?? 0, score: c.avg_final_score ?? 0 }))}
                     xKey="name"
                     series={[
                       { key: "completion", label: "Completion %", color: "#10b981" },

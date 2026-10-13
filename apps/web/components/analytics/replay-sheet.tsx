@@ -21,6 +21,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Bot, Clock, Database, MessageSquare, Terminal, User, Zap } from "lucide-react";
 import * as React from "react";
+import { Markdown } from "@/components/common/markdown";
 import { useMemberName } from "@/components/grading/history-integrity";
 import { sk, type ReplayOut } from "@/components/sim-builder/types";
 import { api, errorMessage } from "@/lib/api";
@@ -39,9 +40,20 @@ function inputText(input: unknown): string | null {
   if (!input) return null;
   if (typeof input === "string") return input;
   const i = input as Dict;
-  if (typeof i.text === "string") return i.text;
-  if (i.choice !== undefined) return `choice: ${String(i.choice)}`;
-  return Object.keys(i).length ? JSON.stringify(i) : null;
+  if (typeof i.text === "string" && i.text) return i.text;
+  const inner = i.input as Dict | string | null | undefined;
+  if (typeof inner === "string" && inner) return inner;
+  if (inner && typeof inner === "object") {
+    if (typeof inner.text === "string" && inner.text) return inner.text;
+    if (inner.choice !== undefined) return `Chose: ${String(inner.choice)}`;
+    const parts = Object.entries(inner).filter(([, v]) => v !== null && v !== "");
+    if (parts.length) return parts.map(([k, v]) => `${k.replace(/_/g, " ")}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`).join(" · ");
+  }
+  if (i.choice !== undefined) return `Chose: ${String(i.choice)}`;
+  // A plain button press ({ action_id, tool, input: null }) has no typed input to show.
+  if ("action_id" in i) return null;
+  const rest = Object.entries(i).filter(([, v]) => v !== null && v !== "");
+  return rest.length ? rest.map(([k, v]) => `${k.replace(/_/g, " ")}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`).join(" · ") : null;
 }
 
 function Deltas({ d }: { d: unknown }) {
@@ -98,9 +110,9 @@ function Timeline({ data }: { data: ReplayOut }) {
                     {String(out.text ?? "")}
                   </pre>
                 ) : (
-                  <p key={i} className="mt-1.5 whitespace-pre-wrap rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700">
-                    {String(out.text ?? "")}
-                  </p>
+                  <div key={i} className="mt-1.5 rounded-lg bg-slate-50 px-2.5 py-1.5 [&_p]:text-xs [&_p]:leading-relaxed [&_li]:text-xs">
+                    <Markdown className="text-xs text-slate-700">{String(out.text ?? "")}</Markdown>
+                  </div>
                 ),
               )}
               {reply?.text ? (

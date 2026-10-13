@@ -101,10 +101,10 @@ function HistoryList({ onOpen }: { onOpen: (id: string) => void }) {
       onRowClick={(g) => onOpen(g.id)}
       columnToggle={false}
       toolbar={
-        <div className="flex flex-wrap items-center gap-2">
-          <SimpleSelect aria-label="Kind" value={kind} onValueChange={(v) => { setKind(v); setPagination((p) => ({ ...p, pageIndex: 0 })); }} options={[{ value: "all", label: "All kinds" }, ...Object.entries(KIND_META).map(([k, m]) => ({ value: k, label: m.label }))]} className="h-9 w-44" />
-          <SimpleSelect aria-label="Status" value={status} onValueChange={(v) => { setStatus(v); setPagination((p) => ({ ...p, pageIndex: 0 })); }} options={[{ value: "all", label: "Any status" }, ...Object.entries(GENERATION_STATUS_LABEL).map(([k, l]) => ({ value: k, label: l }))]} className="h-9 w-48" />
-          <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Scope">
+        <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap">
+          <SimpleSelect aria-label="Kind" value={kind} onValueChange={(v) => { setKind(v); setPagination((p) => ({ ...p, pageIndex: 0 })); }} options={[{ value: "all", label: "All kinds" }, ...Object.entries(KIND_META).map(([k, m]) => ({ value: k, label: m.label }))]} className="h-9 sm:w-44" />
+          <SimpleSelect aria-label="Status" value={status} onValueChange={(v) => { setStatus(v); setPagination((p) => ({ ...p, pageIndex: 0 })); }} options={[{ value: "all", label: "Any status" }, ...Object.entries(GENERATION_STATUS_LABEL).map(([k, l]) => ({ value: k, label: l }))]} className="h-9 sm:w-48" />
+          <div className="col-span-2 flex w-fit items-center gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Scope">
             {[
               [false, "Everyone"],
               [true, "Mine"],

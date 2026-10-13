@@ -26,6 +26,7 @@ import { ApiError, api, errorMessage } from "@/lib/api";
 import { AIRecommendationCard } from "./ai-recommendation";
 import { ListInput } from "./list-input";
 import {
+  AI_AGREEMENT_TOLERANCE,
   criterionMax,
   gk,
   gradePct,
@@ -229,7 +230,7 @@ export function GradeForm({ detail, onGraded }: { detail: GradingDetail; onGrade
   const scoredCount = criteria.filter((c) => form.scores[c.id] !== null && form.scores[c.id] !== undefined).length;
   const aiPct = ai ? gradePct(ai) : null;
   const prevPct = previousHuman ? gradePct(previousHuman) : null;
-  const differsFromAi = total !== null && aiPct !== null && Math.abs(total - aiPct) > 0.004;
+  const differsFromAi = total !== null && aiPct !== null && Math.abs(total - aiPct) > AI_AGREEMENT_TOLERANCE;
   const differsFromPrev = total !== null && prevPct !== null && Math.abs(total - prevPct) > 0.004;
   const needsReason = differsFromAi || differsFromPrev;
   const passing = Number(assignment.passing_score ?? 70);

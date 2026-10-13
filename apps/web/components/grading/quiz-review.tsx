@@ -177,7 +177,11 @@ export function QuestionGradeCard({ attemptId, q, index, onSaved }: { attemptId:
               </Button>
             </div>
           )}
-          <FormField label={`Mark (0–${q.max_score})`} required>
+          <FormField
+            label={`Mark (0–${q.max_score})`}
+            required
+            error={num !== null && (Number.isNaN(num) || num < 0 || num > q.max_score) ? `Enter a mark between 0 and ${q.max_score}.` : undefined}
+          >
             <Input type="number" min={0} max={q.max_score} step={0.5} value={score} onChange={(e) => setScore(e.target.value)} inputSize="sm" />
           </FormField>
           <FormField label="Feedback">

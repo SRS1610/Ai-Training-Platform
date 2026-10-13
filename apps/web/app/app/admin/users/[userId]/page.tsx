@@ -110,9 +110,9 @@ function MemberPage() {
       <section className="relative mb-6 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
         <div className="h-24 bg-gradient-to-r from-sky-400 via-indigo-500 to-fuchsia-500 sm:h-28" aria-hidden />
         <div className="flex flex-col gap-5 px-5 pb-5 sm:px-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="-mt-10 flex flex-col gap-4 sm:flex-row sm:items-end">
-            <Avatar name={m.full_name} src={m.avatar_url} size="2xl" className="ring-4" />
-            <div className="min-w-0 pb-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+            <Avatar name={m.full_name} src={m.avatar_url} size="2xl" className="-mt-12 shrink-0 ring-4 ring-white" />
+            <div className="min-w-0 sm:pt-3">
               <h2 className="font-display text-2xl font-bold tracking-tight text-slate-900">
                 {m.full_name}
                 {self && <span className="ml-2 align-middle text-sm font-medium text-brand-700">(you)</span>}

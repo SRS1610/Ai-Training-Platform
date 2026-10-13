@@ -13,7 +13,7 @@ import {
   type CategoryColor,
   type ColumnDef,
 } from "@praxis/ui";
-import { ColorBarChart, TrendAreaChart } from "@praxis/ui/charts";
+import { ColorBarChart, Sparkline, TrendAreaChart } from "@praxis/ui/charts";
 import {
   Activity,
   AlarmClock,
@@ -147,6 +147,9 @@ export function ActiveLearnersCard({ data }: { data: OrgAnalytics }) {
   const rows = data.active_learners_trend.map((r) => ({ day: formatDate(r.date, { day: "numeric", month: "short" }), "Active learners": r.active_learners, Hours: Math.round((r.seconds / 3600) * 10) / 10 }));
   const peak = Math.max(0, ...data.active_learners_trend.map((r) => r.active_learners));
   const avg = data.active_learners_trend.length ? data.active_learners_trend.reduce((a, r) => a + r.active_learners, 0) / data.active_learners_trend.length : 0;
+  const totalHours = data.active_learners_trend.reduce((a, r) => a + r.seconds, 0) / 3600;
+  const busiest = data.active_learners_trend.reduce<(typeof data.active_learners_trend)[number] | null>((b, r) => (r.active_learners > (b?.active_learners ?? 0) ? r : b), null);
+  const reach = data.summary.members ? (data.summary.active_learners_30d / data.summary.members) * 100 : null;
   return (
     <SectionCard
       title="Active learners"
@@ -168,14 +171,29 @@ export function ActiveLearnersCard({ data }: { data: OrgAnalytics }) {
       <TrendAreaChart
         data={rows}
         xKey="day"
-        series={[
-          { key: "Active learners", color: "#6366f1" },
-          { key: "Hours", color: "#d946ef" },
-        ]}
-        height={280}
-        showLegend
+        series={[{ key: "Active learners", color: "#6366f1" }]}
+        height={240}
         aria-label={`Active learners per day, peak ${peak}, average ${avg.toFixed(1)}`}
       />
+      <dl className="mt-5 grid grid-cols-1 gap-3 border-t border-slate-100 pt-5 sm:grid-cols-3">
+        <div className="rounded-2xl bg-gradient-to-br from-fuchsia-50 to-white p-3 ring-1 ring-inset ring-fuchsia-100">
+          <dt className="text-xs font-medium text-fuchsia-800">Hours learned · 30 days</dt>
+          <dd className="font-display text-xl font-bold tabular-nums text-slate-900">{fmtNumber(totalHours, 1)}</dd>
+          <Sparkline data={rows.map((r) => r.Hours)} color="#d946ef" height={28} className="mt-1" />
+        </div>
+        <div className="rounded-2xl bg-gradient-to-br from-sky-50 to-white p-3 ring-1 ring-inset ring-sky-100">
+          <dt className="text-xs font-medium text-sky-800">Busiest day</dt>
+          <dd className="font-display text-xl font-bold tabular-nums text-slate-900">{busiest ? formatDate(busiest.date, { weekday: "short", day: "numeric", month: "short" }) : "—"}</dd>
+          <p className="text-xs text-muted-foreground">{busiest ? `${busiest.active_learners} learners active` : "No activity yet"}</p>
+        </div>
+        <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-white p-3 ring-1 ring-inset ring-emerald-100">
+          <dt className="text-xs font-medium text-emerald-800">Reach · 30 days</dt>
+          <dd className="font-display text-xl font-bold tabular-nums text-slate-900">{reach === null ? "—" : `${Math.round(reach)}%`}</dd>
+          <p className="text-xs text-muted-foreground">
+            {fmtNumber(data.summary.active_learners_30d)} of {fmtNumber(data.summary.members)} members learned
+          </p>
+        </div>
+      </dl>
     </SectionCard>
   );
 }
@@ -238,12 +256,22 @@ export function DepartmentsCard({ data }: { data: OrgAnalytics }) {
 
 /* ------------------------------------------------------------------ skill gaps heatmap */
 
-function heat(gap: number | null, coverage: number | null) {
+function heat(gap: number | null) {
   const g = gap ?? 0;
-  if (g <= 0 && (coverage ?? 0) >= 80) return "bg-emerald-100 text-emerald-900";
+  if (g <= 0) return "bg-emerald-100 text-emerald-900";
   if (g <= 5) return "bg-teal-100 text-teal-900";
   if (g <= 15) return "bg-amber-100 text-amber-900";
   if (g <= 30) return "bg-orange-100 text-orange-900";
+  return "bg-rose-100 text-rose-900";
+}
+
+/** Share of all learners meeting the level — the coverage heat scale. */
+function coverageHeat(rate: number | null) {
+  const r = rate ?? 0;
+  if (r >= 80) return "bg-emerald-100 text-emerald-900";
+  if (r >= 60) return "bg-teal-100 text-teal-900";
+  if (r >= 40) return "bg-amber-100 text-amber-900";
+  if (r >= 20) return "bg-orange-100 text-orange-900";
   return "bg-rose-100 text-rose-900";
 }
 
@@ -263,12 +291,16 @@ export function SkillGapsCard({ gaps }: { gaps: SkillGap[] }) {
                   <th scope="col" className="px-3 py-1 text-center font-semibold">Required</th>
                   <th scope="col" className="px-3 py-1 text-center font-semibold">Avg level</th>
                   <th scope="col" className="px-3 py-1 text-center font-semibold">Gap</th>
-                  <th scope="col" className="px-3 py-1 text-center font-semibold">Meeting</th>
+                  <th scope="col" className="px-3 py-1 text-center font-semibold">Assessed</th>
+                  <th scope="col" className="px-3 py-1 text-center font-semibold">Meeting level</th>
                   <th scope="col" className="px-3 py-1 text-center font-semibold">Below</th>
                 </tr>
               </thead>
               <tbody>
-                {gaps.slice(0, 15).map((g) => (
+                {[...gaps]
+                  .sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0) || (a.coverage_rate ?? 0) - (b.coverage_rate ?? 0))
+                  .slice(0, 15)
+                  .map((g) => (
                   <tr key={`${g.competency_id}-${g.skill_id}`}>
                     <th scope="row" className="rounded-l-xl bg-slate-50 px-3 py-2 text-left font-normal">
                       <span className="block font-medium text-slate-900">{g.skill ?? "Unknown skill"}</span>
@@ -281,8 +313,11 @@ export function SkillGapsCard({ gaps }: { gaps: SkillGap[] }) {
                         <p className="mt-0.5 text-center text-xs tabular-nums text-slate-600">{fmtNumber(g.avg_proficiency, 1)}</p>
                       </div>
                     </td>
-                    <td className={cn("px-3 py-2 text-center font-semibold tabular-nums", heat(g.gap, g.coverage_rate))}>{g.gap ? `−${fmtNumber(g.gap, 1)}` : "None"}</td>
-                    <td className={cn("px-3 py-2 text-center tabular-nums", heat(g.gap, g.coverage_rate))}>{fmtPct(g.coverage_rate)}</td>
+                    <td className={cn("px-3 py-2 text-center font-semibold tabular-nums", heat(g.gap))}>{g.gap ? `−${fmtNumber(g.gap, 1)}` : "None"}</td>
+                    <td className="bg-slate-50 px-3 py-2 text-center tabular-nums text-slate-700">
+                      {g.assessed} / {g.learners}
+                    </td>
+                    <td className={cn("px-3 py-2 text-center font-semibold tabular-nums", coverageHeat(g.coverage_rate))}>{fmtPct(g.coverage_rate)}</td>
                     <td className="rounded-r-xl bg-slate-50 px-3 py-2 text-center tabular-nums text-slate-700">
                       {g.below} / {g.learners}
                     </td>
@@ -291,12 +326,15 @@ export function SkillGapsCard({ gaps }: { gaps: SkillGap[] }) {
               </tbody>
             </table>
           </div>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600" aria-label="Gap legend">
-            <li className="flex items-center gap-1.5"><span className="size-3 rounded bg-emerald-100 ring-1 ring-emerald-200" aria-hidden />On target</li>
-            <li className="flex items-center gap-1.5"><span className="size-3 rounded bg-teal-100 ring-1 ring-teal-200" aria-hidden />≤ 5 pts</li>
-            <li className="flex items-center gap-1.5"><span className="size-3 rounded bg-amber-100 ring-1 ring-amber-200" aria-hidden />≤ 15 pts</li>
-            <li className="flex items-center gap-1.5"><span className="size-3 rounded bg-orange-100 ring-1 ring-orange-200" aria-hidden />≤ 30 pts</li>
-            <li className="flex items-center gap-1.5"><span className="size-3 rounded bg-rose-100 ring-1 ring-rose-200" aria-hidden />&gt; 30 pts</li>
+          <p className="text-xs text-muted-foreground">
+            Gap compares the average level of assessed learners with the requirement; <em>Meeting level</em> is the share of all learners at or above it.
+          </p>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600" aria-label="Heat legend">
+            <li className="flex items-center gap-1.5"><span className="size-3 rounded bg-emerald-100 ring-1 ring-emerald-200" aria-hidden />On target · ≥ 80%</li>
+            <li className="flex items-center gap-1.5"><span className="size-3 rounded bg-teal-100 ring-1 ring-teal-200" aria-hidden />≤ 5 pts · ≥ 60%</li>
+            <li className="flex items-center gap-1.5"><span className="size-3 rounded bg-amber-100 ring-1 ring-amber-200" aria-hidden />≤ 15 pts · ≥ 40%</li>
+            <li className="flex items-center gap-1.5"><span className="size-3 rounded bg-orange-100 ring-1 ring-orange-200" aria-hidden />≤ 30 pts · ≥ 20%</li>
+            <li className="flex items-center gap-1.5"><span className="size-3 rounded bg-rose-100 ring-1 ring-rose-200" aria-hidden />&gt; 30 pts · &lt; 20%</li>
           </ul>
         </div>
       )}

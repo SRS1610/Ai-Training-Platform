@@ -51,7 +51,8 @@ export function AIRecommendationCard({
   accepted?: boolean;
   disabled?: boolean;
 }) {
-  const [open, setOpen] = React.useState(true);
+  // Collapsed by default so the rubric scoring panel stays in view; one click shows the full evidence.
+  const [open, setOpen] = React.useState(false);
   const pct = gradePct(grade);
   const passed = grade.passed ?? pct >= passingScore;
   const conf = confidenceMeta(grade.confidence);

@@ -53,7 +53,9 @@ export function SearchPanel({ onOpenDocument }: { onOpenDocument: (id: string) =
           }}
         >
           <div className="flex gap-2">
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. How do I reset someone's MFA?" aria-label="Test question" leftIcon={<Search />} maxLength={2000} />
+            <div className="min-w-0 flex-1">
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. How do I reset someone's MFA?" aria-label="Test question" leftIcon={<Search />} maxLength={2000} />
+            </div>
             <Button type="submit" loading={search.isPending} disabled={!query.trim()} aria-label="Run search">
               Search
             </Button>

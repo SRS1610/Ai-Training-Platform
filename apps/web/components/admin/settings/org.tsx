@@ -76,16 +76,18 @@ function ColorField({ label, value, onChange, disabled, hint }: { label: string;
   return (
     <FormField label={label} hint={hint} error={valid ? null : "Use a hex colour like #4f46e5"}>
       {(aria) => (
+        <div>
         <div className="flex items-center gap-2">
           <label className={cn("relative grid size-11 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-xl border border-slate-200 shadow-sm focus-within:ring-4 focus-within:ring-brand-500/20", disabled && "cursor-not-allowed opacity-60")} style={{ background: valid && value ? value : "#fff" }}>
             <span className="sr-only">Pick {label.toLowerCase()}</span>
             <input type="color" value={valid && value && value.length === 7 ? value : "#4f46e5"} disabled={disabled} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 size-full cursor-pointer opacity-0" />
           </label>
-          <Input {...aria} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value.trim())} placeholder="#4f46e5" maxLength={7} className="font-mono uppercase" />
+          <Input {...aria} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value.trim())} placeholder="#4f46e5" maxLength={7} className="min-w-0 font-mono uppercase" />
+        </div>
           {ratio !== null && (
-            <Badge tone={ratio >= 4.5 ? "success" : ratio >= 3 ? "warning" : "danger"} size="sm" className="shrink-0" title="Contrast of white text on this colour">
+            <Badge tone={ratio >= 4.5 ? "success" : ratio >= 3 ? "warning" : "danger"} size="sm" className="mt-2" title="Contrast of white text on this colour">
               {ratio >= 4.5 ? <CheckCircle2 aria-hidden /> : <XCircle aria-hidden />}
-              {ratio.toFixed(1)}:1
+              {ratio.toFixed(1)}:1 with white text
             </Badge>
           )}
         </div>

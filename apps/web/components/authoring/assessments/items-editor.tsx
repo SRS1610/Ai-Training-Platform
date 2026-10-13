@@ -300,8 +300,13 @@ function PoolCard({
                 </span>
               ))}
               {!f.difficulty?.length && !f.question_types?.length && !f.tags?.length && <span className="text-2xs text-muted-foreground">Any active question in the bank</span>}
-              <span className={cn("text-2xs font-semibold", short ? "text-amber-800" : "text-slate-600")}>
-                {matching === null ? "Counting…" : `· ${matching} eligible`}
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-2xs font-semibold tabular-nums ring-1 ring-inset",
+                  short ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-emerald-50 text-emerald-800 ring-emerald-200",
+                )}
+              >
+                {matching === null ? "Counting…" : `${matching} eligible`}
               </span>
             </div>
           </div>

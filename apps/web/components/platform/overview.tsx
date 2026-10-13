@@ -1,7 +1,7 @@
 "use client";
 
 import { KpiTile, Skeleton, cn, colorClasses, humanize, type CategoryColor } from "@praxis/ui";
-import { ColorBarChart, DonutChart, TrendAreaChart } from "@praxis/ui/charts";
+import { DonutChart, TrendAreaChart } from "@praxis/ui/charts";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   Activity,
@@ -27,23 +27,50 @@ import * as React from "react";
 import { DateRangePicker, daysAgo } from "@/components/admin/date-range";
 import { ak } from "@/components/admin/keys";
 import type { PlatformAnalytics } from "@/components/admin/types";
-import { BarList, SectionCard, fmtBytes, fmtCents, fmtCompact, fmtNumber, fmtUsd, humanizeFeature } from "@/components/admin/ui";
+import { BarList, SectionCard, plural, fmtBytes, fmtCents, fmtCompact, fmtNumber, fmtUsd, humanizeFeature } from "@/components/admin/ui";
 import { ErrorState } from "@/components/common/error-state";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 
 const PLAN_HEX: Record<string, string> = { free: "#14b8a6", individual: "#0ea5e9", professional: "#6366f1", business: "#8b5cf6", enterprise: "#d946ef" };
 
+/** Monthly revenue columns (CSS, so currency labels never clip). */
+function MonthColumns({ data }: { data: { month: string; cents: number }[] }) {
+  const max = Math.max(1, ...data.map((d) => d.cents));
+  return (
+    <ol className="flex h-64 items-end gap-2 sm:gap-3" aria-label="Revenue by month">
+      {data.map((d, i) => {
+        const pct = (d.cents / max) * 100;
+        return (
+          <li key={d.month + i} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
+            <span className="text-2xs font-semibold tabular-nums text-slate-700 sm:text-xs">{d.cents ? fmtCompactCents(d.cents) : "—"}</span>
+            <span
+              className="w-full max-w-[3.5rem] rounded-t-xl bg-gradient-to-t from-emerald-500 via-teal-400 to-sky-400 shadow-sm motion-safe:transition-all"
+              style={{ height: `${Math.max(d.cents ? 3 : 1.5, pct * 0.82)}%`, opacity: d.cents ? 1 : 0.35 }}
+              aria-hidden
+            />
+            <span className="text-2xs font-medium text-slate-500 sm:text-xs">{d.month}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function fmtCompactCents(cents: number) {
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(cents / 100);
+}
+
 function ActivityTile({ icon: Icon, label, value, color }: { icon: typeof Activity; label: string; value: number; color: CategoryColor }) {
   const c = colorClasses(color);
   return (
-    <div className={cn("flex items-center gap-3 rounded-2xl border bg-gradient-to-br p-3.5", c.border, c.tint)}>
+    <div className={cn("flex flex-col gap-3 rounded-2xl border bg-gradient-to-br p-4", c.border, c.tint)}>
       <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-sm", c.gradient)}>
         <Icon className="size-5" aria-hidden />
       </span>
       <div className="min-w-0">
-        <p className="font-display text-xl font-bold tabular-nums text-slate-900">{fmtCompact(value)}</p>
-        <p className="truncate text-xs font-medium text-slate-600">{label}</p>
+        <p className="font-display text-2xl font-bold tabular-nums text-slate-900">{fmtCompact(value)}</p>
+        <p className="text-xs font-medium leading-snug text-slate-600">{label}</p>
       </div>
     </div>
   );
@@ -74,13 +101,14 @@ export function PlatformOverview() {
     );
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} size="lg" />;
   const d = q.data!;
-  const revenueByMonth = Object.values(
-    d.revenue.by_month.reduce<Record<string, { month: string; Revenue: number }>>((acc, r) => {
-      const label = formatDate(`${r.month}-01`, { month: "short", year: "2-digit" });
-      acc[r.month] = { month: label, Revenue: (acc[r.month]?.Revenue ?? 0) + r.amount_cents / 100 };
+  const revenueByMonth = Object.entries(
+    d.revenue.by_month.reduce<Record<string, number>>((acc, r) => {
+      acc[r.month] = (acc[r.month] ?? 0) + r.amount_cents;
       return acc;
     }, {}),
-  );
+  )
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([m, cents]) => ({ month: formatDate(`${m}-01`, { month: "short", year: "2-digit" }), cents }));
   const signups = d.users.signups_by_day.map((r) => ({ day: formatDate(r.date, { day: "numeric", month: "short" }), Signups: r.signups }));
   const statusTotal = Object.values(d.api.status_counts).reduce((a, b) => a + b, 0);
 
@@ -110,7 +138,7 @@ export function PlatformOverview() {
           <DonutChart
             data={d.organisations.by_plan.map((p) => ({ name: humanize(p.plan_code), value: p.count, color: PLAN_HEX[p.plan_code] }))}
             centerLabel={fmtNumber(d.organisations.total)}
-            centerSub="organisations"
+            centerSub="orgs"
             height={190}
             aria-label="Organisations by plan"
           />
@@ -129,7 +157,7 @@ export function PlatformOverview() {
       <div className="grid gap-6 xl:grid-cols-3">
         <SectionCard title="Revenue by month" description="Paid invoices, last 12 months" icon={Coins} color="emerald" className="xl:col-span-2">
           {revenueByMonth.length ? (
-            <ColorBarChart data={revenueByMonth} xKey="month" series={[{ key: "Revenue", color: "#10b981" }]} height={240} valueFormatter={(v) => fmtCents(Number(v) * 100)} aria-label="Revenue by month" />
+            <MonthColumns data={revenueByMonth} />
           ) : (
             <p className="py-10 text-center text-sm text-muted-foreground">No paid invoices yet.</p>
           )}
@@ -144,6 +172,24 @@ export function PlatformOverview() {
             }))}
             empty="No subscriptions yet"
           />
+          <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+            <div className="rounded-xl bg-emerald-50 p-3">
+              <dt className="text-xs font-medium text-emerald-800">ARR run-rate</dt>
+              <dd className="font-display text-lg font-bold tabular-nums text-slate-900">{fmtCents(d.revenue.mrr_cents_estimate * 12)}</dd>
+            </div>
+            <div className="rounded-xl bg-sky-50 p-3">
+              <dt className="text-xs font-medium text-sky-800">Paid all time</dt>
+              <dd className="font-display text-lg font-bold tabular-nums text-slate-900">{fmtCompactCents(d.revenue.total_paid_cents)}</dd>
+            </div>
+            <div className={cn("rounded-xl p-3", d.revenue.outstanding_invoices ? "bg-amber-50" : "bg-slate-50")}>
+              <dt className={cn("text-xs font-medium", d.revenue.outstanding_invoices ? "text-amber-800" : "text-slate-600")}>Outstanding invoices</dt>
+              <dd className="font-display text-lg font-bold tabular-nums text-slate-900">{fmtNumber(d.revenue.outstanding_invoices)}</dd>
+            </div>
+            <div className="rounded-xl bg-violet-50 p-3">
+              <dt className="text-xs font-medium text-violet-800">New orgs in range</dt>
+              <dd className="font-display text-lg font-bold tabular-nums text-slate-900">{fmtNumber(d.organisations.new_in_range)}</dd>
+            </div>
+          </dl>
         </SectionCard>
       </div>
 
@@ -161,11 +207,19 @@ export function PlatformOverview() {
 
       <div className="grid gap-6 xl:grid-cols-3">
         <SectionCard title="AI cost by organisation" icon={Building2} color="fuchsia">
-          <BarList data={d.ai_usage.by_organisation.slice(0, 8).map((o) => ({ key: o.organisation_id, label: o.name, value: o.cost_usd, display: fmtUsd(o.cost_usd), hint: `${fmtNumber(o.requests)} requests` }))} empty="No AI usage in range" />
+          <BarList data={d.ai_usage.by_organisation.slice(0, 8).map((o) => ({ key: o.organisation_id, label: o.name, value: o.cost_usd, display: fmtUsd(o.cost_usd), hint: plural(o.requests, "request") }))} empty="No AI usage in range" />
         </SectionCard>
         <SectionCard title="AI cost by feature" icon={Zap} color="violet">
           {d.ai_usage.by_feature.length ? (
-            <DonutChart data={d.ai_usage.by_feature.map((f) => ({ name: humanizeFeature(f.feature), value: Number(f.cost_usd.toFixed(4)) }))} valueFormatter={(v) => fmtUsd(Number(v), { precise: true })} height={180} aria-label="AI cost by feature" />
+            <DonutChart
+              data={d.ai_usage.by_feature.map((f) => ({ name: humanizeFeature(f.feature), value: Number(f.cost_usd.toFixed(4)) }))}
+              valueFormatter={(v) => fmtUsd(Number(v), { precise: true })}
+              centerLabel={fmtUsd(d.ai_usage.cost_usd)}
+              centerSub="total"
+              height={170}
+              className="sm:flex-col"
+              aria-label="AI cost by feature"
+            />
           ) : (
             <p className="py-10 text-center text-sm text-muted-foreground">No AI usage in range</p>
           )}
@@ -207,7 +261,7 @@ export function PlatformOverview() {
         </SectionCard>
         <SectionCard title="API usage" description={`${fmtCompact(d.api.requests_total)} requests since the API process started`} icon={Server} color="indigo" className="xl:col-span-2">
           <div className="grid gap-5 md:grid-cols-2">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 content-start gap-2">
               {(["p50", "p95", "p99"] as const).map((k, i) => (
                 <div key={k} className={cn("rounded-xl p-3 text-center", ["bg-emerald-50", "bg-amber-50", "bg-rose-50"][i])}>
                   <p className="text-xs font-semibold uppercase text-slate-600">{k}</p>

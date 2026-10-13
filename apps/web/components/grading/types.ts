@@ -73,11 +73,16 @@ export interface AnswerAIFeedback {
   injection_flagged?: boolean;
 }
 
+/** Mirrors the API: an explicit `max_score` wins, else the highest level score, else 10. */
 export const criterionMax = (c: RubricCriterion): number => {
+  if (Number(c.max_score)) return Number(c.max_score);
   const levels = c.levels ?? [];
   if (levels.length) return Math.max(...levels.map((l) => Number(l.score) || 0));
-  return Number(c.max_score) || 10;
+  return 10;
 };
+
+/** AI grades are stored to 1 dp and rubric totals to 2 dp; the API treats ≤ 0.05 as agreement (AI_AGREEMENT_TOLERANCE). */
+export const AI_AGREEMENT_TOLERANCE = 0.05 + 1e-9;
 
 /** Same weighting as the API (`logic.score_rubric`): Σ weight/Σweights × score/max × 100, rounded to 2dp. */
 export function weightedTotal(criteria: RubricCriterion[], scores: Record<string, number | null | undefined>): number | null {

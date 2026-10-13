@@ -180,7 +180,7 @@ function ConsentsCard() {
               const id = `consent-${p.key}`;
               return (
                 <div key={p.key} className={cn("flex items-start gap-4 rounded-2xl border p-4 transition-colors", granted ? "border-emerald-200 bg-emerald-50/40" : "border-slate-200")}>
-                  <span className={cn("grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-white shadow-sm", p.color, !granted && "opacity-60 grayscale")}>
+                  <span className={cn("grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-white shadow-sm", p.color, !granted && "opacity-70 saturate-50")}>
                     <p.icon className="size-5" aria-hidden />
                   </span>
                   <label htmlFor={id} className="min-w-0 flex-1 cursor-pointer">
