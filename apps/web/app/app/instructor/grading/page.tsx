@@ -83,6 +83,7 @@ function GradingQueue() {
   const cNeeds = useCount({});
   const cAi = useCount({ status: "ai_graded" });
   const cUnder = useCount({ status: "under_review" });
+  const cGraded = useCount({ status: "graded" });
   const cHigh = useCount({ high_stakes: true });
   const cQuiz = useQuery({
     queryKey: gk.quiz({ count: true }),
@@ -93,6 +94,7 @@ function GradingQueue() {
     needs_review: cNeeds.data,
     ai_recommended: cAi.data,
     under_review: cUnder.data,
+    graded: cGraded.data,
     quiz: cQuiz.data,
   };
 

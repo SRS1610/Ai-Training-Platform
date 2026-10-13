@@ -114,6 +114,7 @@ function SessionsTable({ simId, onOpen }: { simId: string; onOpen: (id: string) 
 export function SimulationAnalyticsView({ id }: { id: string }) {
   const { canAny } = useAuth();
   const canSessions = canAny(["simulations.manage", "submissions.review"]);
+  const canBuild = canAny(["simulations.manage"]);
   const [chart, setChart] = React.useState<"bars" | "radar">("bars");
   const [replay, setReplay] = React.useState<string | null>(null);
   const sim = useQuery({ queryKey: sk.detail(id), queryFn: ({ signal }) => api.get<SimulationOut>(`/simulations/${id}`, { signal }) });
@@ -124,7 +125,9 @@ export function SimulationAnalyticsView({ id }: { id: string }) {
     queryFn: ({ signal }) => api.get<DraftOut>(`/simulations/${id}/draft`, { signal }),
     staleTime: 5 * 60_000,
     retry: false,
+    enabled: canBuild,
   });
+  const passMark = Number((draft.data?.definition as { scoring?: { pass_mark?: number } } | undefined)?.scoring?.pass_mark ?? 70);
   const phaseMeta = React.useMemo(() => {
     const def = (draft.data?.definition ?? null) as { initial_phase?: string; phases?: SimPhase[] } | null;
     const phases = def?.phases ?? [];
@@ -147,7 +150,11 @@ export function SimulationAnalyticsView({ id }: { id: string }) {
       <Breadcrumbs
         linkComponent={Link}
         className="mb-3"
-        items={[{ label: "Simulation builder", href: "/app/instructor/simulations" }, { label: sim.data?.title ?? "Simulation", href: `/app/instructor/simulations/${id}` }, { label: "Analytics" }]}
+        items={
+          canBuild
+            ? [{ label: "Simulation builder", href: "/app/instructor/simulations" }, { label: sim.data?.title ?? "Simulation", href: `/app/instructor/simulations/${id}` }, { label: "Analytics" }]
+            : [{ label: "Analytics", href: "/app/instructor/analytics" }, { label: sim.data?.title ?? "Simulation" }]
+        }
       />
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex min-w-0 items-start gap-4">
@@ -160,9 +167,11 @@ export function SimulationAnalyticsView({ id }: { id: string }) {
             <p className="mt-1 text-sm text-muted-foreground">How learners perform, where they struggle and which mistakes they make.</p>
           </div>
         </div>
-        <Button variant="secondary" leftIcon={<PencilRuler />} asChild>
-          <Link href={`/app/instructor/simulations/${id}`}>Open builder</Link>
-        </Button>
+        {canBuild && (
+          <Button variant="secondary" leftIcon={<PencilRuler />} asChild>
+            <Link href={`/app/instructor/simulations/${id}`}>Open builder</Link>
+          </Button>
+        )}
       </header>
     </>
   );
@@ -212,9 +221,11 @@ export function SimulationAnalyticsView({ id }: { id: string }) {
             title="No attempts yet"
             description={sim.data?.published_version ? "Once learners start this simulation, scores, mistakes and drop-off appear here." : "Publish the simulation so learners can start playing it."}
             action={
-              <Button variant="gradient" asChild>
-                <Link href={`/app/instructor/simulations/${id}`}>{sim.data?.published_version ? "Back to the builder" : "Open builder to publish"}</Link>
-              </Button>
+              canBuild ? (
+                <Button variant="gradient" asChild>
+                  <Link href={`/app/instructor/simulations/${id}`}>{sim.data?.published_version ? "Back to the builder" : "Open builder to publish"}</Link>
+                </Button>
+              ) : undefined
             }
           />
         </Card>
@@ -259,7 +270,23 @@ export function SimulationAnalyticsView({ id }: { id: string }) {
                   valueFormatter={(v) => `${Number(v).toFixed(0)}%`}
                 />
               ) : (
-                <SkillRadarChart aria-label="Dimension radar" data={dims.map((d) => ({ subject: d.name, value: d.average_percent ?? 0, benchmark: 70 }))} height={300} />
+                <>
+                  <SkillRadarChart aria-label={`Dimension radar: average per dimension against the ${passMark}% pass target`} data={dims.map((d) => ({ subject: d.name, value: d.average_percent ?? 0, benchmark: passMark }))} height={300} />
+                  <ul className="mt-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs font-medium text-slate-600" aria-label="Legend">
+                    <li className="inline-flex items-center gap-1.5">
+                      <svg width="22" height="8" aria-hidden>
+                        <line x1="0" y1="4" x2="22" y2="4" stroke="#6366f1" strokeWidth="3" />
+                      </svg>
+                      Average
+                    </li>
+                    <li className="inline-flex items-center gap-1.5">
+                      <svg width="22" height="8" aria-hidden>
+                        <line x1="0" y1="4" x2="22" y2="4" stroke="#f59e0b" strokeWidth="2" strokeDasharray="4 3" />
+                      </svg>
+                      Pass target ({passMark}%)
+                    </li>
+                  </ul>
+                </>
               )}
               {dims.length > 0 && (
                 <ChartDataTable caption="Dimension averages" columns={["Dimension", "Average %", "Median %"]} rows={dims.map((d) => [d.name, num(d.average_percent), num(d.median_percent)])} />

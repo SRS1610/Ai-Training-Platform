@@ -296,24 +296,25 @@ export function QuestionTable({ rows }: { rows: QuestionRow[] }) {
         <Table aria-label="Question difficulty and discrimination">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead>Question</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="text-right">Responses</TableHead>
+              <TableHead className="w-full">Question</TableHead>
+              <TableHead className="text-right">
+                <abbr title="Responses" className="no-underline">Resp.</abbr>
+              </TableHead>
               <TableHead className="text-right">p-value</TableHead>
-              <TableHead className="text-right">Discrimination</TableHead>
-              <TableHead>Flag</TableHead>
+              <TableHead className="text-right">
+                <abbr title="Discrimination" className="no-underline">Discr.</abbr>
+              </TableHead>
+              <TableHead className="text-center">Flag</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {(showAll ? sorted : sorted.slice(0, LIMIT)).map((q) => (
               <TableRow key={q.question_id}>
-                <TableCell className="min-w-[180px] max-w-md">
+                <TableCell className="min-w-[220px]">
                   <p className="line-clamp-2 text-sm text-slate-800" title={q.prompt ?? undefined}>
                     {q.prompt ?? <span className="italic text-slate-400">Deleted question</span>}
                   </p>
-                </TableCell>
-                <TableCell>
-                  <span className="whitespace-nowrap text-xs text-slate-600">{(q.question_type ?? "—").replace(/_/g, " ")}</span>
+                  <p className="mt-0.5 text-2xs font-medium capitalize text-slate-500">{(q.question_type ?? "—").replace(/_/g, " ")}</p>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{q.responses}</TableCell>
                 <TableCell className="text-right">
@@ -324,9 +325,9 @@ export function QuestionTable({ rows }: { rows: QuestionRow[] }) {
                 <TableCell className="text-right">
                   <span className={cn("inline-block min-w-14 rounded-md px-2 py-0.5 text-center text-xs font-bold tabular-nums", dTone(q.discrimination))}>{q.discrimination === null ? "—" : q.discrimination.toFixed(2)}</span>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-center">
                   {q.needs_review ? (
-                    <Badge tone="danger" size="sm">
+                    <Badge tone="danger" size="sm" title="Needs review">
                       <AlertTriangle aria-hidden /> Review
                     </Badge>
                   ) : (

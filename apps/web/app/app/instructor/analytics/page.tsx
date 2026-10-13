@@ -138,9 +138,11 @@ function Overview() {
             icon={<Inbox />}
             color="rose"
             footer={
-              <Button size="xs" variant="soft" asChild>
-                <Link href="/app/instructor/grading">Open grading</Link>
-              </Button>
+              <Can permission="submissions.review">
+                <Button size="xs" variant="soft" asChild>
+                  <Link href="/app/instructor/grading">Open grading</Link>
+                </Button>
+              </Can>
             }
           />
         </div>

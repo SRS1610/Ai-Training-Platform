@@ -21,6 +21,8 @@ import { canConnect, type SimEdge, type SimNode } from "./graph-utils";
 import { BuilderContext, edgeTypes, nodeTypes, type BuilderCtx } from "./nodes";
 import { EDGE_STYLE, NODE_MINIMAP } from "./theme";
 
+const FOCUS_CLASSES = String.raw`[&_.react-flow\_\_node:focus-visible]:rounded-2xl [&_.react-flow\_\_node:focus-visible]:!outline [&_.react-flow\_\_node:focus-visible]:!outline-[3px] [&_.react-flow\_\_node:focus-visible]:!outline-offset-4 [&_.react-flow\_\_node:focus-visible]:!outline-brand-500 [&_.react-flow\_\_edge:focus-visible_.react-flow\_\_edge-path]:!stroke-[4px]`;
+
 export interface FlowCanvasProps {
   nodes: SimNode[];
   edges: SimEdge[];
@@ -165,9 +167,9 @@ export function FlowCanvas(props: FlowCanvasProps) {
           snapGrid={[8, 8]}
           className={cn(
             "bg-[radial-gradient(circle_at_20%_0%,rgba(99,102,241,0.06),transparent_40%),radial-gradient(circle_at_90%_90%,rgba(217,70,239,0.05),transparent_40%)]",
-            // WCAG 2.4.7: keyboard focus on a node (Tab) or an edge is always visible.
-            "[&_.react-flow__node:focus-visible]:rounded-2xl [&_.react-flow__node:focus-visible]:outline [&_.react-flow__node:focus-visible]:outline-[3px] [&_.react-flow__node:focus-visible]:outline-offset-4 [&_.react-flow__node:focus-visible]:outline-brand-500",
-            "[&_.react-flow__edge:focus-visible_.react-flow__edge-path]:!stroke-[4px] [&_.react-flow__edge:focus-visible]:outline-none",
+            // WCAG 2.4.7: keyboard focus on a node (Tab) or an edge is always visible. (String.raw keeps the
+            // escaped underscores, which Tailwind would otherwise read as spaces.)
+            FOCUS_CLASSES,
           )}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1.4} color="#cbd5e1" />

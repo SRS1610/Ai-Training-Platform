@@ -16,7 +16,7 @@ export default function AttemptReviewPage() {
   const { attemptId } = useParams<{ attemptId: string }>();
   const router = useRouter();
   const qc = useQueryClient();
-  const [filter, setFilter] = React.useState<"pending" | "all">("pending");
+  const [filterChoice, setFilter] = React.useState<"pending" | "all" | null>(null);
   const [confirm, setConfirm] = React.useState(false);
   const [pendingLive, setPendingLive] = React.useState<number | null>(null);
   // Marks changed after the attempt was finalised → the released result is stale until re-finalised.
@@ -62,6 +62,8 @@ export default function AttemptReviewPage() {
   const r = q.data;
   const pending = pendingLive ?? r.questions.filter((x) => x.pending_review).length;
   const total = r.questions.length;
+  // Default to the answers still needing a mark; a fully marked (e.g. finalised) attempt opens on all questions.
+  const filter = filterChoice ?? (r.questions.some((x) => x.pending_review) ? "pending" : "all");
   const shown = filter === "pending" ? r.questions.filter((x) => x.pending_review) : r.questions;
   const integrity = r.integrity && Object.keys(r.integrity).length ? r.integrity : null;
   const finalised = r.status === "graded";

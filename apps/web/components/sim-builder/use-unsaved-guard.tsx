@@ -23,6 +23,11 @@ export function useUnsavedGuard(dirty: boolean, message = "You have unsaved chan
 
   const arm = React.useCallback(() => {
     if (armed.current) return;
+    // After a reload we may already be sitting on our sentinel entry: reuse it instead of stacking another.
+    if ((window.history.state as Record<string, unknown> | null)?.[SENTINEL]) {
+      armed.current = true;
+      return;
+    }
     // Keep the router's own state on the entry so Next.js treats it as one of its history entries.
     const state = (window.history.state ?? {}) as Record<string, unknown>;
     window.history.pushState({ ...state, [SENTINEL]: true }, "", window.location.href);
@@ -52,6 +57,7 @@ export function useUnsavedGuard(dirty: boolean, message = "You have unsaved chan
   React.useEffect(() => {
     if (!dirty) return;
     const onUnload = (e: BeforeUnloadEvent) => {
+      if (leaving.current) return; // the user already confirmed leaving (e.g. Back to a full page load)
       e.preventDefault();
       e.returnValue = message;
       return message;

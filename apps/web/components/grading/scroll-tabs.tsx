@@ -17,23 +17,29 @@ export function ScrollTabsList({ active, className, children, ...props }: React.
     setEdges({ left: el.scrollLeft > 2, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 });
   }, []);
 
-  React.useEffect(() => {
+  const centreActive = React.useCallback(() => {
     const el = ref.current;
     const tab = el?.querySelector<HTMLElement>('[role="tab"][data-state="active"]');
     if (el && tab) {
-      const target = tab.offsetLeft - (el.clientWidth - tab.offsetWidth) / 2;
+      const target = tab.offsetLeft - el.offsetLeft - (el.clientWidth - tab.offsetWidth) / 2;
       el.scrollTo({ left: Math.max(0, target), behavior: "auto" });
     }
     measure();
-  }, [active, measure]);
+  }, [measure]);
 
+  React.useEffect(() => {
+    centreActive();
+  }, [active, centreActive]);
+
+  // Tabs grow when their counters load: keep the active tab centred and the fades accurate.
   React.useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(measure);
+    const ro = new ResizeObserver(centreActive);
     ro.observe(el);
+    el.querySelectorAll('[role="tab"]').forEach((t) => ro.observe(t));
     return () => ro.disconnect();
-  }, [measure]);
+  }, [centreActive]);
 
   return (
     <div className="relative max-w-full">

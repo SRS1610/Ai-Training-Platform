@@ -45,7 +45,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { api, errorMessage } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
-import { INDUSTRY_COLOR } from "./theme";
+import { INDUSTRY_COLOR, industryLabel } from "./theme";
 import { sk, type DraftOut, type SessionSummary, type SimulationOut, type TemplateOut } from "./types";
 
 export function industryIcon(industry: string | null | undefined): LucideIcon {
@@ -76,7 +76,7 @@ export function TemplateCard({ t, onUse }: { t: TemplateOut; onUse: () => void }
         <div className="absolute -bottom-10 right-10 size-24 rounded-full bg-white/10" aria-hidden />
         <Icon className="absolute bottom-3 right-4 size-14 text-white/35 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3" aria-hidden />
         <span className="relative inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-2xs font-bold uppercase tracking-wider text-white ring-1 ring-white/30">
-          {humanize(t.industry ?? "general")}
+          {industryLabel(t.industry)}
         </span>
         {t.tags.includes("flagship") && (
           <span className="relative ml-1.5 inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-2xs font-bold text-slate-900">
@@ -256,7 +256,7 @@ export function SimulationCard({ s }: { s: SimulationOut }) {
         <p className="mt-2 line-clamp-2 font-display text-base font-semibold leading-snug text-slate-900 group-hover:text-brand-700">{s.title}</p>
         <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{s.description || "No description yet."}</p>
         <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-3 text-xs text-slate-500">
-          <span className={cn("font-semibold", c.text)}>{humanize(s.industry)}</span>
+          <span className={cn("font-semibold", c.text)}>{industryLabel(s.industry)}</span>
           <span>{humanize(s.difficulty)}</span>
           <span className="inline-flex items-center gap-1">
             <Clock className="size-3.5" aria-hidden />

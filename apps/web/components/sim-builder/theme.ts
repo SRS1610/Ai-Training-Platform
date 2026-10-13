@@ -84,6 +84,23 @@ export const INDUSTRIES = [
   { value: "general", label: "General" },
 ];
 
+const INDUSTRY_SHORT: Record<string, string> = {
+  it: "IT",
+  soc: "SOC",
+  cybersecurity: "Cybersecurity",
+  customer_service: "Customer service",
+  hr: "HR",
+  qa: "QA",
+};
+
+/** Display label for an industry code ("it" → "IT", "customer_service" → "Customer service"). */
+export function industryLabel(code: string | null | undefined): string {
+  const k = (code ?? "general").toLowerCase();
+  if (INDUSTRY_SHORT[k]) return INDUSTRY_SHORT[k]!;
+  const s = k.replace(/[_-]+/g, " ").trim();
+  return s ? s[0]!.toUpperCase() + s.slice(1) : "General";
+}
+
 export const DIFFICULTIES = [
   { value: "beginner", label: "Beginner" },
   { value: "intermediate", label: "Intermediate" },

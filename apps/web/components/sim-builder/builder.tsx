@@ -253,7 +253,8 @@ function BuilderInner({ id }: { id: string }) {
   React.useEffect(() => setTabState(urlTab), [urlTab]);
   const setTab = (t: BuilderTab) => {
     setTabState(t);
-    window.history.replaceState(null, "", t === "flow" ? pathname : `${pathname}?tab=${t}`);
+    // Keep the entry's state (router data + the unsaved-changes sentinel flag); only the URL changes.
+    window.history.replaceState(window.history.state, "", t === "flow" ? pathname : `${pathname}?tab=${t}`);
   };
 
   const simQ = useQuery({ queryKey: sk.detail(id), queryFn: ({ signal }) => api.get<SimulationOut>(`/simulations/${id}`, { signal }) });
