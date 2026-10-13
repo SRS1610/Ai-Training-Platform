@@ -11,9 +11,14 @@ const SENTINEL = "__praxisUnsavedGuard";
  * Warn before leaving with unsaved changes: browser unload (refresh/close), in-app link clicks (App Router has
  * no route-change events, so internal <a> clicks are intercepted in the capture phase) and the browser Back
  * button (a same-URL sentinel history entry absorbs the first Back; we go back for real only on confirm).
- * Render the returned `dialog` once.
+ * Render the returned `dialog` once. Pass `guardBack: false` for guards that live inside a page (a panel that can
+ * unmount while the page stays), so no sentinel history entry is left behind.
  */
-export function useUnsavedGuard(dirty: boolean, message = "You have unsaved changes. Leave without saving?") {
+export function useUnsavedGuard(
+  dirty: boolean,
+  message = "You have unsaved changes. Leave without saving?",
+  { guardBack = true }: { guardBack?: boolean } = {},
+) {
   const router = useRouter();
   const [pending, setPending] = React.useState<string | null>(null);
   const dirtyRef = React.useRef(dirty);
@@ -36,8 +41,8 @@ export function useUnsavedGuard(dirty: boolean, message = "You have unsaved chan
 
   // Arm the Back-button guard the first time there is something to lose.
   React.useEffect(() => {
-    if (dirty) arm();
-  }, [dirty, arm]);
+    if (dirty && guardBack) arm();
+  }, [dirty, guardBack, arm]);
 
   React.useEffect(() => {
     const onPop = () => {

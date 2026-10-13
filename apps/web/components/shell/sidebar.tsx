@@ -6,11 +6,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/common/logo";
 import { useAuth } from "@/lib/auth";
-import { visibleNav, type NavItem } from "@/lib/nav";
+import { findNavItem, visibleNav, type NavItem } from "@/lib/nav";
 import { OrgSwitcher } from "./org-switcher";
 
+/** Exactly one nav item is active: the one the path belongs to (longest href match, plus player/quiz parents). */
 export function isActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return findNavItem(pathname)?.href === href;
 }
 
 export function NavLink({ item, collapsed, onNavigate }: { item: NavItem; collapsed?: boolean; onNavigate?: () => void }) {

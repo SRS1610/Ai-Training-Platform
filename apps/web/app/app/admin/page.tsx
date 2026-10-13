@@ -8,7 +8,7 @@
 import type { Page } from "@praxis/types";
 import { EmptyState, KpiTile, PageHeader, Skeleton, cn, colorClasses, type CategoryColor } from "@praxis/ui";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BarChart3, Gauge, LayoutGrid, MailPlus, ShieldCheck, Sparkles, UsersRound, type LucideIcon } from "lucide-react";
+import { ArrowRight, Gauge, LayoutGrid, MailPlus, ShieldCheck, Sparkles, UsersRound, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { ak } from "@/components/admin/keys";
 import type { AIUsageOut, MemberOut, OrgAnalytics, SubscriptionOut } from "@/components/admin/types";
@@ -26,20 +26,12 @@ interface Area {
   anyOf: string[];
 }
 
-const ANALYTICS: Area = {
-  label: "Organisation analytics",
-  href: "/app/admin/analytics",
-  icon: BarChart3,
-  color: "teal",
-  description: "Compliance, skill gaps, departments and top performers",
-  anyOf: ["analytics.view"],
-};
-
 function useAreas(): Area[] {
   const { canAny } = useAuth();
   const manage = NAV.find((s) => s.id === "manage")?.items ?? [];
-  const areas: Area[] = manage.map((i) => ({ label: i.label, href: i.href, icon: i.icon, color: i.color, description: i.description ?? "", anyOf: i.anyOf ?? [] }));
-  areas.splice(4, 0, ANALYTICS);
+  const areas: Area[] = manage
+    .filter((i) => i.href !== "/app/admin")
+    .map((i) => ({ label: i.label, href: i.href, icon: i.icon, color: i.color, description: i.description ?? "", anyOf: i.anyOf ?? [] }));
   return areas.filter((a) => !a.anyOf.length || canAny(a.anyOf));
 }
 

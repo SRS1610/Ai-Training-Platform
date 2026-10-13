@@ -86,7 +86,7 @@ import { Inspector, InspectorEmpty } from "./inspector";
 import type { BuilderCtx } from "./nodes";
 import { ACTION_KIND } from "./theme";
 import { sk, type BuilderGraph, type DraftOut, type GraphOut, type PublishOut, type SimDefinition, type SimulationOut, type ValidationOut } from "./types";
-import { useUnsavedGuard } from "./use-unsaved-guard";
+import { useUnsavedGuard } from "@/components/common/use-unsaved-guard";
 
 interface Snapshot {
   nodes: SimNode[];

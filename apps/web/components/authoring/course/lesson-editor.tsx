@@ -36,6 +36,7 @@ import * as React from "react";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { QuickGenerateDialog, type QuickKind } from "../ai/quick-generate";
+import { useUnsavedGuard } from "@/components/common/use-unsaved-guard";
 import { problemsFrom, useAutosave } from "../hooks";
 import { LESSON_TYPE_GROUPS, LESSON_TYPES, LINKED_LESSON_TYPES, lessonMeta, type LessonTypeKey } from "../meta";
 import { AIBadge, AutoGrowTextarea, SaveIndicator, SectionCard, SkillPicker, TypeChip } from "../shared";
@@ -136,7 +137,7 @@ export function LessonEditor({
   modules: StructureModule[];
   onBack?: () => void;
 }) {
-  const { courseId, patchLesson, markDirty, refresh, selectLesson } = useBuilder();
+  const { courseId, patchLesson, markDirty, refresh, selectLesson, setLeaveWarning } = useBuilder();
   const { can } = useAuth();
   const [draft, setDraft] = React.useState<Draft>(() => toDraft(lesson));
   const [view, setView] = React.useState<"edit" | "preview">("edit");
@@ -184,8 +185,19 @@ export function LessonEditor({
     }
   });
 
-  // Warn before leaving the page while edits are held back, pending, in flight or failed.
-  const unsafe = held || save.status === "dirty" || save.status === "saving" || save.status === "error";
+  // Valid pending edits are saved when the editor unmounts, so in-app navigation only loses edits that are held back
+  // as invalid or whose save failed: guard those (other lessons, tabs, in-app links). Reload/close can't wait for a
+  // save, so it also warns while an edit is pending or in flight.
+  const lost = held || save.status === "error";
+  const leaveMessage = held
+    ? `Your latest edits to this lesson can't be saved until it's complete (${(problems[0] ?? "see the warning in the editor").replace(/\.$/, "")}${problems.length > 1 ? ` and ${problems.length - 1} more` : ""}). Leaving now discards them.`
+    : "The last change to this lesson failed to save. Leaving now discards it — retry the save first to keep it.";
+  React.useEffect(() => {
+    setLeaveWarning(lost ? leaveMessage : null);
+  }, [lost, leaveMessage, setLeaveWarning]);
+  React.useEffect(() => () => setLeaveWarning(null), [setLeaveWarning]);
+  const guard = useUnsavedGuard(lost, leaveMessage, { guardBack: false });
+  const unsafe = !lost && (save.status === "dirty" || save.status === "saving");
   React.useEffect(() => {
     if (!unsafe) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -224,6 +236,7 @@ export function LessonEditor({
       await save.flush();
       await api.delete(`/courses/${courseId}/lessons/${lesson.id}`);
       save.reset();
+      setLeaveWarning(null);
       toast.success("Lesson deleted");
       selectLesson(null);
       await refresh();
@@ -461,6 +474,7 @@ export function LessonEditor({
           if (pendingType) changeType(pendingType);
         }}
       />
+      {guard.dialog}
       {quick && (
         <QuickGenerateDialog
           open={!!quick}

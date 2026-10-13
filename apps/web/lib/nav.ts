@@ -1,7 +1,7 @@
 /**
  * App navigation, grouped into sections and gated by permission.
  * A nav item is visible when the user has ANY of `anyOf` (or `superadmin` for platform pages).
- * Pages that do not exist yet are served by app/app/[...slug] ("coming soon").
+ * Unknown /app/* paths are served by app/app/[...slug] (a "page not found" screen inside the shell).
  */
 import type { CategoryColor } from "@praxis/ui";
 import {
@@ -11,11 +11,14 @@ import {
   Bot,
   Building2,
   ClipboardCheck,
+  ClipboardList,
   CreditCard,
   FileClock,
   FileQuestion,
   FolderKanban,
+  Gauge,
   GraduationCap,
+  Grid3x3,
   KeyRound,
   LayoutDashboard,
   Library,
@@ -23,6 +26,7 @@ import {
   type LucideIcon,
   MonitorPlay,
   Network,
+  PieChart,
   Route,
   ScrollText,
   Settings,
@@ -53,6 +57,20 @@ export interface NavSection {
 }
 
 const LEARN = ["learning.access"];
+/** Any permission that unlocks at least one Manage page (the admin overview lists only those). */
+const ADMIN_AREAS = [
+  "users.view",
+  "users.edit",
+  "roles.manage",
+  "enrolments.manage",
+  "analytics.view",
+  "reports.export",
+  "ai.manage",
+  "billing.manage",
+  "audit.view",
+  "api_keys.manage",
+  "organisation.manage",
+];
 
 export const NAV: NavSection[] = [
   {
@@ -76,8 +94,10 @@ export const NAV: NavSection[] = [
     items: [
       { label: "Courses", href: "/app/instructor/courses", icon: GraduationCap, anyOf: ["courses.create", "courses.edit"], color: "indigo", description: "Build, version and publish courses" },
       { label: "AI Course Builder", href: "/app/instructor/ai-builder", icon: Wand2, anyOf: ["courses.create"], color: "fuchsia", badge: "AI", description: "Generate a course draft with AI, then review" },
-      { label: "Question banks", href: "/app/instructor/question-banks", icon: FileQuestion, anyOf: ["assessments.manage"], color: "sky", description: "Questions, quizzes and assessments" },
-      { label: "Assignments", href: "/app/instructor/assignments", icon: ClipboardCheck, anyOf: ["assignments.manage"], color: "amber", description: "Practical assignments and rubrics" },
+      { label: "Question banks", href: "/app/instructor/question-banks", icon: FileQuestion, anyOf: ["assessments.manage"], color: "sky", description: "Reusable question libraries" },
+      { label: "Assessments", href: "/app/instructor/assessments", icon: ClipboardList, anyOf: ["assessments.manage"], color: "indigo", description: "Quizzes and exams built from your banks" },
+      { label: "Assignments", href: "/app/instructor/assignments", icon: ClipboardCheck, anyOf: ["assignments.manage"], color: "amber", description: "Practical assignments and briefs" },
+      { label: "Rubrics", href: "/app/instructor/rubrics", icon: Grid3x3, anyOf: ["assignments.manage"], color: "orange", description: "Reusable grading criteria and levels" },
       { label: "Simulation builder", href: "/app/instructor/simulations", icon: Workflow, anyOf: ["simulations.manage"], color: "violet", description: "Design data-driven simulations" },
       { label: "Grading", href: "/app/instructor/grading", icon: ListChecks, anyOf: ["submissions.review"], color: "rose", description: "Review queue with AI recommendations" },
       { label: "Knowledge base", href: "/app/instructor/knowledge", icon: FolderKanban, anyOf: ["knowledge.manage"], color: "teal", description: "Documents that ground the AI tutor" },
@@ -88,10 +108,12 @@ export const NAV: NavSection[] = [
     id: "manage",
     label: "Manage",
     items: [
+      { label: "Admin overview", href: "/app/admin", icon: Gauge, anyOf: ADMIN_AREAS, color: "indigo", description: "Everything you can manage, at a glance" },
       { label: "Users", href: "/app/admin/users", icon: UsersRound, anyOf: ["users.view"], color: "sky", description: "People, invitations and roles" },
       { label: "Departments & teams", href: "/app/admin/departments", icon: Network, anyOf: ["users.edit"], color: "teal", description: "Organisation structure" },
       { label: "Roles", href: "/app/admin/roles", icon: ShieldCheck, anyOf: ["roles.manage"], color: "violet", description: "Custom roles and permissions" },
       { label: "Learning paths", href: "/app/admin/learning-paths", icon: Route, anyOf: ["enrolments.manage"], color: "emerald", description: "Programs and training assignments" },
+      { label: "Organisation analytics", href: "/app/admin/analytics", icon: PieChart, anyOf: ["analytics.view"], color: "teal", description: "Compliance, skill gaps, departments and top performers" },
       { label: "Reports", href: "/app/admin/reports", icon: ScrollText, anyOf: ["reports.export"], color: "amber", description: "PDF, CSV and Excel reports" },
       { label: "AI settings", href: "/app/admin/ai", icon: Sparkles, anyOf: ["ai.manage"], color: "fuchsia", description: "Providers, models, usage and budgets" },
       { label: "Billing", href: "/app/admin/billing", icon: CreditCard, anyOf: ["billing.manage"], color: "indigo", description: "Plan, seats and invoices" },
@@ -119,6 +141,7 @@ export function visibleNav(can: (p: string) => boolean, isSuperadmin: boolean): 
 /** Routes that are not nav entries themselves but live under one (course player, lessons, quizzes). */
 const ROUTE_PARENTS: Record<string, string> = { "/app/learn": "/app/learning", "/app/quiz": "/app/learning" };
 
+/** The single nav item a path belongs to (longest matching href), used for the active highlight and breadcrumbs. */
 export function findNavItem(pathname: string): NavItem | undefined {
   let best: NavItem | undefined;
   for (const s of NAV)

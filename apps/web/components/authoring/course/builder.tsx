@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CategoryBadge,
+  ConfirmDialog,
   EmptyState,
   Skeleton,
   Tabs,
@@ -147,7 +148,26 @@ export function CourseBuilder({ courseId }: { courseId: string }) {
     queryFn: ({ signal }) => api.get<Structure>(`/courses/${courseId}/structure`, { signal }),
   });
   const structure = q.data;
-  const selectLesson = React.useCallback((id: string | null) => set({ lesson: id || null, tab: null }), [set]);
+  const goToLesson = React.useCallback((id: string | null) => set({ lesson: id || null, tab: null }), [set]);
+  // In-builder navigation (another lesson, another tab) unmounts the lesson editor. Pending valid edits are saved on
+  // unmount, but edits held back as invalid (or a failed save) would be lost, so ask first.
+  const leaveWarning = React.useRef<string | null>(null);
+  const setLeaveWarning = React.useCallback((m: string | null) => {
+    leaveWarning.current = m;
+  }, []);
+  const [pendingNav, setPendingNav] = React.useState<{ go: () => void; message: string } | null>(null);
+  const guarded = React.useCallback((go: () => void) => {
+    const message = leaveWarning.current;
+    if (message) setPendingNav({ go, message });
+    else go();
+  }, []);
+  const selectLesson = React.useCallback(
+    (id: string | null) => {
+      if ((id || null) === lessonId) return;
+      guarded(() => goToLesson(id));
+    },
+    [guarded, goToLesson, lessonId],
+  );
 
   if (q.isLoading) return <BuilderSkeleton />;
   if (q.isError || !structure) return <ErrorState error={q.error} onRetry={() => q.refetch()} size="lg" />;
@@ -168,7 +188,7 @@ export function CourseBuilder({ courseId }: { courseId: string }) {
   };
 
   return (
-    <BuilderProvider courseId={courseId} structure={structure} selectLesson={selectLesson}>
+    <BuilderProvider courseId={courseId} structure={structure} selectLesson={selectLesson} setLeaveWarning={setLeaveWarning}>
       <div className="space-y-5">
         <Breadcrumbs
           linkComponent={Link}
@@ -226,7 +246,7 @@ export function CourseBuilder({ courseId }: { courseId: string }) {
           </div>
         </GradientHeader>
 
-        <Tabs value={tab} onValueChange={(v) => set({ tab: v === "content" ? null : v })}>
+        <Tabs value={tab} onValueChange={(v) => guarded(() => set({ tab: v === "content" ? null : v }))}>
           <TabsList variant="underline">
             <TabsTrigger value="content">
               <ListTree aria-hidden /> Content
@@ -292,6 +312,21 @@ export function CourseBuilder({ courseId }: { courseId: string }) {
       <AddLessonDialog open={!!addFor} onOpenChange={(o) => !o && setAddFor(null)} module={addFor} onCreated={(l) => selectLesson(l.id)} />
       <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} structure={structure} onGoToLesson={(id) => selectLesson(id)} />
       <CoursePreview open={previewOpen} onOpenChange={setPreviewOpen} structure={structure} startLessonId={lesson?.id} />
+      <ConfirmDialog
+        open={!!pendingNav}
+        onOpenChange={(o) => !o && setPendingNav(null)}
+        destructive
+        title="Leave this lesson without saving?"
+        description={pendingNav?.message}
+        confirmLabel="Discard changes"
+        cancelLabel="Keep editing"
+        onConfirm={() => {
+          const go = pendingNav?.go;
+          leaveWarning.current = null;
+          setPendingNav(null);
+          go?.();
+        }}
+      />
     </BuilderProvider>
   );
 }

@@ -13,14 +13,15 @@ function crumbsFor(pathname: string) {
   const item = findNavItem(pathname);
   const crumbs: { label: string; href?: string }[] = [];
   if (pathname.startsWith("/app/instructor")) crumbs.push({ label: "Teach" });
-  else if (pathname.startsWith("/app/admin")) crumbs.push({ label: "Manage" });
+  else if (pathname.startsWith("/app/admin")) crumbs.push({ label: "Manage", href: "/app/admin" });
   else if (pathname.startsWith("/app/platform")) crumbs.push({ label: "Platform" });
-  else if (pathname.startsWith("/app/profile")) crumbs.push({ label: "Account", href: "/app/profile" });
+  else if (pathname.startsWith("/app/profile") || pathname.startsWith("/app/notifications")) crumbs.push({ label: "Account", href: "/app/profile" });
   else crumbs.push({ label: "Learn" });
   if (item) crumbs.push({ label: item.label, href: item.href });
   else if (pathname.startsWith("/app/profile/security")) crumbs.push({ label: "Security" });
   else if (pathname.startsWith("/app/profile/privacy")) crumbs.push({ label: "Privacy & data" });
   else if (pathname.startsWith("/app/profile")) crumbs.push({ label: "Profile" });
+  else if (pathname.startsWith("/app/notifications")) crumbs.push({ label: "Notifications" });
   return crumbs;
 }
 

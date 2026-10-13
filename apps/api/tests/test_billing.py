@@ -156,6 +156,23 @@ async def test_plans_public_and_subscription_view(client):
         assert r.status_code == 403, (path, r.status_code)
 
 
+async def test_seat_limit_mirrors_enforcement_for_agreements(client):
+    """Enterprise with no recorded seat number: no purchased count and no limit (null), matching check_limit."""
+    admin = await signup(client)
+    await set_plan(admin.org_id, "enterprise")
+    body = (await client.get(f"{API}/subscription", headers=admin.headers)).json()
+    assert body["plan"]["code"] == "enterprise"
+    assert body["seat_limit"] is None and body["seats_purchased"] is None and body["seats_used"] == 1
+    r = await client.post(
+        f"{API}/invitations", headers=admin.headers, json={"invitations": [{"email": "a@ent.test", "roles": ["learner"]}]}
+    )
+    assert r.status_code in (200, 201), r.text  # not blocked by a phantom 1-seat limit
+
+    await set_plan(admin.org_id, "enterprise", seats=40)
+    body = (await client.get(f"{API}/subscription", headers=admin.headers)).json()
+    assert body["seat_limit"] == 40 and body["seats_purchased"] == 40
+
+
 async def test_mutations_unavailable_without_stripe(client, monkeypatch):
     monkeypatch.setattr(settings, "STRIPE_SECRET_KEY", None)
     admin = await signup(client)

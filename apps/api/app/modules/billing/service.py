@@ -38,6 +38,8 @@ from app.modules.billing.plans import (
     get_plan,
     plan_for_price_id,
     public_catalogue,
+    recorded_seats,
+    resource_limit,
     stripe_price_id,
 )
 
@@ -96,8 +98,12 @@ async def subscription_view(db: AsyncSession, org: Organisation) -> dict[str, An
     sub = await current_subscription(db, org.id)
     plan = get_plan(org.plan_code)
     used = await seats_used(db, org.id)
-    purchased = int((org.settings or {}).get("seats") or (sub.seats if sub else 1) or 1)
-    seat_limit = purchased if plan.seat_based else plan.limits.get("max_users")
+    # Seats purchased: the recorded count, else (self-serve seat plans) the subscription's quantity. A sales-led
+    # agreement with no recorded seat number has no purchased count and no enforced limit (null = unlimited).
+    purchased: int | None = recorded_seats(org)
+    if purchased is None and plan.code in SELF_SERVE_PLANS and plan.seat_based:
+        purchased = (sub.seats if sub else None) or 1
+    seat_limit = resource_limit(org, "max_users")
     trial_ends = sub.trial_ends_at if sub else None
     trialing = bool(sub and sub.status == SubscriptionStatus.TRIALING and trial_ends and trial_ends > _now())
     remaining = math.ceil((trial_ends - _now()).total_seconds() / 86400) if trialing and trial_ends else 0
@@ -105,7 +111,7 @@ async def subscription_view(db: AsyncSession, org: Organisation) -> dict[str, An
         "plan": _catalogue_item(plan.code),
         "status": sub.status if sub else SubscriptionStatus.ACTIVE,
         "billing_interval": sub.billing_interval if sub else "month",
-        "seats_purchased": purchased if plan.seat_based else None,
+        "seats_purchased": purchased,
         "seats_used": used,
         "seat_limit": seat_limit,
         "trial_ends_at": trial_ends,

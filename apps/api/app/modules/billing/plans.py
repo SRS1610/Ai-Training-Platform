@@ -218,14 +218,27 @@ async def _current_count(db: AsyncSession, org_id: Any, resource: str) -> int:
     raise ValueError(resource)
 
 
-async def check_limit(db: AsyncSession, org: Any, resource: str, increment: int = 1) -> None:
-    """Raise PaymentRequired (402) if adding ``increment`` would exceed the plan limit.
+def recorded_seats(org: Any) -> int | None:
+    """The seat count recorded for a seat-based plan (``org.settings['seats']``), or None when none is set."""
+    if not get_plan(org.plan_code).seat_based:
+        return None
+    seats = (org.settings or {}).get("seats")
+    return int(seats) if seats else None
 
-    For seat-based plans ``max_users`` is the purchased seat count (``org.settings['seats']``)."""
+
+def resource_limit(org: Any, resource: str) -> int | None:
+    """The enforced limit for ``resource`` (None = unlimited). For seat-based plans ``max_users`` is the recorded
+    seat count; without one (e.g. an Enterprise agreement with no seat number) the plan's own limit applies."""
+    if resource == "max_users" and (seats := recorded_seats(org)) is not None:
+        return seats
+    limit = get_plan(org.plan_code).limits.get(resource)
+    return None if limit is None else int(limit)
+
+
+async def check_limit(db: AsyncSession, org: Any, resource: str, increment: int = 1) -> None:
+    """Raise PaymentRequired (402) if adding ``increment`` would exceed the plan limit (see ``resource_limit``)."""
     plan = get_plan(org.plan_code)
-    limit = plan.limits.get(resource)
-    if resource == "max_users" and plan.seat_based and (org.settings or {}).get("seats"):
-        limit = int(org.settings["seats"])
+    limit = resource_limit(org, resource)
     if limit is None:
         return
     current = await _current_count(db, org.id, resource)
