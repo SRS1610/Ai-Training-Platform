@@ -12,7 +12,9 @@ RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
+# Baked into the client bundle at build time (canonical URLs, metadata); pass --build-arg per environment.
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
+ENV NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
 RUN pnpm --filter web build
 
 FROM node:22-alpine AS runtime

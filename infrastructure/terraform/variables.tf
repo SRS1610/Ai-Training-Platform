@@ -52,3 +52,18 @@ variable "api_memory" {
   type    = number
   default = 1024
 }
+variable "ai_default_provider" {
+  type        = string
+  default     = "offline"
+  description = "openai | anthropic | azure_openai | google | local | offline (offline needs no API key)"
+}
+variable "email_from" {
+  type        = string
+  default     = ""
+  description = "Sender for transactional email; must be an SES-verified identity. Defaults to no-reply@<domain_name>."
+}
+variable "forwarded_trusted_hops" {
+  type        = number
+  default     = 1
+  description = "Proxies in front of the API that append to X-Forwarded-For (1 = ALB; 2 = Cloudflare + ALB)"
+}

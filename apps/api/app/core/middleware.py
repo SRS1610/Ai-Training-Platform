@@ -38,9 +38,15 @@ CSRF_EXEMPT_SUFFIXES = (
 
 
 def client_ip(request: HTTPConnection) -> str:
+    """The caller's IP. Each trusted proxy appends the address it received the request from to
+    X-Forwarded-For, so the client is ``FORWARDED_TRUSTED_HOPS`` entries from the right; anything further
+    left was supplied by the caller and cannot be trusted."""
+    hops = settings.FORWARDED_TRUSTED_HOPS
     fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
+    if fwd and hops > 0:
+        parts = [p.strip() for p in fwd.split(",") if p.strip()]
+        if parts:
+            return parts[-hops] if len(parts) >= hops else parts[0]
     return request.client.host if request.client else "unknown"
 
 

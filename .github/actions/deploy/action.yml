@@ -28,13 +28,17 @@ runs:
           aws ecs register-task-definition --cli-input-json file://td-new.json --query taskDefinition.taskDefinitionArn --output text
         }
         API_IMG="${REGISTRY}/praxis-api:${TAG}"; WEB_IMG="${REGISTRY}/praxis-web:${TAG}"
-        MIGRATE_TD=$(update_td "${CLUSTER}-migrate" migrate "$API_IMG")
         NET=$(aws ecs describe-services --cluster "$CLUSTER" --services api --query 'services[0].networkConfiguration' --output json)
-        TASK=$(aws ecs run-task --cluster "$CLUSTER" --launch-type FARGATE --task-definition "$MIGRATE_TD" \
-          --network-configuration "$NET" --query 'tasks[0].taskArn' --output text)
-        aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK"
-        CODE=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK" --query 'tasks[0].containers[0].exitCode' --output text)
-        [ "$CODE" = "0" ] || { echo "Migration failed (exit $CODE)"; exit 1; }
+        run_once () {   # task definition ARN, label → fails the job if the task exits non-zero
+          TASK=$(aws ecs run-task --cluster "$CLUSTER" --launch-type FARGATE --task-definition "$1" \
+            --network-configuration "$NET" --query 'tasks[0].taskArn' --output text)
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK"
+          CODE=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK" --query 'tasks[0].containers[0].exitCode' --output text)
+          [ "$CODE" = "0" ] || { echo "$2 failed (exit $CODE)"; exit 1; }
+        }
+        # Extensions + non-superuser app role (idempotent), then migrations, before any service moves.
+        run_once "$(update_td "${CLUSTER}-db-bootstrap" db-bootstrap "$API_IMG")" "Database bootstrap"
+        run_once "$(update_td "${CLUSTER}-migrate" migrate "$API_IMG")" "Migration"
         aws ecs update-service --cluster "$CLUSTER" --service api --task-definition "$(update_td "${CLUSTER}-api" api "$API_IMG")" >/dev/null
         aws ecs update-service --cluster "$CLUSTER" --service worker --task-definition "$(update_td "${CLUSTER}-worker" '*' "$API_IMG")" >/dev/null
         aws ecs update-service --cluster "$CLUSTER" --service web --task-definition "$(update_td "${CLUSTER}-web" web "$WEB_IMG")" >/dev/null

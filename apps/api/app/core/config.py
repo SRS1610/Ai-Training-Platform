@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     RATE_LIMIT_DEFAULT_PER_MINUTE: int = 300
     RATE_LIMIT_AUTH_PER_MINUTE: int = 20
     RATE_LIMIT_AI_PER_MINUTE: int = 30
+    # Reverse proxies in front of the API that append the caller to X-Forwarded-For (1 = a load balancer or
+    # the Next.js dev proxy; 2 = Cloudflare in front of a load balancer; 0 = ignore the header). The client
+    # IP is read that many entries from the right, so a forged header cannot spoof rate limits or audit IPs.
+    FORWARDED_TRUSTED_HOPS: int = 1
 
     # --- OAuth / SSO -------------------------------------------------------------
     GOOGLE_CLIENT_ID: str | None = None

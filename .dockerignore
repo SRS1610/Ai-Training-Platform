@@ -1,0 +1,25 @@
+# Keep build contexts small and keep local secrets and host-built artefacts out of images.
+.git
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/coverage
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.venv
+**/venv
+**/.storage
+**/.env
+**/.env.*
+!**/.env.example
+test-results
+playwright-report
+tests/e2e/.auth
+infrastructure/terraform/.terraform
+**/*.tfstate
+**/*.tfstate.*
+docs/images

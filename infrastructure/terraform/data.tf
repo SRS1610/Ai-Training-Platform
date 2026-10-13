@@ -1,5 +1,19 @@
+data "aws_caller_identity" "current" {}
+
+# RDS master password (used only by the one-off db-bootstrap task) and the application role's password.
 resource "random_password" "db" {
   length  = 32
+  special = false
+}
+
+resource "random_password" "app_db" {
+  length  = 32
+  special = false
+}
+
+# Fernet key: 43 URL-safe characters + "=" decode to the 32 bytes Fernet requires.
+resource "random_password" "encryption_key" {
+  length  = 43
   special = false
 }
 
@@ -21,8 +35,9 @@ resource "aws_db_parameter_group" "pg16" {
   }
 }
 
-# pgvector is available on RDS PostgreSQL 16 (CREATE EXTENSION vector runs in the first migration
-# via the master user; the application then connects as the non-superuser "praxis" role).
+# pgvector is available on RDS PostgreSQL 16. The one-off "db-bootstrap" ECS task (master user) creates the
+# extensions and the non-superuser "praxis" role (NOBYPASSRLS, so row-level security applies); migrations and
+# the application then connect as "praxis".
 resource "aws_db_instance" "main" {
   identifier                   = local.name
   engine                       = "postgres"
@@ -66,7 +81,8 @@ resource "aws_elasticache_replication_group" "redis" {
   transit_encryption_enabled = true
 }
 
-resource "aws_s3_bucket" "files" { bucket = "${local.name}-files" }
+# Bucket names are global: suffix the account id so every AWS account gets a unique name.
+resource "aws_s3_bucket" "files" { bucket = "${local.name}-files-${data.aws_caller_identity.current.account_id}" }
 
 resource "aws_s3_bucket_public_access_block" "files" {
   bucket                  = aws_s3_bucket.files.id
@@ -95,14 +111,33 @@ resource "random_password" "auth_secret" {
 
 resource "aws_secretsmanager_secret" "app" { name = "${local.name}/app" }
 
-# Non-generated secrets (OPENAI_API_KEY, STRIPE_*, ENCRYPTION_KEY, OAuth client secrets) are set out of band:
-#   aws secretsmanager put-secret-value --secret-id praxis-<env>/app --secret-string file://secrets.json
+# Generated values are written once; optional keys start empty and are filled by scripts/deploy-aws.sh (or
+#   aws secretsmanager put-secret-value --secret-id praxis-<env>/app --secret-string file://secrets.json).
+# Every key referenced by the task definitions must exist in the JSON, or ECS cannot start the task.
 resource "aws_secretsmanager_secret_version" "app" {
   secret_id = aws_secretsmanager_secret.app.id
   secret_string = jsonencode({
-    DATABASE_URL = "postgresql+asyncpg://praxis:${random_password.db.result}@${aws_db_instance.main.address}:5432/praxis"
-    REDIS_URL    = "rediss://${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379/0"
-    AUTH_SECRET  = random_password.auth_secret.result
+    DATABASE_URL            = "postgresql+asyncpg://praxis:${random_password.app_db.result}@${aws_db_instance.main.address}:5432/praxis?ssl=require"
+    REDIS_URL               = "rediss://${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379/0?ssl_cert_reqs=required"
+    AUTH_SECRET             = random_password.auth_secret.result
+    ENCRYPTION_KEY          = "${random_password.encryption_key.result}="
+    OPENAI_API_KEY          = ""
+    ANTHROPIC_API_KEY       = ""
+    STRIPE_SECRET_KEY       = ""
+    STRIPE_WEBHOOK_SECRET   = ""
+    GOOGLE_CLIENT_SECRET    = ""
+    MICROSOFT_CLIENT_SECRET = ""
+    SENTRY_DSN              = ""
   })
   lifecycle { ignore_changes = [secret_string] }
+}
+
+# Master credentials, readable only by the db-bootstrap task (not by the application tasks).
+resource "aws_secretsmanager_secret" "db_admin" { name = "${local.name}/db-admin" }
+
+resource "aws_secretsmanager_secret_version" "db_admin" {
+  secret_id = aws_secretsmanager_secret.db_admin.id
+  secret_string = jsonencode({
+    ADMIN_DATABASE_URL = "postgresql://praxis_admin:${random_password.db.result}@${aws_db_instance.main.address}:5432/praxis?sslmode=require"
+  })
 }

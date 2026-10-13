@@ -39,6 +39,28 @@ resource "aws_iam_role_policy" "execution_secrets" {
   })
 }
 
+# Separate execution role for the db-bootstrap task: only it can read the master credentials.
+resource "aws_iam_role" "bootstrap_execution" {
+  name               = "${local.name}-bootstrap-execution"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "bootstrap_execution" {
+  role       = aws_iam_role.bootstrap_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role_policy" "bootstrap_execution_secrets" {
+  role = aws_iam_role.bootstrap_execution.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow", Action = ["secretsmanager:GetSecretValue"],
+      Resource = [aws_secretsmanager_secret.app.arn, aws_secretsmanager_secret.db_admin.arn]
+    }]
+  })
+}
+
 resource "aws_iam_role" "task" {
   name               = "${local.name}-task"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
@@ -69,8 +91,11 @@ locals {
     { name = "AWS_BUCKET", value = aws_s3_bucket.files.bucket },
     { name = "AWS_REGION", value = var.region },
     { name = "EMAIL_PROVIDER", value = "ses" },
-    { name = "AI_DEFAULT_PROVIDER", value = "openai" },
+    { name = "EMAIL_FROM", value = local.email_from },
+    { name = "AI_DEFAULT_PROVIDER", value = var.ai_default_provider },
+    { name = "FORWARDED_TRUSTED_HOPS", value = tostring(var.forwarded_trusted_hops) },
   ]
+  email_from = var.email_from != "" ? var.email_from : "Praxis <no-reply@${var.domain_name}>"
   log_config = {
     logDriver = "awslogs"
     options   = { awslogs-group = aws_cloudwatch_log_group.app.name, awslogs-region = var.region }
@@ -145,6 +170,28 @@ resource "aws_ecs_task_definition" "migrate" {
   }])
 }
 
+# Idempotent: creates the pgvector/pg_trgm extensions and the non-superuser "praxis" role, and keeps its
+# password in sync with DATABASE_URL. Run once before migrations on every deploy (scripts/deploy-aws.sh).
+resource "aws_ecs_task_definition" "db_bootstrap" {
+  family                   = "${local.name}-db-bootstrap"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = 256
+  memory                   = 512
+  execution_role_arn       = aws_iam_role.bootstrap_execution.arn
+  container_definitions = jsonencode([{
+    name      = "db-bootstrap"
+    image     = var.api_image
+    essential = true
+    command   = ["python", "-m", "app.ops.db_bootstrap"]
+    secrets = [
+      { name = "ADMIN_DATABASE_URL", valueFrom = "${aws_secretsmanager_secret.db_admin.arn}:ADMIN_DATABASE_URL::" },
+      { name = "DATABASE_URL", valueFrom = "${aws_secretsmanager_secret.app.arn}:DATABASE_URL::" },
+    ]
+    logConfiguration = merge(local.log_config, { options = merge(local.log_config.options, { awslogs-stream-prefix = "db-bootstrap" }) })
+  }])
+}
+
 resource "aws_ecs_task_definition" "web" {
   family                   = "${local.name}-web"
   requires_compatibilities = ["FARGATE"]
@@ -153,11 +200,13 @@ resource "aws_ecs_task_definition" "web" {
   memory                   = 1024
   execution_role_arn       = aws_iam_role.execution.arn
   container_definitions = jsonencode([{
-    name             = "web"
-    image            = var.web_image
-    essential        = true
-    portMappings     = [{ containerPort = 3000 }]
-    environment      = [{ name = "API_URL", value = "http://${aws_lb.main.dns_name}" }]
+    name         = "web"
+    image        = var.web_image
+    essential    = true
+    portMappings = [{ containerPort = 3000 }]
+    # Browser calls to /api/* are routed to the API by the load balancer; API_URL only serves the
+    # server-side rewrite fallback, so it points at the public hostname rather than the plain-HTTP ALB.
+    environment      = [{ name = "API_URL", value = "https://${var.domain_name}" }]
     logConfiguration = merge(local.log_config, { options = merge(local.log_config.options, { awslogs-stream-prefix = "web" }) })
   }])
 }
@@ -181,6 +230,9 @@ resource "aws_ecs_service" "api" {
     enable   = true
     rollback = true
   }
+  # Deploys move services to new task definition revisions only after migrations have run
+  # (scripts/deploy-aws.sh); autoscaling owns the API's desired count.
+  lifecycle { ignore_changes = [task_definition, desired_count] }
 }
 
 resource "aws_ecs_service" "worker" {
@@ -193,6 +245,8 @@ resource "aws_ecs_service" "worker" {
     subnets         = aws_subnet.private[*].id
     security_groups = [aws_security_group.app.id]
   }
+  # Deploys move services to new revisions only after migrations (scripts/deploy-aws.sh).
+  lifecycle { ignore_changes = [task_definition] }
 }
 
 resource "aws_ecs_service" "web" {
@@ -214,6 +268,8 @@ resource "aws_ecs_service" "web" {
     enable   = true
     rollback = true
   }
+  # Deploys move services to new revisions only after migrations (scripts/deploy-aws.sh).
+  lifecycle { ignore_changes = [task_definition] }
 }
 
 # Autoscaling for the API on CPU.
