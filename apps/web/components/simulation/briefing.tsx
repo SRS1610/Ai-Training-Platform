@@ -177,10 +177,12 @@ export function SimulationBriefing({ id }: { id: string }) {
                   {stats?.active ? "Resume simulation" : used > 0 ? "Start new attempt" : "Start simulation"}
                 </Button>
               )}
-              <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                <Lightbulb className="size-3.5 text-amber-500" aria-hidden />
-                Tip: press <Kbd>?</Kbd> in the workspace for shortcuts
-              </p>
+              {!outOfAttempts && (
+                <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                  <Lightbulb className="size-3.5 text-amber-500" aria-hidden />
+                  Tip: press <Kbd>?</Kbd> in the workspace for shortcuts
+                </p>
+              )}
             </div>
           </Card>
   );
