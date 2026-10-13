@@ -175,13 +175,13 @@ export function DocumentDrawer({ id, onOpenChange }: { id: string | null; onOpen
               <dl className="grid grid-cols-3 gap-3">
                 {[
                   { k: "Chunks", v: d.chunk_count.toLocaleString(), c: "from-teal-50 text-teal-700", icon: Layers },
-                  { k: "Size", v: formatChars(d.char_count), c: "from-sky-50 text-sky-700", icon: Hash },
+                  { k: "Chars", v: formatChars(d.char_count).replace(/ chars$/, ""), c: "from-sky-50 text-sky-700", icon: Hash },
                   { k: "Updated", v: formatDate(d.updated_at, { day: "numeric", month: "short" }), title: formatRelative(d.updated_at), c: "from-violet-50 text-violet-700", icon: RefreshCw },
                 ].map((s) => (
-                  <div key={s.k} title={"title" in s ? s.title : undefined} className={`min-w-0 rounded-2xl border border-slate-200 bg-gradient-to-br to-white p-3 ${s.c}`}>
+                  <div key={s.k} title={"title" in s ? s.title : undefined} className={`flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-gradient-to-br to-white p-3 ${s.c}`}>
                     <s.icon className="size-4" aria-hidden />
-                    <dd className="mt-1 truncate font-display text-lg font-bold text-slate-900">{s.v}</dd>
-                    <dt className="text-2xs font-semibold uppercase tracking-wider">{s.k}</dt>
+                    <dt className="order-last truncate text-2xs font-semibold uppercase tracking-wider">{s.k}</dt>
+                    <dd className="mt-1 truncate font-display text-base font-bold text-slate-900 sm:text-lg">{s.v}</dd>
                   </div>
                 ))}
               </dl>

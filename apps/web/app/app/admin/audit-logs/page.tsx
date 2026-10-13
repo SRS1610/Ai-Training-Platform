@@ -149,7 +149,7 @@ function AuditPage() {
         header: "When",
         enableSorting: false,
         cell: ({ row }) => (
-          <div className="whitespace-nowrap">
+          <div className="min-w-[8.5rem] whitespace-nowrap">
             <p className="text-slate-900">{formatDateTime(row.original.created_at)}</p>
             <p className="text-xs text-muted-foreground">{formatRelative(row.original.created_at)}</p>
           </div>
