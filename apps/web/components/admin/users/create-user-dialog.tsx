@@ -138,7 +138,7 @@ export function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpen
           </div>
         ) : (
           <form onSubmit={submit} noValidate className="space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <TextField form={form} name="full_name" label="Full name" required autoComplete="off" />
               <TextField form={form} name="email" label="Email" type="email" required autoComplete="off" />
               <TextField form={form} name="job_title" label="Job title" />
@@ -153,7 +153,7 @@ export function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpen
             </div>
             <fieldset className="space-y-3">
               <legend className="mb-2 text-sm font-medium text-slate-800">Password</legend>
-              <RadioGroup value={mode} onValueChange={(v) => setMode(v as "temp" | "set")} className="grid gap-3 sm:grid-cols-2">
+              <RadioGroup value={mode} onValueChange={(v) => setMode(v as "temp" | "set")} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <RadioCard value="temp" title="Generate a temporary password" description="Shown once after creation; must be changed at first sign-in." icon={<Sparkles />} />
                 <RadioCard value="set" title="Set a password" description="You choose the initial password." icon={<ShieldCheck />} />
               </RadioGroup>

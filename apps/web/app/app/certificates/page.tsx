@@ -45,9 +45,12 @@ export default function CertificatesPage() {
   const q = useQuery({ queryKey: lk.certificates.me, queryFn: ({ signal }) => api.get<Certificate[]>("/certificates/me", { signal }) });
   const enrolments = useQuery({ queryKey: lk.enrolments.me, queryFn: ({ signal }) => api.get<MyEnrolment[]>("/enrolments/me", { signal }) });
 
-  const certs = [...(q.data ?? [])].sort((a, b) => b.issued_at.localeCompare(a.issued_at));
+  // Valid credentials first, then newest first.
+  const certs = [...(q.data ?? [])].sort(
+    (a, b) => Number(certStatus(b) === "valid") - Number(certStatus(a) === "valid") || b.issued_at.localeCompare(a.issued_at),
+  );
   const valid = certs.filter((c) => certStatus(c) === "valid");
-  const scored = certs.filter((c) => c.score !== null);
+  const scored = valid.filter((c) => c.score !== null);
   const avg = scored.length ? Math.round(scored.reduce((a, c) => a + (c.score ?? 0), 0) / scored.length) : null;
   const skillCount = new Set(valid.flatMap((c) => ((c.skills ?? []) as { name?: string }[]).map((s) => s.name))).size;
   const certified = new Set(certs.map((c) => c.course_id));
@@ -72,7 +75,7 @@ export default function CertificatesPage() {
       <section aria-label="Summary" className="stagger mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <KpiTile label="Certificates" value={q.isLoading ? "—" : certs.length} icon={<Award />} color="amber" hint="Earned in total" />
         <KpiTile label="Valid now" value={q.isLoading ? "—" : valid.length} icon={<ShieldCheck />} color="emerald" hint="Publicly verifiable" />
-        <KpiTile label="Average score" value={q.isLoading ? "—" : avg === null ? "—" : `${avg}%`} icon={<Star />} color="violet" hint={avg === null && !q.isLoading ? "No scored courses yet" : "Across certified courses"} />
+        <KpiTile label="Average score" value={q.isLoading ? "—" : avg === null ? "—" : `${avg}%`} icon={<Star />} color="violet" hint={avg === null && !q.isLoading ? "No scored certificates yet" : "Across valid certificates"} />
         <KpiTile label="Verified skills" value={q.isLoading ? "—" : skillCount} icon={<BadgeCheck />} color="sky" hint="Backed by a credential" />
       </section>
 

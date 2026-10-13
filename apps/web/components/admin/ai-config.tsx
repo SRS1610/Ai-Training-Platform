@@ -147,7 +147,7 @@ export function AIConfigForm() {
   if (config.isError) return <ErrorState error={config.error} onRetry={() => config.refetch()} />;
   if (!form || !config.data)
     return (
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Skeleton className="h-[30rem] rounded-2xl xl:col-span-2" />
         <Skeleton className="h-[30rem] rounded-2xl" />
       </div>
@@ -182,7 +182,7 @@ export function AIConfigForm() {
         }
       >
         {providers.isLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-28 rounded-2xl" />
             ))}
@@ -194,7 +194,7 @@ export function AIConfigForm() {
               const p = providers.data?.find((x) => x.id === v);
               setForm((f) => (f ? { ...f, provider: v, model: p && !p.models[0]?.startsWith("<") ? p.default_model : "" } : f));
             }}
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
             aria-label="AI provider"
           >
             {(providers.data ?? []).map((p) => {
@@ -272,7 +272,7 @@ export function AIConfigForm() {
         </div>
       </SectionCard>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {/* Features */}
         <SectionCard title="Features" description="Turn AI capabilities on or off for everyone in the organisation." icon={SlidersHorizontal} color="violet">
           <ul className="space-y-2.5">
@@ -340,7 +340,7 @@ export function AIConfigForm() {
         </SectionCard>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {/* Grading */}
         <SectionCard title="Grading mode" description="How AI participates in grading practical work." icon={ClipboardCheck} color="amber">
           <RadioGroup value={form.grading_mode} onValueChange={(v) => set("grading_mode", v)} className="gap-2.5">

@@ -91,7 +91,7 @@ function OrgDetail() {
       <div className="space-y-6">
         <Skeleton className="h-10 w-80" />
         <Skeleton className="h-44 rounded-3xl" />
-        <div className="grid gap-6 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
           <Skeleton className="h-96 rounded-2xl xl:col-span-2" />
           <Skeleton className="h-96 rounded-2xl" />
         </div>
@@ -154,7 +154,7 @@ function OrgDetail() {
         </Alert>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <form
           className="space-y-6 xl:col-span-2"
           onSubmit={(e) => {
@@ -163,7 +163,7 @@ function OrgDetail() {
           }}
         >
           <SectionCard title="Plan & seats" description="Changes apply immediately and are recorded in the platform audit log. Stripe billing isn't changed." icon={Crown} color="violet">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Plan">
                 <SimpleSelect value={plan} onValueChange={setPlan} options={(plans.data ?? []).map((p) => ({ value: p.code, label: p.name }))} placeholder={plans.isLoading ? "Loading…" : "Choose a plan"} />
               </FormField>
@@ -173,7 +173,7 @@ function OrgDetail() {
             </div>
           </SectionCard>
           <SectionCard title="Feature overrides" description="Force a feature on or off regardless of the plan." icon={SlidersHorizontal} color="indigo">
-            <ul className="grid gap-2 sm:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {Object.entries(FEATURE_LABEL).map(([k, label]) => {
                 const fromPlan = planDef?.features[k] ?? false;
                 const v = overrides[k] ?? "plan";

@@ -22,7 +22,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, ExternalLink, Hash, Layers, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import * as React from "react";
 import { api, errorMessage } from "@/lib/api";
-import { formatDateTime, formatRelative } from "@/lib/format";
+import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import { ak } from "../keys";
 import type { KnowledgeChunk, KnowledgeDocument, Page } from "../types";
 import { useCourseOptions } from "../use-options";
@@ -176,11 +176,11 @@ export function DocumentDrawer({ id, onOpenChange }: { id: string | null; onOpen
                 {[
                   { k: "Chunks", v: d.chunk_count.toLocaleString(), c: "from-teal-50 text-teal-700", icon: Layers },
                   { k: "Size", v: formatChars(d.char_count), c: "from-sky-50 text-sky-700", icon: Hash },
-                  { k: "Updated", v: formatRelative(d.updated_at), c: "from-violet-50 text-violet-700", icon: RefreshCw },
+                  { k: "Updated", v: formatDate(d.updated_at, { day: "numeric", month: "short" }), title: formatRelative(d.updated_at), c: "from-violet-50 text-violet-700", icon: RefreshCw },
                 ].map((s) => (
-                  <div key={s.k} className={`rounded-2xl border border-slate-200 bg-gradient-to-br to-white p-3 ${s.c}`}>
+                  <div key={s.k} title={"title" in s ? s.title : undefined} className={`min-w-0 rounded-2xl border border-slate-200 bg-gradient-to-br to-white p-3 ${s.c}`}>
                     <s.icon className="size-4" aria-hidden />
-                    <dd className="mt-1 font-display text-lg font-bold text-slate-900">{s.v}</dd>
+                    <dd className="mt-1 truncate font-display text-lg font-bold text-slate-900">{s.v}</dd>
                     <dt className="text-2xs font-semibold uppercase tracking-wider">{s.k}</dt>
                   </div>
                 ))}

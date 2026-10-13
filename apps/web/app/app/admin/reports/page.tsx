@@ -132,7 +132,7 @@ function GenerateDialog({ report, onClose, onDone }: { report: ReportTypeOut | n
             if ((!needsCourse || course) && !invalidRange) gen.mutate();
           }}
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Course" required={needsCourse} hint={needsCourse ? "Required for this report" : "Optional"}>
               {(aria) => <CourseSelect id={aria.id} value={course} onChange={setCourse} placeholder={needsCourse ? "Choose a course" : "All courses"} />}
             </FormField>
@@ -214,7 +214,7 @@ function ReportsPage() {
         }
       />
       {types.isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-52 rounded-2xl" />
           ))}

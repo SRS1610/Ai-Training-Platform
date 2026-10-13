@@ -146,7 +146,7 @@ export function RolesMatrix() {
   if (roles.isLoading || catalogue.isLoading)
     return (
       <div className="space-y-4" aria-busy aria-label="Loading roles">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-2xl" />
           ))}

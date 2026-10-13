@@ -99,7 +99,7 @@ function ConnectionCard({ c, onEdit, onDelete, onChanged }: { c: SSOOut; onEdit:
           </Button>
         </div>
       </div>
-      <div className="grid gap-5 p-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 p-5 lg:grid-cols-2">
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Email domains</p>
           {c.domains.length === 0 ? (
@@ -297,12 +297,12 @@ function ConnectionDialog({ state, onClose, onSaved }: { state: SSOOut | "new" |
           }}
         >
           {!editing && (
-            <RadioGroup value={f.protocol} onValueChange={(v) => set("protocol", v as Form["protocol"])} className="grid gap-3 sm:grid-cols-2" aria-label="Protocol">
+            <RadioGroup value={f.protocol} onValueChange={(v) => set("protocol", v as Form["protocol"])} className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Protocol">
               <RadioCard value="oidc" title="OpenID Connect" description="Okta, Entra ID, Google, Auth0, Keycloak" icon={<KeyRound />} />
               <RadioCard value="saml" title="SAML 2.0" description="ADFS, PingFederate, legacy IdPs" icon={<ShieldCheck />} />
             </RadioGroup>
           )}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Display name" required hint="Shown on the sign-in button">
               <Input value={f.name} onChange={(e) => set("name", e.target.value)} maxLength={120} placeholder="e.g. Northwind Okta" />
             </FormField>
@@ -314,7 +314,7 @@ function ConnectionDialog({ state, onClose, onSaved }: { state: SSOOut | "new" |
             </FormField>
           </div>
           {f.protocol === "oidc" ? (
-            <div className="grid gap-4 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 sm:grid-cols-2">
               <FormField label="Issuer URL" required className="sm:col-span-2">
                 <Input value={f.issuer} onChange={(e) => set("issuer", e.target.value)} placeholder="https://login.microsoftonline.com/<tenant>/v2.0" className="font-mono" />
               </FormField>
@@ -341,7 +341,7 @@ function ConnectionDialog({ state, onClose, onSaved }: { state: SSOOut | "new" |
               </FormField>
             </div>
           )}
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label htmlFor="sso-form-enabled" className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
               <span className="text-sm font-medium text-slate-900">Enabled</span>
               <Switch id="sso-form-enabled" checked={f.enabled} onCheckedChange={(v) => set("enabled", v)} aria-label="Enabled" />
@@ -390,7 +390,7 @@ export function SSOSettings() {
     return isPlanLimit(list.error) ? (
       <div className="space-y-6">
         <UpgradeNotice error={list.error} title="Single sign-on is an Enterprise feature" description="Connect Okta, Entra ID, Google Workspace or any SAML/OIDC provider, verify your domains and enforce SSO." />
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {[
             { t: "One identity", b: "People sign in with the account they already use for work." },
             { t: "Just-in-time access", b: "New starters join with the right default role on first sign-in." },

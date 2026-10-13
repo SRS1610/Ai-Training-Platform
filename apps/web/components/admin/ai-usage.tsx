@@ -104,11 +104,11 @@ export function AIUsageDashboard() {
   if (usage.isLoading)
     return (
       <div className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Skeleton className="h-80 rounded-2xl" />
           <Skeleton className="h-80 rounded-2xl lg:col-span-2" />
         </div>
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Skeleton className="h-72 rounded-2xl" />
           <Skeleton className="h-72 rounded-2xl" />
           <Skeleton className="h-72 rounded-2xl" />
@@ -136,7 +136,7 @@ export function AIUsageDashboard() {
           </p>
         </div>
       )}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <SectionCard
           title="Monthly budget"
           description={`${formatDate(u.period_start, { month: "long", year: "numeric" })} · ${b.hard_limit ? "Hard limit on" : "Soft limit"}`}
@@ -215,7 +215,7 @@ export function AIUsageDashboard() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <SectionCard title="Spend by feature" icon={Layers} color="indigo">
           <BarList
             data={u.by_feature.map((f) => ({ key: f.key ?? "unknown", label: humanizeFeature(f.key ?? f.label), value: f.cost_usd, display: fmtUsd(f.cost_usd), hint: plural(f.requests, "request") }))}
@@ -243,7 +243,7 @@ export function AIUsageDashboard() {
         </SectionCard>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <SectionCard title="Top users" description="Highest AI spend this month" icon={Users} color="amber" className="lg:col-span-3">
           {!u.by_user.length ? (
             <EmptyState size="sm" illustration="inbox" title="No usage yet" description="When people use the AI tutor or generation features they'll appear here." />

@@ -307,7 +307,7 @@ export function QuestionTable({ rows }: { rows: QuestionRow[] }) {
           <TableBody>
             {(showAll ? sorted : sorted.slice(0, LIMIT)).map((q) => (
               <TableRow key={q.question_id}>
-                <TableCell className="max-w-md">
+                <TableCell className="min-w-[180px] max-w-md">
                   <p className="line-clamp-2 text-sm text-slate-800" title={q.prompt ?? undefined}>
                     {q.prompt ?? <span className="italic text-slate-400">Deleted question</span>}
                   </p>
@@ -472,7 +472,7 @@ export function SimulationResults({ sims }: { sims: CourseAnalytics["simulations
       {sims.map((s) => {
         const total = Object.values(s.bands).reduce((a, b) => a + b, 0);
         return (
-          <Card key={s.simulation_id} className="p-4">
+          <Card key={s.simulation_id} className="min-w-0 p-4">
             <div className="flex items-start gap-3">
               <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
                 <MonitorPlay className="size-5" aria-hidden />

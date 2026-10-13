@@ -134,7 +134,7 @@ function CreateKeyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
               if (name.trim() && scopes.length) create.mutate();
             }}
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Name" required hint="Where will this key be used?">
                 <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="e.g. HRIS sync" autoFocus />
               </FormField>
@@ -158,7 +158,7 @@ function CreateKeyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
                 {[...groups.entries()].map(([cat, codes]) => (
                   <div key={cat}>
                     <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wider text-slate-500">{humanize(cat)}</p>
-                    <div className="grid gap-1.5 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                       {codes.map((code) => {
                         const on = scopes.includes(code);
                         return (
@@ -292,7 +292,7 @@ function ApiKeysPage() {
       {gated ? (
         <div className="space-y-6">
           <UpgradeNotice error={list.error} title="API access isn't included in your plan" />
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {[
               { icon: Code2, title: "REST API", body: "Everything in the web app — users, enrolments, progress, reports — over a documented JSON API." },
               { icon: ShieldCheck, title: "Scoped & audited", body: "Keys carry only the permissions you grant, expire on schedule and every call is in the audit log." },

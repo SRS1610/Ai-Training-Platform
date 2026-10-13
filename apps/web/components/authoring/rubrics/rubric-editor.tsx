@@ -186,7 +186,10 @@ export function RubricGrid({ criteria, className }: { criteria: RubricCriterion[
               </div>
               <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-2xs font-bold tabular-nums ring-1 ring-inset", cc.soft, cc.text, cc.ring)}>{c.weight}%</span>
             </div>
-            <div className="grid gap-px bg-slate-100" style={{ gridTemplateColumns: `repeat(${Math.max(1, levels.length)}, minmax(0, 1fr))` }}>
+            <div
+              className="grid grid-cols-2 gap-px bg-slate-100 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 sm:[grid-template-columns:var(--rubric-cols)]"
+              style={{ "--rubric-cols": `repeat(${Math.max(1, levels.length)}, minmax(0, 1fr))` } as React.CSSProperties}
+            >
               {levels.map((l, j) => {
                 const lc = colorClasses(levelColor(j, levels.length));
                 return (

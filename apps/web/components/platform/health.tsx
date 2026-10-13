@@ -79,7 +79,7 @@ export function SystemHealth() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-28 rounded-2xl" />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-32 rounded-2xl" />
           ))}
@@ -132,7 +132,7 @@ export function SystemHealth() {
         </div>
       </section>
 
-      <section aria-label="Components" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Components" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <ComponentCard icon={Database} title="Database" tone={db.status === "ok" ? latencyTone(db.latency_ms, 25, 150) : toneOf(db.status)} value={db.latency_ms !== undefined ? fmtNumber(db.latency_ms, 1) : "—"} unit="ms" detail={db.error ?? "Round-trip SELECT 1"} />
         <ComponentCard icon={Server} title="Redis" tone={redis.status === "ok" ? latencyTone(redis.latency_ms, 10, 80) : toneOf(redis.status)} value={redis.latency_ms !== undefined ? fmtNumber(redis.latency_ms, 1) : "—"} unit={redis.latency_ms !== undefined ? "ms" : undefined} detail={redis.error ?? "PING latency"} />
         <ComponentCard
@@ -146,7 +146,7 @@ export function SystemHealth() {
         <ComponentCard icon={Bot} title="AI providers" tone={aiErrorRate > 10 ? "bad" : aiErrorRate > 2 ? "warn" : "ok"} value={`${aiErrorRate.toFixed(1)}%`} unit="errors (24h)" detail={`${fmtNumber(ai.calls_24h)} calls · ${fmtNumber(ai.errors_24h)} failed · ${fmtNumber(ai.errors_since_start)} since start`} />
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <SectionCard title="Request latency" description="Since the API process started" icon={Gauge} color="indigo">
           <div className="grid grid-cols-3 gap-2">
             {(["p50", "p95", "p99"] as const).map((k) => {
@@ -203,7 +203,7 @@ export function SystemHealth() {
         </SectionCard>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <SectionCard title="AI calls by feature" description="Since the API process started" icon={Cpu} color="fuchsia">
           <BarList data={Object.entries(m.ai_calls ?? {}).map(([k, v]) => ({ key: k, label: humanizeFeature(k), value: v }))} empty="No AI calls yet" />
         </SectionCard>

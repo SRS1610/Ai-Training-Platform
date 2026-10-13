@@ -79,7 +79,7 @@ export function DomainSettings() {
   const validDomain = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9-]{1,63})+$/i.test(domain.trim());
 
   return (
-    <div className="grid gap-6 xl:grid-cols-5">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
       <SectionCard
         title="Custom domain"
         description="Serve Praxis from your own domain, e.g. learn.yourcompany.com."
@@ -216,7 +216,7 @@ export function SecuritySettings() {
   if (org.isError) return <ErrorState error={org.error} onRetry={() => org.refetch()} />;
   const required = org.data!.settings.require_mfa;
   return (
-    <div className="grid gap-6 xl:grid-cols-5">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
       <SectionCard title="Sign-in security" description="Policies that apply to everyone in the organisation." icon={ShieldCheck} color="emerald" className="xl:col-span-3">
         <div className="space-y-4">
           <div className={cn("flex items-start gap-4 rounded-2xl border p-4", required ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200")}>
@@ -236,7 +236,7 @@ export function SecuritySettings() {
               You need two-step verification on your own account before you can require it for everyone.
             </Alert>
           )}
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               { icon: KeyRound, title: "Passwords", body: "At least 10 characters, common passwords rejected, hashed with Argon2." },
               { icon: Lock, title: "Sessions", body: "Short-lived access tokens with rotating refresh tokens; members can sign out other devices." },
@@ -306,7 +306,7 @@ export function RetentionSettings() {
   const invalid = !Number.isFinite(days) || days < 30 || days > 3650;
   const years = days / 365;
   return (
-    <div className="grid gap-6 xl:grid-cols-5">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
       <SectionCard title="Data retention" description="Automatically delete ephemeral data after a period. Runs nightly." icon={Hourglass} color="amber" className="xl:col-span-3">
         <form
           className="space-y-5"
@@ -324,7 +324,7 @@ export function RetentionSettings() {
                 onClick={() => setDays(p.days)}
                 className={cn(
                   "rounded-full px-3.5 py-1.5 text-sm font-semibold ring-1 ring-inset transition-colors focus-visible:focus-ring",
-                  days === p.days ? "bg-amber-500 text-white ring-amber-500" : "bg-white text-slate-700 ring-slate-200 hover:bg-amber-50",
+                  days === p.days ? "bg-amber-700 text-white ring-amber-700" : "bg-white text-slate-700 ring-slate-200 hover:bg-amber-50",
                 )}
               >
                 {p.label}

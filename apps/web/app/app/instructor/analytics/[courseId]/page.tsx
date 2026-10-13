@@ -133,7 +133,7 @@ function CourseDrilldown() {
 
       <ChartCard title="Assessments" description="Graded attempts in the selected range" icon={FileQuestion} color="sky">
         {d.assessments.length ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-200">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 scrollbar-thin">
             <Table aria-label="Assessment results">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">

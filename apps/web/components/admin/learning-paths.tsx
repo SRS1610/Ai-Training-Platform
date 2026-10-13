@@ -125,7 +125,7 @@ export function PathsList() {
         />
       </FilterBar>
       {list.isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-56 rounded-2xl" />
           ))}
@@ -539,7 +539,7 @@ export function PathEnrolDialog({ path, open, onOpenChange }: { path: PathOut; o
         </DialogHeader>
         {result ? (
           <div className="space-y-4" aria-live="polite">
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Tile icon={CheckCircle2} color="emerald" label="New enrolments" value={result.created} />
               <Tile icon={RefreshCcw} color="sky" label="Reactivated" value={result.reactivated} />
               <Tile icon={SkipForward} color="amber" label="Already enrolled" value={result.skipped} />
@@ -570,7 +570,7 @@ export function PathEnrolDialog({ path, open, onOpenChange }: { path: PathOut; o
             <FormField label={<span className="inline-flex items-center gap-1.5"><UserRound className="size-4 text-sky-600" aria-hidden />People</span>}>
               {(aria) => <MemberMultiPicker id={aria.id} value={users} onChange={setUsers} />}
             </FormField>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label={<span className="inline-flex items-center gap-1.5"><Building2 className="size-4 text-teal-600" aria-hidden />Departments</span>} hint="Includes sub-departments">
                 {(aria) => <DepartmentMultiPicker id={aria.id} value={departments} onChange={setDepartments} />}
               </FormField>

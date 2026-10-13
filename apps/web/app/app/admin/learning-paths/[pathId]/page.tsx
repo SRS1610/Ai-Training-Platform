@@ -59,7 +59,7 @@ function PathEditor() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-80" />
-        <div className="grid gap-6 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
           <Skeleton className="h-[28rem] rounded-2xl xl:col-span-2" />
           <Skeleton className="h-96 rounded-2xl" />
         </div>
@@ -90,7 +90,7 @@ function PathEditor() {
           Publish it (in Details) before enrolling learners. Learners only see published paths.
         </Alert>
       )}
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <PathItemsEditor path={p} onSaved={() => { qc.invalidateQueries({ queryKey: ak.paths.all }); }} />
         </div>

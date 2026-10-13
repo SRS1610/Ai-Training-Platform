@@ -274,7 +274,7 @@ export function OrganisationSettings() {
   if (org.isError) return <ErrorState error={org.error} onRetry={() => org.refetch()} />;
   if (!form || !org.data)
     return (
-      <div className="grid gap-6 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
         <Skeleton className="h-[34rem] rounded-2xl xl:col-span-3" />
         <Skeleton className="h-[34rem] rounded-2xl xl:col-span-2" />
       </div>
@@ -287,7 +287,7 @@ export function OrganisationSettings() {
 
   return (
     <form
-      className="grid gap-6 xl:grid-cols-5"
+      className="grid grid-cols-1 gap-6 xl:grid-cols-5"
       onSubmit={(e) => {
         e.preventDefault();
         if (!invalid) save.mutate(form);
@@ -295,7 +295,7 @@ export function OrganisationSettings() {
     >
       <div className="space-y-6 xl:col-span-3">
         <SectionCard title="Organisation profile" icon={Building2} color="indigo">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Organisation name" required>
               <Input value={form.name} onChange={(e) => set("name", e.target.value)} maxLength={200} />
             </FormField>
@@ -346,7 +346,7 @@ export function OrganisationSettings() {
                 ))}
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <ColorField label="Primary" value={form.primary} onChange={(v) => set("primary", v)} hint="Buttons, links, active nav" />
               <ColorField label="Secondary" value={form.secondary} onChange={(v) => set("secondary", v)} hint="Gradients, highlights" />
               <ColorField label="Accent" value={form.accent} onChange={(v) => set("accent", v)} hint="Badges, certificate seal" />
@@ -359,7 +359,7 @@ export function OrganisationSettings() {
             <FormField label="Certificate wording" hint="Shown under the learner's name on certificates.">
               <Textarea rows={2} value={form.certificate_text} onChange={(e) => set("certificate_text", e.target.value)} maxLength={1000} placeholder="has successfully completed the course and demonstrated the required competencies." />
             </FormField>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField label="Sign-in message" hint="Shown on your login page.">
                 <Textarea rows={2} value={form.login_message} onChange={(e) => set("login_message", e.target.value)} maxLength={500} />
               </FormField>

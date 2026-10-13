@@ -467,7 +467,7 @@ export function InviteDialog({ open, onOpenChange, defaultTab = "single" }: { op
 function BulkSummary({ invited, errors }: { invited: number; errors: { email: string; error: string }[] }) {
   return (
     <div className="space-y-4" aria-live="polite">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4">
           <CheckCircle2 className="size-5 text-emerald-600" aria-hidden />
           <p className="mt-2 font-display text-3xl font-bold tabular-nums text-slate-900">{invited}</p>

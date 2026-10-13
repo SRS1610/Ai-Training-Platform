@@ -127,7 +127,8 @@ export function CertificateCard({ cert }: { cert: Certificate }) {
               </div>
               <div className="col-span-2 rounded-2xl bg-white/80 p-3 ring-1 ring-slate-200/80 sm:col-span-1">
                 <dt className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-slate-500">
-                  <BadgeCheck className="size-3.5 text-emerald-600" aria-hidden /> {status === "revoked" ? "Revoked" : "Expires"}
+                  {status === "revoked" ? <ShieldX className="size-3.5 text-rose-600" aria-hidden /> : <BadgeCheck className={cn("size-3.5", status === "expired" ? "text-slate-400" : "text-emerald-600")} aria-hidden />}{" "}
+                  {status === "revoked" ? "Revoked" : status === "expired" ? "Expired" : "Expires"}
                 </dt>
                 <dd className="mt-1 text-sm font-semibold text-slate-900">
                   {status === "revoked" ? formatDate(cert.revoked_at) : cert.expires_at ? formatDate(cert.expires_at) : "Never"}
@@ -140,10 +141,16 @@ export function CertificateCard({ cert }: { cert: Certificate }) {
             )}
 
             {skills.length > 0 && (
-              <ul className="mt-4 flex flex-wrap gap-1.5" aria-label="Verified skills">
+              <ul className="mt-4 flex flex-wrap gap-1.5" aria-label={status === "valid" ? "Verified skills" : "Skills (no longer verified)"}>
                 {skills.map((s, i) => (
-                  <li key={s.id ?? i} className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">
-                    <Check className="size-3" aria-hidden /> {s.name}
+                  <li
+                    key={s.id ?? i}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
+                      status === "valid" ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-slate-50 text-slate-600 ring-slate-200",
+                    )}
+                  >
+                    {status === "valid" && <Check className="size-3" aria-hidden />} {s.name}
                   </li>
                 ))}
               </ul>

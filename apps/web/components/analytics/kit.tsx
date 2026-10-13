@@ -26,7 +26,7 @@ export function ChartCard({
 }) {
   const c = colorClasses(color);
   return (
-    <Card className={cn("flex flex-col", className)}>
+    <Card className={cn("flex min-w-0 flex-col", className)}>
       <CardHeader>
         <div className="flex min-w-0 items-center gap-3">
           <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", c.soft, c.icon)}>

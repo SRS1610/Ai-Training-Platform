@@ -93,7 +93,7 @@ export function PlatformOverview() {
             <Skeleton key={i} className="h-32 rounded-2xl" />
           ))}
         </div>
-        <div className="grid gap-6 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
           <Skeleton className="h-80 rounded-2xl xl:col-span-2" />
           <Skeleton className="h-80 rounded-2xl" />
         </div>
@@ -130,7 +130,7 @@ export function PlatformOverview() {
         <KpiTile label="AI cost" value={fmtUsd(d.ai_usage.cost_usd)} icon={<Bot />} color="fuchsia" hint={`${fmtCompact(d.ai_usage.requests)} requests · ${fmtNumber(d.ai_usage.errors)} errors`} />
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <SectionCard title="Signups" description="New user accounts per day" icon={UsersRound} color="sky" className="xl:col-span-2">
           <TrendAreaChart data={signups} xKey="day" series={[{ key: "Signups", color: "#0ea5e9" }]} height={260} aria-label="User signups per day" />
         </SectionCard>
@@ -154,7 +154,7 @@ export function PlatformOverview() {
         </SectionCard>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <SectionCard title="Revenue by month" description="Paid invoices, last 12 months" icon={Coins} color="emerald" className="xl:col-span-2">
           {revenueByMonth.length ? (
             <MonthColumns data={revenueByMonth} />
@@ -205,7 +205,7 @@ export function PlatformOverview() {
         </div>
       </SectionCard>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <SectionCard title="AI cost by organisation" icon={Building2} color="fuchsia">
           <BarList data={d.ai_usage.by_organisation.slice(0, 8).map((o) => ({ key: o.organisation_id, label: o.name, value: o.cost_usd, display: fmtUsd(o.cost_usd), hint: plural(o.requests, "request") }))} empty="No AI usage in range" />
         </SectionCard>
@@ -246,7 +246,7 @@ export function PlatformOverview() {
         </SectionCard>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <SectionCard title="Storage" description={`${fmtBytes(d.storage.total_bytes)} across ${fmtNumber(d.storage.files)} files`} icon={HardDrive} color="amber">
           <BarList data={d.storage.by_organisation.map((o) => ({ key: o.organisation_id, label: o.name, value: o.bytes, display: fmtBytes(o.bytes), hint: `${fmtNumber(o.files)} files` }))} empty="No files stored" />
           {d.storage.by_purpose.length > 0 && (
@@ -260,7 +260,7 @@ export function PlatformOverview() {
           )}
         </SectionCard>
         <SectionCard title="API usage" description={`${fmtCompact(d.api.requests_total)} requests since the API process started`} icon={Server} color="indigo" className="xl:col-span-2">
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div className="grid grid-cols-3 content-start gap-2">
               {(["p50", "p95", "p99"] as const).map((k, i) => (
                 <div key={k} className={cn("rounded-xl p-3 text-center", ["bg-emerald-50", "bg-amber-50", "bg-rose-50"][i])}>

@@ -166,7 +166,7 @@ function BadgeDialog({ state, types, onClose }: { state: BadgeOut | "new" | null
               <p className="text-sm text-slate-600">{criteriaLabel(criteria, types)}</p>
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Name" required>
               <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoFocus />
             </FormField>
@@ -194,7 +194,7 @@ function BadgeDialog({ state, types, onClose }: { state: BadgeOut | "new" | null
               ))}
             </div>
           </fieldset>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <FormField label="Earned when" className="sm:col-span-2">
               <SimpleSelect value={type} onValueChange={setType} options={Object.entries(types).map(([k, v]) => ({ value: k, label: v }))} />
             </FormField>
@@ -315,7 +315,7 @@ export function GamificationSettings() {
         }
       >
         {badges.isLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-24 rounded-2xl" />
             ))}
@@ -323,7 +323,7 @@ export function GamificationSettings() {
         ) : badges.isError ? (
           <ErrorState error={badges.error} onRetry={() => badges.refetch()} size="sm" />
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {badges.data!.items.map((b) => {
               const c = colorClasses(colorFor(b.key));
               const Icon = badgeIcon(b.icon);

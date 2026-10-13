@@ -116,7 +116,7 @@ export function DepartmentsPanel() {
   if (tree.isError) return <ErrorState error={tree.error} onRetry={() => tree.refetch()} />;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
       <div className={cn(flat.length || tree.isLoading ? "lg:col-span-3" : "lg:col-span-5")}>
         <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft">
           <div className="flex flex-col gap-3 border-b border-slate-100 p-3 sm:flex-row sm:items-center sm:p-4">
@@ -446,7 +446,7 @@ function DepartmentDialog({
           <FormField label="Description">
             <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} />
           </FormField>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Parent department">
               {(aria) => <DepartmentSelect id={aria.id} value={parent} onChange={setParent} noneLabel="None (top level)" placeholder="None (top level)" exclude={editing ? [editing.id] : undefined} />}
             </FormField>
@@ -515,7 +515,7 @@ export function TeamsPanel() {
         />
       </FilterBar>
       {teams.isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-44 rounded-2xl" />
           ))}
@@ -660,7 +660,7 @@ function TeamDialog({ team, onClose }: { team: TeamOut | "new" | null; onClose: 
           <FormField label="Description">
             <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} />
           </FormField>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Department">{(aria) => <DepartmentSelect id={aria.id} value={dept} onChange={setDept} />}</FormField>
             <FormField label="Team lead">{(aria) => <MemberSelect id={aria.id} value={lead} onChange={setLead} placeholder="No lead" />}</FormField>
           </div>

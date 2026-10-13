@@ -94,7 +94,7 @@ function AssignmentRow({ r }: { r: Row }) {
 
 function AssignmentsList() {
   const url = useUrlState();
-  const filter = (["todo", "submitted", "graded", "all"].includes(url.get("tab") ?? "") ? url.get("tab") : "todo") as Filter;
+  const tabParam = url.get("tab");
   const [term, setTerm] = React.useState("");
   const list = useQuery({
     queryKey: lk.assignments.list({ page_size: 100 }),
@@ -127,6 +127,10 @@ function AssignmentsList() {
     all: rows.length,
   };
   const passed = rows.filter((r) => r.phase === "graded_passed").length;
+  // With nothing to do, open on "All" rather than an empty tab (an explicit ?tab= always wins).
+  const settled = list.isSuccess && enrolments.isSuccess && subs.every((q) => !q.isLoading);
+  const defaultFilter: Filter = settled && counts.todo === 0 && rows.length > 0 ? "all" : "todo";
+  const filter = (["todo", "submitted", "graded", "all"].includes(tabParam ?? "") ? tabParam : defaultFilter) as Filter;
   const needle = term.trim().toLowerCase();
   const shown = rows
     .filter((r) => (filter === "todo" ? TODO.includes(r.phase) : filter === "submitted" ? IN_REVIEW.includes(r.phase) : filter === "graded" ? GRADED.includes(r.phase) : true))
@@ -155,7 +159,7 @@ function AssignmentsList() {
       </section>
 
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs value={filter} onValueChange={(v) => url.set({ tab: v === "todo" ? null : v })}>
+        <Tabs value={filter} onValueChange={(v) => url.set({ tab: v === defaultFilter ? null : v })}>
           <TabsList aria-label="Filter assignments" className="max-w-full overflow-x-auto no-scrollbar">
             {(
               [

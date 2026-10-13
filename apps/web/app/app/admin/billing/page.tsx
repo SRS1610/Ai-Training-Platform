@@ -148,7 +148,7 @@ function CurrentPlan({ sub, onSeats, onCancel, onResume, onPortal, portalBusy }:
           )}
         </div>
       </div>
-      <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 p-6 sm:p-8 lg:grid-cols-3">
         <div>
           <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
             <UsersRound className="size-4 text-sky-600" aria-hidden /> Seats
@@ -295,7 +295,7 @@ function Plans({ sub, plans, onChoose, busy }: { sub: SubscriptionOut; plans: Pl
           ))}
         </div>
       </div>
-      <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         {plans.map((p) => {
           const style = PLAN_STYLE[p.code] ?? PLAN_STYLE.business!;
           const c = colorClasses(style.color);
@@ -483,7 +483,7 @@ function BillingPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-80 rounded-3xl" />
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-96 rounded-2xl" />
           ))}
@@ -528,7 +528,7 @@ function BillingPage() {
           }
         }}
       />
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-2">
           <AIUsageCard />
         </div>

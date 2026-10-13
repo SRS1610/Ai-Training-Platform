@@ -396,7 +396,7 @@ export function RolePicker({
   labelledBy?: string;
 }) {
   return (
-    <div role="group" aria-labelledby={labelledBy} className="grid gap-2 sm:grid-cols-2">
+    <div role="group" aria-labelledby={labelledBy} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {roles.map((r) => {
         const on = value.includes(r.key);
         const can = grantable ? grantable(r) : true;

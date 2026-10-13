@@ -32,7 +32,7 @@ function AnalyticsSkeleton() {
           <Skeleton key={i} className="h-32 rounded-2xl" />
         ))}
       </div>
-      <div className="grid gap-6 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
         <Skeleton className="h-96 rounded-2xl xl:col-span-3" />
         <Skeleton className="h-96 rounded-2xl xl:col-span-2" />
       </div>
@@ -75,7 +75,7 @@ function AnalyticsPage() {
         }
       />
       <section aria-label="Filters" className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-soft sm:p-4 lg:flex-row lg:items-center">
-        <div className="grid flex-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 flex-1 gap-3 sm:grid-cols-2">
           <DepartmentSelect value={dept || null} onChange={(v) => setDept(v ?? "")} noneLabel="All departments" placeholder="All departments" aria-label="Department" />
           <div className="flex items-center gap-2">
             <div className="min-w-0 flex-1">
@@ -121,7 +121,7 @@ function AnalyticsPage() {
       ) : (
         <div className={q.isFetching ? "space-y-6 opacity-70 transition-opacity" : "space-y-6 transition-opacity"}>
           <AnalyticsKpis data={q.data!} />
-          <div className="grid gap-6 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
             <div className="xl:col-span-3">
               <ActiveLearnersCard data={q.data!} />
             </div>
@@ -129,7 +129,7 @@ function AnalyticsPage() {
               <ComplianceCard data={q.data!} />
             </div>
           </div>
-          <div className="grid gap-6 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
             <div className="xl:col-span-3">
               <DepartmentsCard data={q.data!} />
             </div>
