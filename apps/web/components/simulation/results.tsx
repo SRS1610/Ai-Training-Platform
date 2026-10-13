@@ -355,8 +355,22 @@ function ResultsSkeleton() {
 
 /* ------------------------------------------------------------------ dimensions */
 
+/** True when the viewport is at least `px` wide (false during SSR / first paint). */
+function useMinWidth(px: number) {
+  const [ok, setOk] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${px}px)`);
+    const on = () => setOk(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [px]);
+  return ok;
+}
+
 function Dimensions({ r }: { r: SimResult }) {
   const data = r.dimensions.map((d) => ({ subject: d.name, value: Math.round(d.percent) }));
+  const roomy = useMinWidth(640);
   return (
     <Card className="p-5 sm:p-6">
       <h2 className="flex items-center gap-3 font-display text-base font-semibold text-slate-900">
@@ -366,7 +380,7 @@ function Dimensions({ r }: { r: SimResult }) {
         Performance by dimension
       </h2>
       {/* The radar's outer labels don't fit a phone-width card; the bars below carry the same numbers. */}
-      {data.length >= 3 && <SkillRadarChart data={data} height={280} className="mt-2 hidden sm:block" aria-label={`Dimension scores: ${data.map((d) => `${d.subject} ${d.value}%`).join(", ")}`} />}
+      {roomy && data.length >= 3 && <SkillRadarChart data={data} height={280} className="mt-2" aria-label={`Dimension scores: ${data.map((d) => `${d.subject} ${d.value}%`).join(", ")}`} />}
       <ul className="mt-2 space-y-3.5">
         {r.dimensions.map((d, i) => {
           const c = colorClasses(CATEGORY_COLORS[i % CATEGORY_COLORS.length]!);
