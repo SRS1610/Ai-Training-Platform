@@ -118,20 +118,22 @@ function SectionCard({
   const c = colorClasses(color);
   const Icon = icon;
   return (
-    <Card className={cn("flex flex-col", className)}>
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <span className={cn("grid size-9 place-items-center rounded-xl", c.soft, c.icon)}>
+    <Card className={cn("flex min-w-0 flex-col", className)}>
+      <CardHeader className="min-w-0">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", c.soft, c.icon)}>
             <Icon className="size-[18px]" aria-hidden />
           </span>
-          <div>
-            <CardTitle as="h2">{title}</CardTitle>
-            {description && <p className="text-xs text-muted-foreground">{description}</p>}
+          <div className="min-w-0">
+            <CardTitle as="h2" className="break-words">
+              {title}
+            </CardTitle>
+            {description && <p className="break-words text-xs text-muted-foreground">{description}</p>}
           </div>
         </div>
-        {action}
+        {action && <div className="shrink-0">{action}</div>}
       </CardHeader>
-      <CardContent className="flex-1">{children}</CardContent>
+      <CardContent className="min-w-0 flex-1">{children}</CardContent>
     </Card>
   );
 }
@@ -161,7 +163,7 @@ export function DashboardHero({
       <div className="pointer-events-none absolute -right-10 -top-16 size-72 rounded-full bg-fuchsia-400/30 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute -bottom-24 left-1/3 size-72 rounded-full bg-sky-400/25 blur-3xl" aria-hidden />
       <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="max-w-2xl">
+        <div className="min-w-0 max-w-2xl">
           <p className="text-sm font-medium text-indigo-100">{welcome ? "Welcome to Praxis 🎉" : formatDate(new Date(), { weekday: "long", day: "numeric", month: "long" })}</p>
           <h1 id="dash-greeting" className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">
             {greeting()}, {firstName(name)}
@@ -179,9 +181,11 @@ export function DashboardHero({
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             {resume ? (
-              <Button asChild variant="white" size="lg" rightIcon={<ArrowRight />}>
+              <Button asChild variant="white" size="lg" rightIcon={<ArrowRight />} className="max-w-full">
                 <Link href={courseHref(resume)}>
-                  {resume.next_lesson ? `Resume: ${resume.next_lesson.title}` : `Continue ${resume.title}`}
+                  <span className="min-w-0 truncate">
+                    {resume.next_lesson ? `Resume: ${resume.next_lesson.title}` : `Continue ${resume.title}`}
+                  </span>
                 </Link>
               </Button>
             ) : (
@@ -255,7 +259,7 @@ function CourseCard({ course }: { course: CurrentCourse }) {
   const LessonIcon = lessonIcon(course.next_lesson?.lesson_type);
   const started = course.progress_pct > 0;
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift">
+    <article className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift">
       <div className="relative">
         <div className={cn("relative h-28 overflow-hidden bg-gradient-to-br", c.gradient)}>
           {course.thumbnail_url ? (
@@ -273,7 +277,7 @@ function CourseCard({ course }: { course: CurrentCourse }) {
           <ProgressRing value={course.progress_pct} size={56} stroke={6} color={course.category ? colorFor(course.category) : "brand"} aria-label={`${course.title} progress`} />
         </div>
       </div>
-      <div className="flex flex-1 flex-col p-4 pt-3">
+      <div className="flex min-w-0 flex-1 flex-col p-4 pt-3">
         <div className="flex flex-wrap items-center gap-1.5 pr-16">
           {course.category && <CategoryBadge category={course.category} size="sm" />}
           {course.difficulty && (
@@ -288,7 +292,7 @@ function CourseCard({ course }: { course: CurrentCourse }) {
           </Link>
         </h3>
         {course.next_lesson ? (
-          <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+          <p className="mt-2 flex min-w-0 items-center gap-2 text-sm text-slate-600">
             <span className={cn("grid size-6 shrink-0 place-items-center rounded-md", c.soft, c.icon)}>
               <LessonIcon className="size-3.5" aria-hidden />
             </span>
@@ -338,9 +342,9 @@ export function ContinueLearning({ courses, className }: { courses: CurrentCours
           }
         />
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
           {courses.slice(0, 6).map((c) => (
-            <li key={c.enrolment_id} className="relative">
+            <li key={c.enrolment_id} className="relative min-w-0">
               <CourseCard course={c} />
             </li>
           ))}
@@ -442,12 +446,12 @@ export function SkillsPanel({ skills }: { skills: SkillProficiency[] }) {
               const color = categoryClasses(s.category ?? s.name);
               return (
                 <li key={s.skill_id}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
+                  <div className="mb-1 flex min-w-0 items-center justify-between gap-3 text-sm">
                     <span className="flex min-w-0 items-center gap-2 text-slate-700">
                       <span className={cn("size-2 shrink-0 rounded-full", color.solid)} aria-hidden />
                       <span className="truncate">{s.name}</span>
                     </span>
-                    <span className="font-semibold tabular-nums text-slate-900">{Math.round(s.proficiency)}%</span>
+                    <span className="shrink-0 font-semibold tabular-nums text-slate-900">{Math.round(s.proficiency)}%</span>
                   </div>
                   <Progress value={s.proficiency} color={colorFor(s.category ?? s.name)} size="sm" aria-label={`${s.name} proficiency`} />
                 </li>
@@ -494,7 +498,7 @@ export function SimulationResults({ results }: { results: SimulationResult[] }) 
             const c = colorClasses(meta.color);
             return (
               <li key={r.session_id}>
-                <Link href={`/app/simulations/session/${r.session_id}`} className="flex items-center gap-3 rounded-xl border border-slate-100 p-2.5 transition hover:border-slate-200 hover:bg-slate-50 focus-visible:focus-ring">
+                <Link href={`/app/simulations/session/${r.session_id}`} className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-100 p-2.5 transition hover:border-slate-200 hover:bg-slate-50 focus-visible:focus-ring">
                   <span className={cn("grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br font-display text-sm font-bold text-white", c.gradient)}>
                     {Math.round(r.total_score)}
                   </span>
@@ -613,7 +617,7 @@ export function RecentActivity({ items }: { items: ActivityItem[] }) {
             return (
               <li key={`${a.at}-${i}`}>
                 {a.link ? (
-                  <Link href={a.link} className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-slate-50 focus-visible:focus-ring">
+                  <Link href={a.link} className="flex min-w-0 items-center gap-3 rounded-xl p-2 transition hover:bg-slate-50 focus-visible:focus-ring">
                     {body}
                   </Link>
                 ) : (
@@ -640,15 +644,17 @@ export function HeatmapCard({ days, stats }: { days: LearnerDashboard["activity_
   ];
   return (
     <SectionCard title="Learning activity" icon={TrendingUp} color="fuchsia" description="Last 12 weeks">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <ActivityHeatmap days={days} weeks={12} className="lg:w-auto lg:shrink-0" />
-        <ul className="grid flex-1 grid-cols-2 gap-3">
+      <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="min-w-0 overflow-x-auto scrollbar-thin lg:w-auto lg:shrink-0">
+          <ActivityHeatmap days={days} weeks={12} />
+        </div>
+        <ul className="grid min-w-0 flex-1 grid-cols-2 gap-3">
           {tiles.map((t) => {
             const c = colorClasses(t.color);
             return (
-              <li key={t.label} className={cn("rounded-xl border bg-gradient-to-br p-3", c.border, c.tint)}>
+              <li key={t.label} className={cn("min-w-0 rounded-xl border bg-gradient-to-br p-3", c.border, c.tint)}>
                 <p className="text-2xs font-semibold uppercase tracking-wider text-slate-500">{t.label}</p>
-                <p className={cn("mt-1 font-display text-lg font-bold", c.text)}>{t.value}</p>
+                <p className={cn("mt-1 break-words font-display text-lg font-bold", c.text)}>{t.value}</p>
               </li>
             );
           })}

@@ -128,6 +128,8 @@ export function AIBuilder() {
   const sp = useSearchParams();
   const [get, set] = useSearchParamState(sp, router.push, pathname);
   const genId = get("generation");
+  /** Set when the builder was opened from an (empty) course: pre-fills the brief and, after apply, offers to tidy it up. */
+  const sourceCourseId = get("course_id");
   const tab = get("tab") ?? "create";
   const open = (id: string) => set({ generation: id, tab: null });
 
@@ -150,7 +152,7 @@ export function AIBuilder() {
         }
       />
       {genId ? (
-        <GenerationReview id={genId} onOpen={open} />
+        <GenerationReview id={genId} onOpen={open} sourceCourseId={sourceCourseId} onSourceResolved={() => set({ course_id: null })} />
       ) : (
         <Tabs value={tab} onValueChange={(v) => set({ tab: v === "create" ? null : v })}>
           <TabsList>
@@ -162,7 +164,7 @@ export function AIBuilder() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="create">
-            <CreateGenerationForm onCreated={(g) => open(g.id)} />
+            <CreateGenerationForm onCreated={(g) => open(g.id)} sourceCourseId={sourceCourseId} />
           </TabsContent>
           <TabsContent value="history">
             <HistoryList onOpen={open} />

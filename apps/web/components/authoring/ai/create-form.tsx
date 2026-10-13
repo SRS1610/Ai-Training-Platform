@@ -1,12 +1,14 @@
 "use client";
 
-import { Button, Card, FormField, Input, SimpleSelect, cn, colorClasses, type CategoryColor } from "@praxis/ui";
+import { Alert, Button, Card, FormField, Input, SimpleSelect, Skeleton, cn, colorClasses, type CategoryColor } from "@praxis/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   BookOpen,
   Brain,
   ClipboardCheck,
+  CreditCard,
+  FilePlus2,
   FileQuestion,
   Layers,
   Library,
@@ -19,14 +21,16 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
+import Link from "next/link";
 import * as React from "react";
 import { api } from "@/lib/api";
-import { Can } from "@/lib/auth";
+import { Can, useAuth } from "@/lib/auth";
+import { usePlanFeature } from "@/lib/plan";
 import { useDebounced } from "../hooks";
 import { ak } from "../keys";
 import { DIFFICULTIES, GENERATABLE_QUESTION_TYPES, questionMeta } from "../meta";
 import { NumberInput, StringListEditor } from "../shared";
-import type { Generation, GenerationKind, Structure } from "../types";
+import type { Course, Generation, GenerationKind, Structure } from "../types";
 import { useCourseOptions } from "../use-options";
 import { GenerationError } from "./generation-progress";
 import { EXAMPLE_PROMPTS, parseRequest } from "./parse";
@@ -78,9 +82,41 @@ const EMPTY: Fields = {
   question_count: 8,
 };
 
+/** Shown before the form when the organisation's plan doesn't include AI generation (read up front, not after a 402). */
+function PlanUpgradeCard({ label, planName, upgradeTo }: { label: string; planName: string | null; upgradeTo: string | null }) {
+  const { can } = useAuth();
+  return (
+    <section aria-labelledby="ai-upgrade" className="overflow-hidden rounded-3xl border border-brand-200 bg-brand-gradient-soft p-6 shadow-soft sm:p-8">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-brand-gradient text-white shadow-glow" aria-hidden>
+          <CreditCard className="size-7" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Upgrade to unlock</p>
+          <h2 id="ai-upgrade" className="mt-1 font-display text-xl font-bold text-slate-900">
+            {label} isn&apos;t included in {planName ? `the ${planName} plan` : "your plan"}
+          </h2>
+          <p className="mt-1 text-sm text-slate-700">
+            Draft complete courses, quizzes, assignments, rubrics and simulation scenarios from a one-line brief
+            {upgradeTo ? ` — available from the ${upgradeTo} plan.` : "."}{" "}
+            {can("billing.manage") ? "You can explore the form below; generating unlocks once you upgrade." : "Ask an organisation admin to upgrade; you can explore the form below in the meantime."}
+          </p>
+        </div>
+        {can("billing.manage") && (
+          <Button asChild variant="gradient" className="shrink-0">
+            <Link href="/app/admin/billing">View plans</Link>
+          </Button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 /** Prompt-first generation form: natural language request + structured fields it pre-fills. */
-export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation) => void }) {
+export function CreateGenerationForm({ onCreated, sourceCourseId }: { onCreated: (g: Generation) => void; sourceCourseId?: string | null }) {
   const qc = useQueryClient();
+  const feature = usePlanFeature("ai_generation");
+  const blocked = feature.enabled === false;
   const reduce = useReducedMotion();
   const [prompt, setPrompt] = React.useState("");
   const [kind, setKind] = React.useState<GenerationKind>("course");
@@ -106,6 +142,27 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
       return next;
     });
   }, [parsed, debounced]);
+
+  // Started from an (empty) course in the builder: pre-fill the brief from that course's details.
+  const source = useQuery({
+    queryKey: ak.courses.detail(sourceCourseId ?? ""),
+    enabled: !!sourceCourseId,
+    queryFn: ({ signal }) => api.get<Course>(`/courses/${sourceCourseId}`, { signal }),
+  });
+  const prefilled = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    const c = source.data;
+    if (!c || prefilled.current === c.id) return;
+    prefilled.current = c.id;
+    const next: Partial<Fields> = { subject: c.title.slice(0, 300) };
+    if (c.target_audience) next.audience = c.target_audience;
+    if (c.difficulty) next.difficulty = c.difficulty;
+    if (c.learning_objectives?.length) next.objectives = c.learning_objectives;
+    for (const k of Object.keys(next) as (keyof Fields)[]) touched.current.add(k);
+    setKind("course");
+    setPrompt([c.title, c.subtitle, c.description].filter((x) => x && x.trim()).join(". ").slice(0, 1000));
+    setF((cur) => ({ ...cur, ...next }));
+  }, [source.data]);
 
   const courses = useCourseOptions(GROUNDABLE.has(kind));
   const [groundCourse, setGroundCourse] = React.useState("none");
@@ -152,7 +209,7 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
   });
 
   const subjectError = f.subject.trim().length > 0 && f.subject.trim().length < 2 ? "Subject is too short" : null;
-  const canSubmit = f.subject.trim().length >= 2;
+  const canSubmit = f.subject.trim().length >= 2 && !blocked;
   const understood = [
     parsed.subject && { k: "Topic", v: parsed.subject, c: "fuchsia" as const },
     parsed.audience && { k: "Audience", v: parsed.audience, c: "sky" as const },
@@ -170,6 +227,16 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
         if (canSubmit) start.mutate();
       }}
     >
+      {blocked && <PlanUpgradeCard label={feature.label} planName={feature.planName} upgradeTo={feature.upgradeTo} />}
+      {sourceCourseId &&
+        (source.isLoading ? (
+          <Skeleton className="h-20 rounded-2xl" />
+        ) : source.data ? (
+          <Alert tone="info" icon={<FilePlus2 aria-hidden />} title={`Starting from “${source.data.title}”`}>
+            We&apos;ve pre-filled the brief from this course. Generating creates a <strong>new draft course</strong> you can review —
+            “{source.data.title}” itself isn&apos;t changed. After you create the draft you can open it and decide whether to keep or delete the empty one.
+          </Alert>
+        ) : null)}
       <section aria-labelledby="ai-prompt" className="relative overflow-hidden rounded-3xl bg-brand-gradient p-6 text-white shadow-glow sm:p-8">
         <div className="pointer-events-none absolute inset-0 bg-grid-faint opacity-20 [background-size:28px_28px]" aria-hidden />
         <div className="pointer-events-none absolute -right-16 -top-24 size-80 rounded-full bg-fuchsia-300/40 blur-3xl" aria-hidden />
@@ -382,9 +449,12 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
           Nothing is published automatically. You&apos;ll review, edit and approve before a draft is created.
         </p>
         <Can anyOf={["courses.create", "courses.edit"]}>
-          <Button type="submit" variant="gradient" size="lg" leftIcon={<Wand2 />} loading={start.isPending} disabled={!canSubmit}>
-            Generate {KINDS.find((k) => k.value === kind)?.label.toLowerCase()}
-          </Button>
+          <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
+            <Button type="submit" variant="gradient" size="lg" leftIcon={<Wand2 />} loading={start.isPending} disabled={!canSubmit} aria-describedby={blocked ? "ai-upgrade" : undefined}>
+              Generate {KINDS.find((k) => k.value === kind)?.label.toLowerCase()}
+            </Button>
+            {blocked && <p className="text-xs font-medium text-slate-600">Requires a plan with {feature.label}.</p>}
+          </div>
         </Can>
       </div>
     </form>

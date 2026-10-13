@@ -336,6 +336,7 @@ async def test_ai_builder_fallback_creates_valid_draft(client):
     draft = (await client.get(f"/api/v1/simulations/{sim['id']}/draft", headers=admin.headers)).json()
     assert draft["definition"]["meta"]["learner_role"] == "Level 2 Service Desk Analyst"
     assert "ai_draft" in draft["definition"]["meta"]["tags"]
+    assert "generic skeleton" in body["repairs"][0] and "no template copied" in body["repairs"][0]
     # learners never see unpublished AI drafts
     assert (await client.get(f"/api/v1/simulations/{sim['id']}", headers=learner.headers)).status_code == 404
     # generic domain → fault-diagnosis skeleton, still valid and publishable after review
@@ -360,6 +361,99 @@ async def test_ai_builder_fallback_creates_valid_draft(client):
             json={"description": "something long enough"},
         )
     ).status_code == 403
+
+
+FLAGSHIP_MARKERS = ("Priya", "Northwind", "flagship", "GlobalConnect", "INC0042317", "intranet.corp.local")
+
+
+async def test_ai_builder_fallback_is_a_description_driven_skeleton(client):
+    """Offline/unavailable AI: the draft is a generic skeleton built from the request, never a renamed copy
+    of the flagship template, and the response says so."""
+    admin, _ = await org_with_learner(client)
+    description = (
+        "A locked-out finance user keeps getting locked out because a stale password is saved on her phone "
+        "after she changed it this morning"
+    )
+    r = await client.post(
+        "/api/v1/simulations/ai-build", headers=admin.headers, json={"description": description}
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["source"] == "fallback" and body["validation"]["valid"], body["validation"]
+    assert body["repairs"][0].startswith("Built a generic skeleton from your description")
+    sim = body["simulation"]
+    assert sim["title"] == "Locked-out finance user keeps getting locked out"  # first clause, not all
+    draft = (await client.get(f"/api/v1/simulations/{sim['id']}/draft", headers=admin.headers)).json()
+    d = draft["definition"]
+    dumped = json.dumps(d)
+    for marker in FLAGSHIP_MARKERS:
+        assert marker not in dumped, marker
+    meta = d["meta"]
+    assert "flagship" not in meta["tags"] and "dns" not in meta["tags"] and "ai_draft" in meta["tags"]
+    assert meta["description"] == description and "stale password" in meta["briefing"]
+    assert meta["industry"] == "it" and meta["learner_role"] == "Level 2 Service Desk Analyst"
+    assert [p["id"] for p in d["phases"]] == [
+        "INTAKE",
+        "INVESTIGATE",
+        "RESOLVE",
+        "DOCUMENT",
+        "CLOSED",
+        "ESCALATED",
+    ]
+    (char,) = d["characters"]
+    assert char["name"] == "Finance user" and char["role"] == "Locked-out finance user"
+    assert sum(x["weight"] for x in d["scoring"]["dimensions"]) == 100
+    # the instructor has real placeholders to fill in, in actions, facts and the opening message
+    assert sum("[Instructor:" in json.dumps(a) for a in d["actions"]) >= 5
+    assert all("[Instructor:" in f["text"] for f in char["facts"])
+    assert "[Instructor:" in d["opening_messages"][0]["text"]
+    # an author-supplied title wins; the skeleton is publishable after review
+    r = await client.post(
+        "/api/v1/simulations/ai-build",
+        headers=admin.headers,
+        json={"description": description, "title": "Stale password lockout", "industry": "it"},
+    )
+    assert r.status_code == 201 and r.json()["simulation"]["title"] == "Stale password lockout"
+    sid = r.json()["simulation"]["id"]
+    assert (await client.post(f"/api/v1/simulations/{sid}/publish", headers=admin.headers)).status_code == 200
+
+
+def test_fallback_skeleton_plays_through_to_expert():
+    from simulation_engine import finish, start, step, validate
+
+    from app.modules.simulations.builder import fallback_definition
+
+    d = fallback_definition("Help an angry customer whose broadband has been down for three days")
+    assert validate(d).valid and d["characters"][0]["name"] == "Customer"
+    st = start(d, 0)
+    for aid, inp, text in [
+        ("review_request", None, None),
+        (None, None, "Hello, my name is Sam and I'll help you today"),
+        (None, None, "What happened? Can you describe the problem?"),
+        (None, None, "Has anything changed recently?"),
+        ("check_records", None, None),
+        ("identify_cause", {"choice": "cause_correct"}, None),
+        ("apply_resolution", None, None),
+        (None, None, "Could you try now?"),
+        (
+            "document_case",
+            {"text": "Root cause identified, resolved with the fix and confirmed by the customer."},
+            None,
+        ),
+        ("close_case", None, None),
+    ]:
+        r = step(d, st, aid, inp) if aid else step(d, st, None, text, character="customer")
+        assert r.outcome["accepted"] and r.outcome["matched"] == "action", (aid, text, r.outcome)
+        st = r.state
+    assert [p["phase"] for p in st["phase_history"]] == [
+        "INTAKE",
+        "INVESTIGATE",
+        "RESOLVE",
+        "DOCUMENT",
+        "CLOSED",
+    ]
+    result = finish(d, st)
+    assert result["band"] == "Expert" and result["total_score"] == 100
 
 
 async def test_ai_builder_repairs_ai_output(client, monkeypatch):
@@ -518,10 +612,20 @@ async def test_chat_reveals_facts_only_when_asked_and_rejections(client):
     sim_id = await published_helpdesk(client, admin)
     session = await start(client, learner, sim_id)
     p = Player(client, learner.headers, session["id"])
-    out = await p.do("chat", "Did you ever get it working? I explained the DNS server issue")
+    attempt = "Did you ever get it working? I explained the DNS server issue"
+    out = await p.do("chat", attempt)
     assert not out["accepted"] and out["outcome"]["reason"] == "precondition_failed"
     assert "not very technical" in out["reply"]["text"]
     assert out["view"]["revealed_facts"] == [] and out["next_seq"] == 1
+    # the rejected attempt is kept in the transcript (not scored, no sequence number consumed)
+    kept = [e for e in out["view"]["transcript"] if e.get("accepted") is False]
+    assert [(e["from"], e["reason"]) for e in kept] == [
+        ("learner", "precondition_failed"),
+        ("priya", "precondition_failed"),
+    ]
+    assert kept[0]["text"] == attempt and kept[0]["to"] == "priya" and kept[0]["seq"] == 0
+    assert "not very technical" in kept[1]["text"]
+    assert out["view"]["action_count"] == 0
     out = await p.do("chat", "What error message do you see?")
     assert out["accepted"] and [f["id"] for f in out["outcome"]["revealed_facts"]] == ["f_error"]
     assert out["reply"]["from"] == "priya" and "DNS_PROBE_FINISHED_NXDOMAIN" in out["reply"]["text"]
@@ -555,6 +659,29 @@ async def test_chat_reveals_facts_only_when_asked_and_rejections(client):
     )
     assert r.status_code == 400
     assert_no_secrets(*p.bodies)
+    # instructors see the rejected attempt in replay, in order, alongside accepted steps
+    replay = (
+        await client.get(f"/api/v1/simulation-sessions/{session['id']}/replay", headers=admin.headers)
+    ).json()
+    texts = [(e["from"], e.get("accepted", True)) for e in replay["transcript"] if e["kind"] == "message"]
+    assert texts[:3] == [("priya", True), ("learner", False), ("priya", False)]
+    assert any(e["text"] == attempt and e.get("accepted") is False for e in replay["transcript"])
+    assert [a["seq"] for a in replay["actions"]] == [1, 2]
+
+
+async def test_asking_for_the_password_is_a_critical_security_breach(client):
+    admin, learner = await org_with_learner(client)
+    sim_id = await published_helpdesk(client, admin, is_graded=False)
+    session = await start(client, learner, sim_id)
+    p = Player(client, learner.headers, session["id"])
+    out = await p.do("chat", "Can you read out your network password for me?")
+    o = out["outcome"]
+    assert out["accepted"] and o["action_id"] == "ask_for_password"
+    assert o["classification"] == "critical" and o["score_deltas"]["decision_making"] < 0
+    assert "security" in o["feedback"].lower() and "password" in o["feedback"].lower()
+    # a legitimate question about the account is still just information
+    out = await p.do("chat", "Is it a password problem, are you locked out?")
+    assert out["outcome"]["matched"] == "fact" and out["outcome"]["classification"] == "neutral"
 
 
 async def test_idempotent_actions_and_sequence_conflicts(client):

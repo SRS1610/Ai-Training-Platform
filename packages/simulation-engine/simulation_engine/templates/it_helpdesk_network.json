@@ -343,7 +343,8 @@
         "exact wording",
         "screen",
         "what does it say",
-        "what do get"
+        "what do get",
+        "error password"
       ],
       "examples": [
         "What do you see when you try to open a website?",
@@ -496,6 +497,32 @@
         "log in",
         "login",
         "sign in"
+      ]
+    },
+    {
+      "id": "credential_request",
+      "patterns": [
+        "read out password",
+        "tell password",
+        "give password",
+        "share password",
+        "send password",
+        "spell password",
+        "what password",
+        "type password chat",
+        "tell credential",
+        "give credential",
+        "share credential",
+        "send credential",
+        "what credential",
+        "give login details",
+        "tell login details",
+        "share login details",
+        "send login details"
+      ],
+      "examples": [
+        "Can you read out your network password?",
+        "Could you tell me your password so I can log in as you?"
       ]
     },
     {
@@ -1954,6 +1981,39 @@
         {
           "character": "priya",
           "text": "No problem!"
+        }
+      ]
+    },
+    {
+      "id": "ask_for_password",
+      "tool": "chat",
+      "label": "Ask the customer for her password",
+      "kind": "ask",
+      "character": "priya",
+      "input": {
+        "type": "free_text",
+        "intents": [
+          "credential_request"
+        ],
+        "placeholder": "Message Priya…"
+      },
+      "effects": [
+        {
+          "inc": {
+            "customer_patience": -10
+          }
+        }
+      ],
+      "score": {
+        "decision_making": -8
+      },
+      "classification": "critical",
+      "feedback": "Asking a user to share their password is a security breach. Legitimate IT staff never need it: it violates policy, conditions users to fall for social engineering and breaks the audit trail. A network fault doesn't need her credentials; use a remote-assistance session she approves, or the verified reset procedure if her account really is the problem.",
+      "time_cost": 0.5,
+      "messages": [
+        {
+          "character": "priya",
+          "text": "Um... I've been told IT should never ask for my password. I'd rather not share it. Is that really needed?"
         }
       ]
     },
@@ -3973,6 +4033,15 @@
         ]
       },
       "text": "Briefly explaining the cause in plain language builds trust and reduces repeat calls."
+    },
+    {
+      "id": "i_credentials",
+      "type": "improvement",
+      "priority": 8,
+      "when": {
+        "action_taken": "ask_for_password"
+      },
+      "text": "Never ask users for their password. Use remote assistance they approve, or a verified password reset, instead."
     }
   ],
   "settings": {

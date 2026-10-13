@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { firstName } from "@/lib/format";
 import type { TranscriptEntry, ViewCharacter } from "../types";
 import { useWorkspace } from "./context";
-import { chatThread, patienceTone, simClock, type ChatModel } from "./model";
+import { chatThread, patienceTone, rejectedLabel, simClock, type ChatModel } from "./model";
 
 export function CharacterAvatar({ c, size = "md", className }: { c: Pick<ViewCharacter, "id" | "name" | "avatar">; size?: "sm" | "md" | "lg"; className?: string }) {
   const color = colorClasses(colorFor(c.id + c.name));
@@ -92,18 +92,20 @@ export function ChatPanel({
   };
 
   // Merge persisted thread with ephemeral (rejected) exchanges in seq order.
-  type Item = { key: string; mine: boolean; text: string; minutes?: number; seq: number; ghost?: boolean; fresh?: boolean };
+  // Rejected attempts the server kept (accepted === false) render muted, like the ephemeral ones.
+  type Item = { key: string; mine: boolean; text: string; minutes?: number; seq: number; ghost?: string; fresh?: boolean };
   const items: Item[] = thread.map((e: TranscriptEntry, i) => ({
     key: `t${i}`,
     mine: e.from === "learner",
     text: e.text,
     minutes: e.minutes,
     seq: e.seq,
+    ghost: e.accepted === false && e.from === "learner" ? rejectedLabel(e.reason) : undefined,
     fresh: e.seq === lastSeq && e.from !== "learner",
   }));
   for (const x of eph) {
-    if (x.learnerText) items.push({ key: `${x.id}l`, mine: true, text: x.learnerText, seq: x.afterSeq + 0.1 });
-    items.push({ key: x.id, mine: false, text: x.text, seq: x.afterSeq + 0.2, fresh: true });
+    if (x.learnerText) items.push({ key: `${x.id}l`, mine: true, text: x.learnerText, seq: x.afterSeq + 0.5, ghost: rejectedLabel() });
+    items.push({ key: x.id, mine: false, text: x.text, seq: x.afterSeq + 0.6, fresh: true });
   }
   items.sort((a, b) => a.seq - b.seq);
 
@@ -202,8 +204,21 @@ export function ChatPanel({
           m.mine ? (
             <div key={m.key} className="flex justify-end">
               <div className="max-w-[85%]">
-                <div className="rounded-2xl rounded-br-md bg-gradient-to-br from-indigo-600 to-violet-600 px-3.5 py-2 text-sm text-white shadow-sm">{m.text}</div>
-                {m.minutes !== undefined && <p className="mt-0.5 text-right font-mono text-2xs text-slate-500">T+{simClock(m.minutes)}</p>}
+                <div
+                  className={cn(
+                    "rounded-2xl rounded-br-md px-3.5 py-2 text-sm shadow-sm",
+                    m.ghost ? "border border-dashed border-slate-300 bg-slate-50 text-slate-500" : "bg-gradient-to-br from-indigo-600 to-violet-600 text-white",
+                  )}
+                >
+                  {m.text}
+                </div>
+                {(m.ghost || m.minutes !== undefined) && (
+                  <p className="mt-0.5 text-right text-2xs text-slate-500">
+                    {m.ghost && <span className="italic">{m.ghost}</span>}
+                    {m.ghost && m.minutes !== undefined && " · "}
+                    {m.minutes !== undefined && <span className="font-mono">T+{simClock(m.minutes)}</span>}
+                  </p>
+                )}
               </div>
             </div>
           ) : (

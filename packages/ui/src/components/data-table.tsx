@@ -69,6 +69,18 @@ export interface DataTableProps<T> {
   "aria-label"?: string;
 }
 
+const NESTED_INTERACTIVE =
+  'a[href], button, input, select, textarea, label, summary, [contenteditable="true"], [role="button"], [role="link"], [role="checkbox"], [role="switch"], [role="menuitem"], [role="option"], [role="tab"]';
+
+/** True when a row click came from an interactive element inside the row (or from a portal, e.g. a row menu). */
+function fromNestedControl(e: React.SyntheticEvent<HTMLElement>): boolean {
+  const target = e.target as Element | null;
+  if (!target || !(target instanceof Element)) return false;
+  if (!e.currentTarget.contains(target)) return true; // React bubbles portal events through the tree
+  const hit = target.closest(NESTED_INTERACTIVE);
+  return !!hit && hit !== e.currentTarget && e.currentTarget.contains(hit);
+}
+
 /**
  * DataTable on TanStack Table: sorting, pagination (client or server), row selection, row actions,
  * column visibility, loading skeleton and empty state.
@@ -272,8 +284,27 @@ export function DataTable<T>({
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() ? "selected" : undefined}
-                className={cn(onRowClick && "cursor-pointer")}
-                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                className={cn(
+                  onRowClick &&
+                    "cursor-pointer focus-visible:bg-brand-50/60 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-500",
+                )}
+                {...(onRowClick
+                  ? {
+                      // Keep the native row role (cells stay announced as a table); the row itself is focusable and activates
+                      // with Enter / Space like a link, while nested buttons, links, checkboxes and menus keep their own behaviour.
+                      role: "row",
+                      tabIndex: 0,
+                      onClick: (e: React.MouseEvent<HTMLTableRowElement>) => {
+                        if (fromNestedControl(e)) return;
+                        onRowClick(row.original);
+                      },
+                      onKeyDown: (e: React.KeyboardEvent<HTMLTableRowElement>) => {
+                        if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+                        e.preventDefault();
+                        onRowClick(row.original);
+                      },
+                    }
+                  : {})}
               >
                 {row.getVisibleCells().map((cell) => {
                   const meta = cell.column.columnDef.meta as { cellClassName?: string } | undefined;

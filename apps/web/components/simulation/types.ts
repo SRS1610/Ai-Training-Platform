@@ -61,6 +61,11 @@ export interface TranscriptEntry {
   panel?: string | null;
   format?: "text" | "terminal" | "markdown";
   to?: string | null;
+  /** false for a rejected attempt kept for the record (e.g. a chat message matching a step that isn't
+   * possible yet); it consumed no sequence number, score or time. Absent on accepted entries. */
+  accepted?: boolean;
+  reason?: string | null;
+  label?: string | null;
 }
 
 export interface Fact {

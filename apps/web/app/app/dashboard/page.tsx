@@ -52,7 +52,7 @@ function DashboardSkeleton() {
           <Skeleton key={i} className="h-32 rounded-2xl" />
         ))}
       </div>
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Skeleton className="h-96 rounded-2xl xl:col-span-2" />
         <Skeleton className="h-96 rounded-2xl" />
       </div>
@@ -89,23 +89,23 @@ function Dashboard() {
       {isNew ? (
         <>
           <WelcomePanel emailVerified={!!user?.email_verified} mfaEnabled={!!user?.mfa_enabled} />
-          <div className="grid gap-6 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <Recommendations items={data.recommendations} />
-            <div className="xl:col-span-2">
+            <div className="min-w-0 xl:col-span-2">
               <HeatmapCard days={data.activity_heatmap} stats={data.stats} />
             </div>
           </div>
         </>
       ) : (
         <>
-          <div className="grid gap-6 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <ContinueLearning courses={data.current_courses} className="xl:col-span-2" />
-            <div className="flex flex-col gap-6">
+            <div className="flex min-w-0 flex-col gap-6">
               <DeadlinesTimeline items={data.upcoming_deadlines} />
               <Recommendations items={data.recommendations} className="flex-1" />
             </div>
           </div>
-          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
             <SkillsPanel skills={data.skills} />
             <SimulationResults results={data.simulation_results} />
             <RecentActivity items={data.recent_activity} />

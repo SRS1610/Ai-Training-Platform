@@ -158,19 +158,27 @@ function Transcript({ entries }: { entries: Dict[] }) {
         const learner = e.from === "learner";
         const system = e.from === "system";
         const terminal = e.format === "terminal" || e.kind === "command";
+        // Rejected attempt kept for the record (e.g. a message matching a step that wasn't possible yet).
+        const rejected = e.accepted === false;
         return (
           <li key={i} className={cn("flex", learner ? "justify-end" : "justify-start")}>
             <div
               className={cn(
                 "max-w-[85%] rounded-2xl px-3 py-2 text-xs",
-                learner ? "bg-brand-600 text-white" : system ? (e.kind === "notice" ? "bg-amber-50 text-amber-950 ring-1 ring-amber-200" : "bg-slate-100 text-slate-800") : "bg-teal-50 text-teal-950 ring-1 ring-teal-200",
+                rejected ? "border border-dashed border-slate-300 bg-slate-50 text-slate-500" : learner ? "bg-brand-600 text-white" : system ? (e.kind === "notice" ? "bg-amber-50 text-amber-950 ring-1 ring-amber-200" : "bg-slate-100 text-slate-800") : "bg-teal-50 text-teal-950 ring-1 ring-teal-200",
                 terminal && !learner && "bg-slate-950 font-mono text-emerald-200 ring-0",
                 terminal && learner && "font-mono",
               )}
             >
-              <p className={cn("mb-0.5 text-2xs font-semibold", learner ? "text-white/80" : "opacity-70")}>
+              <p className={cn("mb-0.5 text-2xs font-semibold", learner && !rejected ? "text-white/80" : "opacity-70")}>
                 {learner ? "Learner" : system ? (e.kind === "notice" ? "Notice" : String(e.tool ?? "System")) : String(e.name ?? e.from)}
                 {e.minutes !== undefined && ` · ${Number(e.minutes).toFixed(1)}m`}
+                {rejected && learner && (
+                  <span className="ml-1 font-normal italic">
+                    · {e.reason === "precondition_failed" ? "not possible yet" : "not accepted"}
+                    {e.label ? ` (matched: ${String(e.label)})` : ""} · not scored
+                  </span>
+                )}
               </p>
               <p className="whitespace-pre-wrap break-words">{String(e.text ?? "")}</p>
             </div>

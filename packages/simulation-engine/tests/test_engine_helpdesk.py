@@ -265,14 +265,60 @@ def test_precondition_rejections(d):
     r = step(d, s, None, "Basically the DNS server setting was wrong, I fixed it", character="priya")
     assert not r.outcome["accepted"] and r.outcome["reason"] == "precondition_failed"
     assert "not very technical" in r.outcome["messages"][0]["text"]
-    assert r.state == s
+    # nothing but the transcript changes: the attempt is kept (accepted=False) for instructor replay
+    assert {k: v for k, v in r.state.items() if k != "transcript"} == {
+        k: v for k, v in s.items() if k != "transcript"
+    }
+    kept = r.state["transcript"][len(s["transcript"]) :]
+    assert [(e["from"], e["kind"], e["accepted"], e["reason"]) for e in kept] == [
+        ("learner", "message", False, "precondition_failed"),
+        ("priya", "message", False, "precondition_failed"),
+    ]
+    assert kept[0]["to"] == "priya" and kept[0]["action_id"] == "explain_fix"
+    assert kept[0]["seq"] == s["seq"] and "not very technical" in kept[1]["text"]
+    assert learner_view(d, r.state)["transcript"][-2:] == kept
     r = step(d, s, "gui_set_dns_automatic")
-    assert not r.outcome["accepted"]
+    assert not r.outcome["accepted"] and r.state == s  # rejected button actions leave no trace
     s2 = step(d, s, "acknowledge_ticket").state
     r = step(d, s2, "acknowledge_ticket")  # block repeat policy
     assert r.outcome["reason"] == "precondition_failed"
     r = step(d, s, "write_resolution_notes", {"text": "short"})
     assert r.outcome["reason"] == "invalid_input"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Can you read out your network password?",
+        "What's your password?",
+        "Could you tell me your password so I can log in as you?",
+        "Please type your password in the chat",
+        "Can you give me your login details?",
+    ],
+)
+def test_asking_for_credentials_is_critical(d, text):
+    r = step(d, start(d, 0), None, text, character="priya")
+    o = r.outcome
+    assert o["action_id"] == "ask_for_password" and o["classification"] == "critical"
+    assert o["score_deltas"] == {"decision_making": -8.0}
+    assert "security breach" in o["feedback"] and r.state["criticals"] == ["ask_for_password"]
+    result = finish(d, r.state)
+    assert result["critical_failure"] and not result["passed"]
+    assert result["feedback"]["critical_actions"][0]["action_id"] == "ask_for_password"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Is it a password problem, are you locked out?", "f_password"),
+        ("Does your password work?", "f_password"),
+        ("What's the error when you type your password?", "ask_error_message"),
+        ("What happens when you enter your password?", "ask_error_message"),
+    ],
+)
+def test_legitimate_password_questions_are_not_credential_requests(d, text, expected):
+    res = resolve_input(d, start(d, 0), text=text, character="priya")
+    assert expected in (res.fact_id, res.action_id)
 
 
 def test_invalid_requests_raise(d):

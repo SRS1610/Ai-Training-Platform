@@ -369,6 +369,7 @@ def _action_step(
         msgs = []
         if a.kind == "ask" and who:
             msgs = [_msg_out(d, who, a.precondition_message)]
+        _record_rejected_chat(st, a, inp, res, "precondition_failed", msgs)
         return _rejected(
             st,
             "precondition_failed",
@@ -385,6 +386,7 @@ def _action_step(
             raise InvalidInput(f"choice must be one of: {', '.join(sorted(valid))}")
     if a.input.type in ("free_text", "command") and a.input.min_length:
         if len(str(inp.get("text", "")).strip()) < a.input.min_length:
+            _record_rejected_chat(st, a, inp, res, "invalid_input", [])
             return _rejected(
                 st,
                 "invalid_input",
@@ -672,6 +674,28 @@ def _learner_text_entry(
         "to": to,
         "text": text,
     }
+
+
+def _record_rejected_chat(
+    st: dict[str, Any],
+    a: Action,
+    inp: dict[str, Any],
+    res: Resolution | None,
+    reason: str,
+    msgs: list[dict[str, Any]],
+) -> None:
+    """Keep a rejected chat attempt (it matched an action the learner may not take yet) in the transcript
+    so instructors can see it in replay. It is marked ``accepted: False`` and does not consume a sequence
+    number, score, time or history: ``seq`` is that of the last accepted step."""
+    if res is None or not res.character or not str(inp.get("text", "")).strip():
+        return
+    base = {"accepted": False, "reason": reason}
+    entry = _learner_text_entry(st, str(inp["text"]), "message", a.tool, res.character)
+    st["transcript"].append({**entry, **base, "action_id": a.id, "label": a.label})
+    for m in msgs:
+        st["transcript"].append(
+            {"seq": st["seq"], "minutes": st["minutes"], "kind": "message", "tool": None, **m, **base}
+        )
 
 
 def _learner_entry(d: SimulationDefinition, st: dict[str, Any], a: Action, inp: dict[str, Any]) -> None:

@@ -119,6 +119,11 @@ export function chatThread(view: SessionView, characterId: string): TranscriptEn
   );
 }
 
+/** Caption for a rejected attempt kept in the transcript (``accepted: false``). */
+export function rejectedLabel(reason?: string | null): string {
+  return reason === "precondition_failed" ? "Not possible yet · not counted" : reason === "invalid_input" ? "Not accepted · not counted" : "Not counted";
+}
+
 export function toolEntries(view: SessionView, app: WorkspaceApp): TranscriptEntry[] {
   const ids = new Set(app.tools.map((t) => t.id));
   return view.transcript.filter((e) => (e.tool && ids.has(e.tool)) || (app.panel && e.panel === app.panel.id));

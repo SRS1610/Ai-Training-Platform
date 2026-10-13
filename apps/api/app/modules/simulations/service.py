@@ -577,6 +577,8 @@ async def ai_build(ctx: Ctx, body: s.AIBuildIn) -> s.AIBuildOut:
         notes += more
         source = "fallback"
         report = validate(fixed)
+    if source == "fallback":
+        notes.insert(0, builder.FALLBACK_NOTE)
     meta = fixed.setdefault("meta", {})
     meta["tags"] = sorted(set(meta.get("tags") or []) | {"ai_draft", "needs_review"})
     if body.title:
@@ -977,6 +979,12 @@ async def _run_step(
         raise BadRequest(str(exc), code="invalid_action") from exc
     outcome = result.outcome
     if not outcome["accepted"]:
+        # Rejected steps consume no sequence number, score or time, but a rejected chat attempt is kept in
+        # the transcript (accepted=False) so instructors can see it in replay.
+        if len(result.state.get("transcript", [])) > len(session.state.get("transcript", [])):
+            session.state = result.state
+            session.last_activity_at = now()
+            await ctx.db.flush()
         return await _step_out(ctx, session, sim, d, outcome, replayed=False, persisted=False)
     assert result.state["seq"] == seq, (result.state["seq"], seq)
     reply = None
@@ -1121,7 +1129,9 @@ async def _character_reply(
     history = [
         e
         for e in state["transcript"]
-        if e.get("kind") == "message" and (e.get("from") == character_id or e.get("to") == character_id)
+        if e.get("kind") == "message"
+        and e.get("accepted", True)
+        and (e.get("from") == character_id or e.get("to") == character_id)
     ][-8:-1]
     system = (
         f"You are role-playing {char.name}, {char.role}, in a workplace training simulation.\n"

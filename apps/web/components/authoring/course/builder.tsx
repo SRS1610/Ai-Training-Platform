@@ -21,6 +21,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
+  BookOpenCheck,
   CheckCircle2,
   Clock,
   Eye,
@@ -37,6 +38,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
+import { AssignTrainingDialog } from "@/components/admin/assign-training-dialog";
 import { ErrorState } from "@/components/common/error-state";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -142,6 +144,7 @@ export function CourseBuilder({ courseId }: { courseId: string }) {
   const [addFor, setAddFor] = React.useState<StructureModule | null>(null);
   const [publishOpen, setPublishOpen] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [assignOpen, setAssignOpen] = React.useState(false);
 
   const q = useQuery({
     queryKey: ak.courses.structure(courseId),
@@ -232,6 +235,11 @@ export function CourseBuilder({ courseId }: { courseId: string }) {
               <Button variant="secondary" leftIcon={<Eye />} onClick={() => setPreviewOpen(true)}>
                 Preview as learner
               </Button>
+              {course.status === "published" && can("enrolments.manage") && (
+                <Button variant="secondary" leftIcon={<BookOpenCheck />} onClick={() => setAssignOpen(true)}>
+                  Assign
+                </Button>
+              )}
               {can("courses.create") && (
                 <Button asChild variant="soft" leftIcon={<Wand2 />} className="hidden sm:inline-flex">
                   <Link href="/app/instructor/ai-builder">AI builder</Link>
@@ -269,12 +277,19 @@ export function CourseBuilder({ courseId }: { courseId: string }) {
                     illustration="rocket"
                     size="lg"
                     title="Let's build your course"
-                    description="Start with a module (a week, a topic, a chapter), then add lessons in any of 16 formats — or let AI draft the whole structure for you to review."
+                    description="Start with a module (a week, a topic, a chapter), then add lessons in any of 16 formats — or have AI draft a complete course from this one's title, description and objectives."
                     action={
                       can("courses.create") ? (
-                        <Button asChild variant="gradient" leftIcon={<Sparkles />}>
-                          <Link href="/app/instructor/ai-builder">Draft it with AI</Link>
-                        </Button>
+                        <div className="flex flex-col items-center gap-2">
+                          <Button asChild variant="gradient" leftIcon={<Sparkles />}>
+                            <Link href={`/app/instructor/ai-builder?course_id=${encodeURIComponent(course.id)}`} aria-describedby="ai-draft-hint">
+                              Generate a full course draft with AI
+                            </Link>
+                          </Button>
+                          <p id="ai-draft-hint" className="max-w-sm text-xs text-muted-foreground">
+                            Creates a new draft course you can review — this course stays as it is, and you can delete it afterwards.
+                          </p>
+                        </div>
                       ) : undefined
                     }
                   />
@@ -311,6 +326,7 @@ export function CourseBuilder({ courseId }: { courseId: string }) {
 
       <AddLessonDialog open={!!addFor} onOpenChange={(o) => !o && setAddFor(null)} module={addFor} onCreated={(l) => selectLesson(l.id)} />
       <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} structure={structure} onGoToLesson={(id) => selectLesson(id)} />
+      <AssignTrainingDialog open={assignOpen} onOpenChange={setAssignOpen} course={{ value: course.id, label: course.title }} />
       <CoursePreview open={previewOpen} onOpenChange={setPreviewOpen} structure={structure} startLessonId={lesson?.id} />
       <ConfirmDialog
         open={!!pendingNav}

@@ -28,6 +28,7 @@ import {
   Archive,
   ArchiveRestore,
   BookOpen,
+  BookOpenCheck,
   Copy,
   FilePen,
   GraduationCap,
@@ -46,6 +47,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
+import { AssignTrainingDialog } from "@/components/admin/assign-training-dialog";
 import { ErrorState } from "@/components/common/error-state";
 import { api, errorMessage } from "@/lib/api";
 import { Can, useAuth } from "@/lib/auth";
@@ -68,7 +70,9 @@ const STATUSES = [
 
 const PAGE_SIZE = 12;
 
-function CourseActions({ course, onAction }: { course: Course; onAction: (a: "duplicate" | "archive" | "restore" | "delete", c: Course) => void }) {
+type CourseAction = "duplicate" | "archive" | "restore" | "delete" | "assign";
+
+function CourseActions({ course, onAction }: { course: Course; onAction: (a: CourseAction, c: Course) => void }) {
   const { can } = useAuth();
   return (
     <DropdownMenu>
@@ -83,6 +87,11 @@ function CourseActions({ course, onAction }: { course: Course; onAction: (a: "du
             <Pencil /> Open builder
           </Link>
         </DropdownMenuItem>
+        {course.status === "published" && can("enrolments.manage") && (
+          <DropdownMenuItem onSelect={() => onAction("assign", course)}>
+            <BookOpenCheck /> Assign
+          </DropdownMenuItem>
+        )}
         {can("courses.create") && (
           <DropdownMenuItem onSelect={() => onAction("duplicate", course)}>
             <Copy /> Duplicate
@@ -110,7 +119,7 @@ function CourseActions({ course, onAction }: { course: Course; onAction: (a: "du
   );
 }
 
-function CourseCard({ course, onAction }: { course: Course; onAction: (a: "duplicate" | "archive" | "restore" | "delete", c: Course) => void }) {
+function CourseCard({ course, onAction }: { course: Course; onAction: (a: CourseAction, c: Course) => void }) {
   const color = colorFor(course.category ?? course.title);
   const c = colorClasses(color);
   const d = difficultyMeta(course.difficulty);
@@ -133,7 +142,8 @@ function CourseCard({ course, onAction }: { course: Course; onAction: (a: "dupli
           </span>
           {course.ai_generated && <AIBadge className="bg-white/95" />}
         </div>
-        <div className="absolute right-2 top-2 rounded-lg bg-white/90 shadow-sm">
+        {/* z-10 keeps the menu above the card's stretched title link (after:inset-0), which otherwise swallows clicks. */}
+        <div className="absolute right-2 top-2 z-10 rounded-lg bg-white/90 shadow-sm">
           <CourseActions course={course} onAction={onAction} />
         </div>
       </div>
@@ -187,6 +197,7 @@ export function CourseList() {
   const page = Math.max(1, Number(get("page") ?? 1));
   const [createOpen, setCreateOpen] = React.useState(get("new") === "1");
   const [confirm, setConfirm] = React.useState<{ action: "archive" | "delete"; course: Course } | null>(null);
+  const [assignFor, setAssignFor] = React.useState<Course | null>(null);
 
   const params = { status, search, mine, difficulty, page };
   const list = useQuery({
@@ -225,8 +236,9 @@ export function CourseList() {
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
-  const onAction = (a: "duplicate" | "archive" | "restore" | "delete", c: Course) => {
-    if (a === "duplicate") duplicate.mutate(c);
+  const onAction = (a: CourseAction, c: Course) => {
+    if (a === "assign") setAssignFor(c);
+    else if (a === "duplicate") duplicate.mutate(c);
     else if (a === "restore") restore.mutate(c);
     else setConfirm({ action: a, course: c });
   };
@@ -461,6 +473,11 @@ export function CourseList() {
         </>
       )}
 
+      <AssignTrainingDialog
+        open={!!assignFor}
+        onOpenChange={(o) => !o && setAssignFor(null)}
+        course={assignFor ? { value: assignFor.id, label: assignFor.title } : null}
+      />
       <CreateCourseDialog
         open={createOpen}
         onOpenChange={(o) => {

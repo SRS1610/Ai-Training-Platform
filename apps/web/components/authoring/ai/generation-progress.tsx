@@ -122,7 +122,7 @@ export function GenerationError({ error, onRetry }: { error: unknown; onRetry?: 
     <Alert
       tone={plan ? "brand" : "danger"}
       icon={plan ? <CreditCard aria-hidden /> : undefined}
-      title={plan ? "AI generation isn't included in your plan" : "We couldn't start the generation"}
+      title={plan ? "AI course generation isn't included in your plan" : "We couldn't start the generation"}
       action={
         plan ? (
           <Button asChild size="sm" variant="primary">
@@ -135,7 +135,7 @@ export function GenerationError({ error, onRetry }: { error: unknown; onRetry?: 
         ) : undefined
       }
     >
-      {errorMessage(error)}
+      {plan ? "Upgrade your plan to draft courses, quizzes, assignments and more with AI." : errorMessage(error)}
     </Alert>
   );
 }

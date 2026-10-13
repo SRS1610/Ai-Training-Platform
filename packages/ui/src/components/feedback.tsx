@@ -3,7 +3,7 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
 import * as React from "react";
-import { Toaster as SonnerToaster, toast } from "sonner";
+import { Toaster as SonnerToaster, toast, useSonner } from "sonner";
 import { cn } from "../lib/cn";
 
 /* ------------------------------------------------------------------ Skeleton */
@@ -60,20 +60,76 @@ export function Alert({ className, tone = "info", title, icon, action, children,
 
 /* ------------------------------------------------------------------ Toast */
 
+type SonnerProps = React.ComponentProps<typeof SonnerToaster>;
+
+export interface ToasterProps {
+  /** Default `bottom-right`. Pages with sticky bottom action bars (e.g. grading) can move toasts to the top. */
+  position?: SonnerProps["position"];
+  /** Distance from the viewport edges on ≥ 600px screens (Sonner `offset`). */
+  offset?: SonnerProps["offset"];
+  /** Distance from the edges on phones (Sonner `mobileOffset`); defaults clear the mobile tab bar + safe area. */
+  mobileOffset?: SonnerProps["mobileOffset"];
+  /** Auto-dismiss delay in ms (default 5s). */
+  duration?: number;
+  /**
+   * Hard cap on how long a toast can stay on screen, in ms (default 15s). Sonner pauses the timer while a toast
+   * is hovered or focused, so without a cap a toast left under the pointer can cover controls indefinitely.
+   * Loading toasts and toasts created with `duration: Infinity` are exempt.
+   */
+  maxLifetime?: number;
+}
+
+/** Dismisses any toast that has been visible longer than ``maxLifetime`` (even while hovered). */
+function ToastLifetimeGuard({ maxLifetime }: { maxLifetime: number }) {
+  const { toasts } = useSonner();
+  const seen = React.useRef(new Map<string | number, number>());
+  React.useEffect(() => {
+    const now = Date.now();
+    const live = new Set(toasts.map((t) => t.id));
+    for (const t of toasts) if (!seen.current.has(t.id)) seen.current.set(t.id, now);
+    for (const id of [...seen.current.keys()]) if (!live.has(id)) seen.current.delete(id);
+  }, [toasts]);
+  React.useEffect(() => {
+    if (!toasts.length) return;
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      for (const t of toasts) {
+        if (t.type === "loading" || t.duration === Infinity) continue;
+        const since = seen.current.get(t.id);
+        if (since !== undefined && now - since >= maxLifetime) toast.dismiss(t.id);
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [toasts, maxLifetime]);
+  return null;
+}
+
 /** Mount once near the root. Use `toast.success("Saved")` etc. anywhere. */
-export function Toaster() {
+export function Toaster({
+  position = "bottom-right",
+  offset,
+  mobileOffset = { bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)", left: 16, right: 16 },
+  duration = 5000,
+  maxLifetime = 15000,
+}: ToasterProps = {}) {
   return (
-    <SonnerToaster
-      position="bottom-right"
-      closeButton
-      richColors
-      toastOptions={{
-        classNames: {
-          toast: "!rounded-2xl !border !shadow-lift !font-sans",
-          title: "!font-semibold",
-        },
-      }}
-    />
+    <>
+      <SonnerToaster
+        position={position}
+        offset={offset}
+        mobileOffset={mobileOffset}
+        duration={duration}
+        closeButton
+        richColors
+        toastOptions={{
+          classNames: {
+            toast: "!rounded-2xl !border !shadow-lift !font-sans",
+            title: "!font-semibold",
+          },
+        }}
+      />
+      <ToastLifetimeGuard maxLifetime={maxLifetime} />
+    </>
   );
 }
 

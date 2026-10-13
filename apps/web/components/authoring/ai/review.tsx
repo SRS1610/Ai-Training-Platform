@@ -6,6 +6,7 @@ import {
   Button,
   CATEGORY_COLORS,
   Card,
+  ConfirmDialog,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -45,6 +46,7 @@ import {
   Library,
   ListTree,
   type LucideIcon,
+  FolderOpen,
   MonitorPlay,
   NotebookText,
   PartyPopper,
@@ -70,6 +72,7 @@ import { DIFFICULTIES, GENERATION_STATUS_LABEL, questionMeta } from "../meta";
 import { AStatus, SaveIndicator, StringListEditor, TypeChip } from "../shared";
 import type {
   ApplyOut,
+  Course,
   GenAssignment,
   GenCourse,
   GenLesson,
@@ -600,6 +603,75 @@ function AppliedPanel({ result }: { result: ApplyOut }) {
   );
 }
 
+/**
+ * After a full-course draft is created from the builder's empty-course link, the course the author started stays
+ * empty (applying into an existing course isn't supported). Offer to delete it or keep it.
+ */
+function SourceCourseFollowUp({ sourceCourseId, draftLink, onResolved }: { sourceCourseId: string; draftLink: string | null; onResolved: () => void }) {
+  const qc = useQueryClient();
+  const { can } = useAuth();
+  const [confirm, setConfirm] = React.useState(false);
+  const course = useQuery({
+    queryKey: ak.courses.detail(sourceCourseId),
+    queryFn: ({ signal }) => api.get<Course>(`/courses/${sourceCourseId}`, { signal }),
+    retry: false,
+  });
+  const remove = useMutation({
+    mutationFn: () => api.delete(`/courses/${sourceCourseId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ak.courses.all });
+      toast.success("Empty course deleted");
+      setConfirm(false);
+      onResolved();
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  const c = course.data;
+  // Only worth asking while the original course is still there, still a draft and still empty.
+  if (!c || c.module_count > 0 || c.lesson_count > 0 || c.status !== "draft") return null;
+  return (
+    <section aria-labelledby="source-course-title" className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft sm:p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-100 text-amber-700" aria-hidden>
+          <FolderOpen className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 id="source-course-title" className="font-display text-base font-semibold text-slate-900">
+            What about “<span className="break-words">{c.title}</span>”?
+          </h2>
+          <p className="text-sm text-slate-600">
+            The AI draft was created as a separate course, so the course you started from is still empty. Delete it to avoid a duplicate, or keep it.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {draftLink && (
+            <Button asChild variant="secondary" rightIcon={<ArrowRight />}>
+              <Link href={draftLink}>Open new draft</Link>
+            </Button>
+          )}
+          {can("courses.delete") && (
+            <Button variant="destructive-soft" leftIcon={<Trash2 />} onClick={() => setConfirm(true)}>
+              Delete empty course
+            </Button>
+          )}
+          <Button variant="ghost" onClick={onResolved}>
+            Keep it
+          </Button>
+        </div>
+      </div>
+      <ConfirmDialog
+        open={confirm}
+        onOpenChange={setConfirm}
+        destructive
+        title={`Delete “${c.title}”?`}
+        description="This empty draft course has no modules, lessons or learners. Your new AI draft isn't affected."
+        confirmLabel="Delete course"
+        onConfirm={() => remove.mutateAsync()}
+      />
+    </section>
+  );
+}
+
 /** Lesson-level generations (flashcards, notes, case studies…) are added to a course module. */
 const NEEDS_COURSE = new Set(["module", "lesson", "flashcards", "revision_notes", "case_study"]);
 
@@ -694,7 +766,17 @@ function useFamily(gen: Generation | undefined) {
   }, [gen, list.data]);
 }
 
-function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => void }) {
+function Workspace({
+  gen,
+  onOpen,
+  sourceCourseId,
+  onSourceResolved,
+}: {
+  gen: Generation;
+  onOpen: (id: string) => void;
+  sourceCourseId?: string | null;
+  onSourceResolved?: () => void;
+}) {
   const qc = useQueryClient();
   const { can } = useAuth();
   const family = useFamily(gen);
@@ -894,6 +976,16 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
       </Card>
 
       {applied && <AppliedPanel result={applied} />}
+      {sourceCourseId &&
+        gen.kind === "course" &&
+        (applied || gen.status === "applied") &&
+        (applied?.entity_id ?? gen.applied_entity_id) !== sourceCourseId && (
+          <SourceCourseFollowUp
+            sourceCourseId={sourceCourseId}
+            draftLink={applied ? applied.link.replace(/\/builder$/, "") : appliedLink}
+            onResolved={() => onSourceResolved?.()}
+          />
+        )}
 
       {gen.status === "failed" && (
         <Alert tone="danger" title="This generation failed" action={<Button size="sm" variant="secondary" leftIcon={<RefreshCw />} onClick={() => regenerate.mutate("")} loading={regenerate.isPending}>Try again</Button>}>
@@ -998,7 +1090,17 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
 }
 
 /** Review workspace for a generation id: progress while running, then review → approve → apply. */
-export function GenerationReview({ id, onOpen }: { id: string; onOpen: (id: string) => void }) {
+export function GenerationReview({
+  id,
+  onOpen,
+  sourceCourseId,
+  onSourceResolved,
+}: {
+  id: string;
+  onOpen: (id: string) => void;
+  sourceCourseId?: string | null;
+  onSourceResolved?: () => void;
+}) {
   const q = useGeneration(id);
   if (q.isLoading)
     return (
@@ -1019,5 +1121,5 @@ export function GenerationReview({ id, onOpen }: { id: string; onOpen: (id: stri
         <GenerationProgress gen={g} />
       </div>
     );
-  return <Workspace key={`${g.id}`} gen={g} onOpen={onOpen} />;
+  return <Workspace key={`${g.id}`} gen={g} onOpen={onOpen} sourceCourseId={sourceCourseId} onSourceResolved={onSourceResolved} />;
 }

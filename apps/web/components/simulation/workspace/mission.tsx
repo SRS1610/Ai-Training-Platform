@@ -8,7 +8,7 @@ import type { Classification, SessionView, TranscriptEntry } from "../types";
 import { CharacterAvatar } from "./chat-panel";
 import { ProblemsList } from "./chrome";
 import { useWorkspace } from "./context";
-import { simClock } from "./model";
+import { rejectedLabel, simClock } from "./model";
 
 export interface StepFeedback {
   classification?: Classification;
@@ -152,7 +152,7 @@ function Brief({ view }: { view: SessionView }) {
 function Facts({ view, lastSeq }: { view: SessionView; lastSeq: number }) {
   // Facts revealed by the latest step are those whose character spoke in that step.
   const freshIds = new Set(
-    lastSeq > 0 && view.transcript.some((e) => e.seq === lastSeq && e.kind === "message" && e.from !== "learner") ? view.revealed_facts.slice(-1).map((f) => f.id) : [],
+    lastSeq > 0 && view.transcript.some((e) => e.seq === lastSeq && e.kind === "message" && e.from !== "learner" && e.accepted !== false) ? view.revealed_facts.slice(-1).map((f) => f.id) : [],
   );
   if (!view.revealed_facts.length)
     return (
@@ -213,11 +213,12 @@ function Log({ view, feedback }: { view: SessionView; feedback: Record<number, S
       {items.map((e: TranscriptEntry, i) => {
         const Icon = LOG_ICON[e.kind] ?? Bell;
         const fb = feedback[e.seq];
-        const showFb = fb && e.from === "learner" && !shownFb.has(e.seq);
+        const rejected = e.accepted === false;
+        const showFb = fb && e.from === "learner" && !rejected && !shownFb.has(e.seq);
         if (showFb) shownFb.add(e.seq);
         const who = e.from === "learner" ? "You" : e.from === "system" ? (e.kind === "notice" ? "Notice" : "System") : (e.name ?? e.from);
         return (
-          <li key={i} className="relative">
+          <li key={i} className={cn("relative", rejected && "opacity-60")}>
             <span
               className={cn(
                 "absolute -left-[25px] top-0.5 grid size-[18px] place-items-center rounded-full ring-2 ring-white",
@@ -234,7 +235,8 @@ function Log({ view, feedback }: { view: SessionView; feedback: Record<number, S
               </span>
               <span className="font-mono tabular-nums">T+{simClock(e.minutes)}</span>
             </p>
-            <p className={cn("mt-0.5 line-clamp-3 text-sm", e.kind === "command" ? "font-mono text-[12.5px] text-teal-800" : e.kind === "notice" ? "font-medium text-amber-900" : "text-slate-700")}>
+            {rejected && e.from === "learner" && <p className="text-2xs font-medium italic text-slate-500">{rejectedLabel(e.reason)}</p>}
+            <p className={cn("mt-0.5 line-clamp-3 text-sm", rejected && "italic", e.kind === "command" ? "font-mono text-[12.5px] text-teal-800" : e.kind === "notice" ? "font-medium text-amber-900" : "text-slate-700")}>
               {e.kind === "command" ? `> ${e.text}` : e.text}
             </p>
             {showFb && (

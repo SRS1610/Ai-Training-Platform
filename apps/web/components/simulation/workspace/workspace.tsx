@@ -236,10 +236,13 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       if (!step.accepted) {
         const msg = o.message || "That isn't possible right now.";
+        // A rejected chat attempt the server kept in the transcript (accepted: false) is already in step.view.
+        const kept = step.view.transcript[step.view.transcript.length - 1]?.accepted === false;
         if (o.reason === "session_expired") pushNotice([{ tone: "danger", title: "Session expired", text: msg, icon: <AlertTriangle /> }]);
-        else if (p.kind === "chat")
-          setEphemeral((e) => [...e, { id, afterSeq: step.view.action_count, scope: `chat:${p.character}`, learnerText: p.text, text: step.reply?.text ?? msg }]);
-        else if (p.kind === "command") setEphemeral((e) => [...e, { id, afterSeq: step.view.action_count, scope: `tool:${p.tool}`, learnerText: p.text, text: msg }]);
+        else if (p.kind === "chat") {
+          if (!kept)
+            setEphemeral((e) => [...e, { id, afterSeq: step.view.action_count, scope: `chat:${p.character}`, learnerText: p.text, text: step.reply?.text ?? msg }]);
+        } else if (p.kind === "command") setEphemeral((e) => [...e, { id, afterSeq: step.view.action_count, scope: `tool:${p.tool}`, learnerText: p.text, text: msg }]);
         else pushNotice([{ tone: "warning", title: "Not possible right now", text: msg, icon: <AlertTriangle /> }]);
         return;
       }
