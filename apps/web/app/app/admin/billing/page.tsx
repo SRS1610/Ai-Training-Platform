@@ -104,11 +104,10 @@ function CurrentPlan({ sub, onSeats, onCancel, onResume, onPortal, portalBusy }:
   const style = PLAN_STYLE[sub.plan.code] ?? PLAN_STYLE.business!;
   const Icon = style.icon;
   const price = planPrice(sub.plan, sub.billing_interval === "year" ? "year" : "month");
-  // Enterprise ("contact sales") plans are invoiced under an agreement: no self-serve seats/cancel, and a
-  // seat count of 1 is only the API's placeholder when no seat number has been recorded for the agreement.
+  // Enterprise ("contact sales") plans are invoiced under an agreement: no self-serve seats/cancel. seat_limit is
+  // the enforced limit — null means unlimited (or an agreement with no recorded seat number).
   const agreement = sub.plan.contact_sales;
-  const seatsUnset = agreement && (sub.seat_limit ?? 0) <= 1;
-  const limit = seatsUnset ? null : (sub.seat_limit ?? sub.seats_purchased);
+  const limit = sub.seat_limit;
   const seatPct = limit ? Math.min(100, (sub.seats_used / limit) * 100) : 0;
   const paid = sub.plan.monthly_price_cents > 0 && !agreement;
   return (
@@ -173,7 +172,7 @@ function CurrentPlan({ sub, onSeats, onCancel, onResume, onPortal, portalBusy }:
             <p className="mt-1 text-xs text-muted-foreground">{agreement ? "Seats are set by your Enterprise agreement" : "No seat limit on this plan"}</p>
           )}
           <p className="mt-1.5 text-xs text-muted-foreground">
-            {sub.seats_purchased && !seatsUnset ? `${sub.seats_purchased} purchased · ` : ""}Active members plus pending invitations
+            {sub.seats_purchased ? `${sub.seats_purchased} purchased · ` : ""}Active members plus pending invitations
           </p>
         </div>
         <div>

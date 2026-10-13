@@ -1,7 +1,7 @@
 /**
  * App navigation, grouped into sections and gated by permission.
  * A nav item is visible when the user has ANY of `anyOf` (or `superadmin` for platform pages).
- * Unknown /app/* paths are served by app/app/[...slug] (a "page not found" screen inside the shell).
+ * Every entry is a built page; unknown /app/* paths get the app-wide 404 (app/not-found.tsx).
  */
 import type { CategoryColor } from "@praxis/ui";
 import {

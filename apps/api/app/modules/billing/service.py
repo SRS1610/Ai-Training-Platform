@@ -98,8 +98,9 @@ async def subscription_view(db: AsyncSession, org: Organisation) -> dict[str, An
     sub = await current_subscription(db, org.id)
     plan = get_plan(org.plan_code)
     used = await seats_used(db, org.id)
-    # Seats purchased: the recorded count, else (self-serve seat plans) the subscription's quantity. A sales-led
-    # agreement with no recorded seat number has no purchased count and no enforced limit (null = unlimited).
+    # Seats purchased: the recorded count, else (self-serve seat plans) the subscription's quantity.
+    # A sales-led agreement with no recorded seat number has no purchased count and no enforced
+    # limit (null = unlimited).
     purchased: int | None = recorded_seats(org)
     if purchased is None and plan.code in SELF_SERVE_PLANS and plan.seat_based:
         purchased = (sub.seats if sub else None) or 1

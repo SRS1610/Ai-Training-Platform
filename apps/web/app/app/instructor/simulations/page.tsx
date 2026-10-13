@@ -9,7 +9,7 @@ import { ErrorState } from "@/components/common/error-state";
 import { AccessGate } from "@/components/grading/access-gate";
 import { useUrlState } from "@/components/grading/use-url-state";
 import { AIBuildDialog, CreateBlankDialog, TemplateDialog } from "@/components/sim-builder/create-dialogs";
-import { SimulationCard, SimulationGridSkeleton, StartCards, TemplateCard } from "@/components/sim-builder/list";
+import { ArchivedSimulationCard, SimulationCard, SimulationGridSkeleton, StartCards, TemplateCard } from "@/components/sim-builder/list";
 import { INDUSTRIES } from "@/components/sim-builder/theme";
 import { sk, type SimulationOut, type TemplateOut } from "@/components/sim-builder/types";
 import { api } from "@/lib/api";
@@ -37,6 +37,7 @@ function SimulationsList() {
     staleTime: 10 * 60_000,
   });
   const filtered = !!(state.status || state.industry || state.q);
+  const archivedView = state.status === "archived";
 
   return (
     <div className="space-y-8">
@@ -76,6 +77,7 @@ function SimulationsList() {
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="draft">Drafts</TabsTrigger>
               <TabsTrigger value="published">Published</TabsTrigger>
+              <TabsTrigger value="archived">Archived</TabsTrigger>
             </TabsList>
           </Tabs>
           <FilterBar className="flex-1" search={state.q ?? ""} onSearchChange={(q) => set({ q, page: undefined })} searchPlaceholder="Search simulations…">
@@ -93,6 +95,18 @@ function SimulationsList() {
           <ErrorState error={list.error} onRetry={() => list.refetch()} />
         ) : list.isLoading ? (
           <SimulationGridSkeleton />
+        ) : !list.data?.items.length && archivedView && !state.industry && !state.q ? (
+          <EmptyState
+            bordered
+            illustration="inbox"
+            title="Nothing archived"
+            description="Simulations you archive land here. Restore one to bring it back to the builder — and to learners, if it was live."
+            action={
+              <Button variant="secondary" onClick={() => set({ status: undefined, page: undefined })}>
+                Show all simulations
+              </Button>
+            }
+          />
         ) : !list.data?.items.length ? (
           <EmptyState
             bordered
@@ -114,9 +128,7 @@ function SimulationsList() {
         ) : (
           <>
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {list.data.items.map((s) => (
-                <SimulationCard key={s.id} s={s} />
-              ))}
+              {list.data.items.map((s) => (archivedView ? <ArchivedSimulationCard key={s.id} s={s} /> : <SimulationCard key={s.id} s={s} />))}
             </div>
             {list.data.total > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={list.data.total} onPageChange={(p) => set({ page: p === 1 ? undefined : p })} />}
           </>

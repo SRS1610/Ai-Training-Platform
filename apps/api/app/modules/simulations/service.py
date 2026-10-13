@@ -326,6 +326,29 @@ async def delete_simulation(ctx: Ctx, sim_id: uuid.UUID) -> None:
     await ctx.audit("simulation.deleted", "simulation", sim.id)
 
 
+async def restore_simulation(ctx: Ctx, sim_id: uuid.UUID) -> Simulation:
+    """Undo an archive (soft delete).
+
+    A simulation that had a published version goes live again on that version; one that was never
+    published comes back as a draft. Sessions, results and versions were never removed."""
+    sim = await ctx.db.scalar(
+        select(Simulation)
+        .where(
+            Simulation.id == sim_id,
+            Simulation.organisation_id == ctx.org_id,
+            Simulation.deleted_at.is_not(None),
+        )
+        .with_for_update()
+    )
+    if sim is None:
+        raise NotFound("Archived simulation not found")
+    sim.deleted_at = None
+    sim.status = "published" if sim.current_scenario_id else "draft"
+    await ctx.db.flush()
+    await ctx.audit("simulation.restored", "simulation", sim.id, status=sim.status)
+    return sim
+
+
 async def list_simulations(
     ctx: Ctx,
     params: PageParams,
@@ -335,11 +358,16 @@ async def list_simulations(
     industry: str | None,
     search: str | None,
 ) -> tuple[list[Simulation], int]:
-    stmt = select(Simulation).where(Simulation.organisation_id == ctx.org_id, Simulation.deleted_at.is_(None))
+    stmt = select(Simulation).where(Simulation.organisation_id == ctx.org_id)
     if not is_author(ctx):
-        stmt = stmt.where(Simulation.status == "published")
-    elif status:
-        stmt = stmt.where(Simulation.status == status)
+        stmt = stmt.where(Simulation.deleted_at.is_(None), Simulation.status == "published")
+    elif status == "archived":
+        # Archived = soft-deleted; authors can list them to restore.
+        stmt = stmt.where(Simulation.deleted_at.is_not(None))
+    else:
+        stmt = stmt.where(Simulation.deleted_at.is_(None))
+        if status:
+            stmt = stmt.where(Simulation.status == status)
     if course_id:
         stmt = stmt.where(Simulation.course_id == course_id)
     if industry:
@@ -1350,9 +1378,7 @@ async def replay(ctx: Ctx, session_id: uuid.UUID) -> s.ReplayOut:
                 "phase": x.phase,
                 "reason": x.reason,
                 "created_at": x.created_at,
-                "variables": x.variables
-                if staff
-                else {k: v for k, v in x.variables.items() if k in public},
+                "variables": x.variables if staff else {k: v for k, v in x.variables.items() if k in public},
             }
             for x in states
         ],

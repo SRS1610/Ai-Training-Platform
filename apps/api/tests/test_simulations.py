@@ -846,3 +846,80 @@ async def test_install_template_seed_helper(client, db):
     assert stored.industry == "hospitality"
     session = await start(client, learner, str(sim.id))
     assert session["view"]["characters"][0]["name"] == "Daniel Okafor"
+
+
+@pytest.mark.parametrize(
+    ("description", "title"),
+    [
+        (
+            "Create a Level 2 IT helpdesk simulation where the learner must diagnose a DNS problem",
+            "Diagnose a DNS problem",
+        ),
+        (
+            "The learner has to negotiate a contract renewal with a procurement lead who is "
+            "pushing for a 20% discount, while protecting margin.",
+            "Negotiate a contract renewal with a procurement lead",
+        ),
+        (
+            "A phishing awareness exercise for finance staff receiving suspicious invoices "
+            "from a spoofed domain",
+            "Phishing awareness exercise",
+        ),
+        (
+            "Build a customer service simulation for a telecom call centre agent and an angry customer whose "
+            "broadband has been down for three days",
+            "Customer service simulation",
+        ),
+        ("Escalation call practice. Keep it short.", "Escalation call practice"),
+    ],
+)
+def test_ai_build_fallback_title_is_short_not_the_whole_description(description, title):
+    from app.modules.simulations.builder import derive_title
+
+    out = derive_title(description, "AI-generated simulation")
+    assert out == title
+    assert len(out) <= 70 and out != description
+
+
+async def test_archived_simulations_list_and_restore(client):
+    admin, learner = await org_with_learner(client)
+    live = await published_helpdesk(client, admin)
+    r = await client.post("/api/v1/simulations", headers=admin.headers, json={"title": "Never published"})
+    assert r.status_code == 201, r.text
+    draft = r.json()["id"]
+    for sid in (live, draft):
+        assert (await client.delete(f"/api/v1/simulations/{sid}", headers=admin.headers)).status_code == 204
+
+    # gone from the default list, the learner catalogue and direct reads
+    listed = (await client.get("/api/v1/simulations", headers=admin.headers)).json()
+    assert {x["id"] for x in listed["items"]}.isdisjoint({live, draft})
+    assert (await client.get(f"/api/v1/simulations/{live}", headers=learner.headers)).status_code == 404
+
+    archived = (await client.get("/api/v1/simulations?status=archived", headers=admin.headers)).json()
+    assert {x["id"] for x in archived["items"]} == {live, draft} and archived["total"] == 2
+    assert all(x["status"] == "archived" for x in archived["items"])
+    # learners can't see archived ones even when asking for them
+    r = await client.get("/api/v1/simulations?status=archived", headers=learner.headers)
+    assert r.status_code == 200 and r.json()["items"] == []
+
+    # only authors restore; unknown / live ids are 404
+    assert (
+        await client.post(f"/api/v1/simulations/{live}/restore", headers=learner.headers)
+    ).status_code == 403
+    assert (
+        await client.post(f"/api/v1/simulations/{uuid.uuid4()}/restore", headers=admin.headers)
+    ).status_code == 404
+
+    r = await client.post(f"/api/v1/simulations/{live}/restore", headers=admin.headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "published" and r.json()["published_version"] == 1
+    r = await client.post(f"/api/v1/simulations/{draft}/restore", headers=admin.headers)
+    assert r.status_code == 200 and r.json()["status"] == "draft"
+    assert (
+        await client.post(f"/api/v1/simulations/{draft}/restore", headers=admin.headers)
+    ).status_code == 404
+
+    assert (await client.get(f"/api/v1/simulations/{live}", headers=learner.headers)).status_code == 200
+    archived = (await client.get("/api/v1/simulations?status=archived", headers=admin.headers)).json()
+    assert archived["items"] == []
+    await start(client, learner, live)  # playable again

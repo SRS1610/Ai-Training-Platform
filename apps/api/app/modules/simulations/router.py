@@ -87,6 +87,12 @@ async def delete_simulation(sim_id: uuid.UUID, ctx: Ctx = Depends(manage)) -> Re
     return Response(status_code=204)
 
 
+@sims.post("/{sim_id}/restore", response_model=s.SimulationOut)
+async def restore_simulation(sim_id: uuid.UUID, ctx: Ctx = Depends(manage)) -> Any:
+    """Restore an archived simulation (list them with ``GET /simulations?status=archived``)."""
+    return await svc.simulation_out(ctx, await svc.restore_simulation(ctx, sim_id))
+
+
 @sims.get("/{sim_id}/draft", response_model=s.DraftOut)
 async def get_draft(sim_id: uuid.UUID, ctx: Ctx = Depends(manage)) -> Any:
     return await svc.get_draft(ctx, sim_id)

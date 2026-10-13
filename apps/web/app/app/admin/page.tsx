@@ -71,7 +71,7 @@ function AdminHub() {
       <KpiTile key="a" label="AI spend this month" value={v(ai, (d) => fmtUsd(d.totals.cost_usd))} icon={<Sparkles />} color="fuchsia" hint={ai.data?.budget.budget_usd ? `${fmtPct(ai.data.budget.pct_used, 1)} of ${fmtUsd(ai.data.budget.budget_usd)} budget` : "No budget set"} />
     ),
     can("billing.manage") && (
-      <KpiTile key="s" label="Seats used" value={v(sub, (d) => `${fmtNumber(d.seats_used)}${d.seat_limit && !(d.plan.contact_sales && d.seat_limit <= 1) ? ` / ${fmtNumber(d.seat_limit)}` : ""}`)} icon={<Gauge />} color="amber" hint={sub.data ? `${sub.data.plan.name} plan` : "Your plan"} />
+      <KpiTile key="s" label="Seats used" value={v(sub, (d) => `${fmtNumber(d.seats_used)}${d.seat_limit ? ` / ${fmtNumber(d.seat_limit)}` : ""}`)} icon={<Gauge />} color="amber" hint={sub.data ? `${sub.data.plan.name} plan` : "Your plan"} />
     ),
   ].filter(Boolean);
 

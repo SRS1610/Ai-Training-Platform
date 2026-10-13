@@ -75,6 +75,9 @@ async def test_editor_sees_drafts_users_and_documents(client):
     }
     assert groups["documents"]["items"][0]["title"] == "Firewall policy v2"
     assert groups["users"]["items"][0]["title"] == "Fiona Firewall-Admin"
+    # authors land in the simulation builder route (apps/web/app/app/instructor/simulations/[id])
+    sim = groups["simulations"]["items"][0]
+    assert sim["link"] == f"/app/instructor/simulations/{sim['id']}"
 
     # types filter + validation
     r = await client.get(API, params={"q": "firewall", "types": "users"}, headers=admin.headers)

@@ -241,7 +241,7 @@ async def _simulations(ctx: Ctx, m: Matcher, limit: int) -> list[dict[str, Any]]
             "subtitle": sim.industry,
             "snippet": _snippet(sim.description, m.q),
             "status": sim.status,
-            "link": f"/app/instructor/simulations/{sim.id}/builder"
+            "link": f"/app/instructor/simulations/{sim.id}"
             if editor and sim.status != "published"
             else f"/app/simulations/{sim.id}",
             "score": round(float(s), 4),

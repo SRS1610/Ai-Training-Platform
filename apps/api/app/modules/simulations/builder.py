@@ -96,22 +96,63 @@ def detect_difficulty(text: str, default: str = "intermediate") -> str:
     return default
 
 
+_TITLE_VERBS = (
+    r"diagnose|resolve|fix|handle|investigate|troubleshoot|respond to|manage|de-escalate|triage|negotiate|"
+    r"deal with|contain|recover|escalate|mitigate|debug|configure|secure|deliver|explain|prioriti[sz]e|"
+    r"onboard|audit|assess|review|calm|reassure|identify|spot|detect|report|close|run|lead|coach|pitch"
+)
+# A title stops at the first subordinate clause or punctuation break.
+_CLAUSE_BREAK = re.compile(
+    r"\s+(?:where|while|whilst|who|whose|which|that|because|so that|when|after|before|until|using|without|"
+    r"and then|in order to)\b|[,;:()]|\s[-\u2013\u2014]\s",
+    re.I,
+)
+_TRAILING_WORDS = {
+    "a", "an", "the", "of", "to", "with", "and", "or", "for", "in", "on", "at", "from", "by", "as",
+    "their", "his", "her", "its", "our", "your", "this", "that",
+}  # fmt: skip
+_TITLE_MAX_WORDS = 9
+_TITLE_MAX_LEN = 70
+
+
+def _tidy_title(phrase: str) -> str:
+    """First clause, at most ~9 words / 70 chars on a word boundary, no dangling articles/prepositions,
+    first letter capitalised."""
+    phrase = _CLAUSE_BREAK.split(phrase, maxsplit=1)[0].strip(" .!?'\"")
+    words = phrase.split()[:_TITLE_MAX_WORDS]
+    while words and len(" ".join(words)) > _TITLE_MAX_LEN:
+        words.pop()
+    while words and words[-1].lower() in _TRAILING_WORDS:
+        words.pop()
+    title = " ".join(words)
+    return title[:1].upper() + title[1:]
+
+
 def derive_title(description: str, fallback: str) -> str:
-    """'Create a Level 2 IT helpdesk simulation where the learner must diagnose a DNS problem' →
-    'Diagnose a DNS problem'."""
+    """A short, human title from a free-text brief (used when the author gives none):
+    'Create a Level 2 IT helpdesk simulation where the learner must diagnose a DNS problem' → 'Diagnose a DNS
+    problem'; 'A phishing awareness exercise for finance staff receiving fake invoices' → 'Phishing awareness
+    exercise'. Never the whole description."""
     text = " ".join(description.split())
     m = re.search(
-        r"\b(?:must|has to|needs to|should|will|to)\s+(diagnose|resolve|fix|handle|investigate|"
-        r"troubleshoot|respond to|manage|de-escalate|triage)\s+([^.;,]{3,70})",
+        rf"\b(?:must|has to|have to|needs to|need to|should|will|to|learners?)\s+"
+        rf"({_TITLE_VERBS})\s+(.{{3,}})",
         text,
         re.I,
     )
     if m:
-        title = f"{m.group(1)} {m.group(2)}".strip()
-        return title[0].upper() + title[1:]
-    first = re.split(r"[.!?]", text)[0].strip()
-    first = re.sub(r"^(please\s+)?(create|build|make|generate|design)\s+(an?\s+)?", "", first, flags=re.I)
-    return (first[:1].upper() + first[1:])[:120] if first else fallback
+        title = _tidy_title(f"{m.group(1)} {m.group(2)}")
+        if len(title.split()) >= 2:
+            return title
+    first = re.split(r"(?<=[a-z0-9)])[.!?](?:\s|$)", text, maxsplit=1)[0].strip()
+    first = re.sub(
+        r"^(?:please\s+)?(?:create|build|make|generate|design|write|i want|we need)\s+", "", first, flags=re.I
+    )
+    first = re.sub(r"^(?:an?|the|some)\s+", "", first, flags=re.I)
+    kind = re.match(r"(.{3,60}?)\s+(simulation|scenario|exercise|role-?play|drill)\b", first, re.I)
+    if kind:
+        return _tidy_title(f"{kind.group(1)} {kind.group(2).lower()}")
+    return _tidy_title(first) or fallback
 
 
 def _subject(description: str) -> str:

@@ -25,9 +25,11 @@ class SubscriptionOut(BaseModel):
     plan: PlanOut
     status: str
     billing_interval: str
-    seats_purchased: int | None
+    seats_purchased: int | None = Field(
+        description="Seats bought on a seat-based plan; null when none are recorded."
+    )
     seats_used: int
-    seat_limit: int | None
+    seat_limit: int | None = Field(description="Enforced member + invitation limit; null means unlimited.")
     trial_ends_at: datetime | None
     is_trialing: bool
     trial_days_remaining: int

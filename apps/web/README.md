@@ -32,14 +32,18 @@ apps/web
                                    verify-email, accept-invite. Split-screen layout.
     (public)/verify/[n]/           public certificate verification
     app/                           authenticated area (/app/*) — AppShell in layout.tsx
-      dashboard/ profile/ profile/security/ notifications/
-      [...slug]/                   "coming soon" placeholder for nav sections not built yet
+      dashboard/ catalog/ learning/ learn/ quiz/ assignments/ simulations/ tutor/ certificates/ skills/
+      achievements/ notifications/ profile/{security,privacy}/
+      instructor/                  authoring, grading, simulation builder, analytics (Teach)
+      admin/                       organisation administration (Manage)
+      platform/                    super-admin console
+    not-found.tsx                  404 for any unknown URL (including /app/*)
   components/
     shell/                         AppShell, Sidebar, Topbar, OrgSwitcher, CommandPalette, NotificationsBell, MobileNav, UserMenu
     dashboard/                     learner dashboard sections
     auth/                          PasswordInput + strength meter, OtpInput, provider buttons
     forms/form.tsx                 react-hook-form + zod helpers
-    common/                        Logo, ErrorState, Markdown
+    common/                        Logo, ErrorState, Markdown, useUnsavedGuard
   lib/
     api.ts                         API client (see "Data fetching")
     auth.tsx                       AuthProvider, useAuth, usePermission, <Can>
@@ -55,8 +59,8 @@ packages/types                     hand-written API types + generated OpenAPI sc
 tests/e2e                          Playwright config + specs
 ```
 
-New pages go under `app/app/<route>/page.tsx`. A real route automatically wins over the `[...slug]`
-placeholder. Add/adjust the entry in `lib/nav.ts` (label, href, icon, colour, permissions).
+New pages go under `app/app/<route>/page.tsx`. Add/adjust the entry in `lib/nav.ts` (label, href, icon, colour,
+permissions); sub-pages without their own entry highlight their parent (longest matching href, plus `ROUTE_PARENTS`).
 
 ---
 

@@ -2,6 +2,7 @@
 
 import {
   Badge,
+  Button,
   Card,
   ConfirmDialog,
   DropdownMenu,
@@ -19,6 +20,8 @@ import {
 import type { Page } from "@praxis/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Archive,
+  ArchiveRestore,
   ArrowRight,
   BarChart3,
   Building2,
@@ -274,10 +277,56 @@ export function SimulationCard({ s }: { s: SimulationOut }) {
         onOpenChange={setConfirm}
         destructive
         title={`Archive “${s.title}”?`}
-        description="The simulation disappears from the catalogue and the builder. Completed sessions and their results are kept."
+        description="The simulation leaves the learner catalogue and moves to the Archived tab, where you can restore it. Completed sessions and their results are kept."
         confirmLabel="Archive"
         onConfirm={() => remove.mutateAsync().then(() => undefined)}
       />
+    </Card>
+  );
+}
+
+/** An archived (soft-deleted) simulation: read-only summary + Restore. Its builder/analytics stay closed until restored. */
+export function ArchivedSimulationCard({ s }: { s: SimulationOut }) {
+  const router = useRouter();
+  const qc = useQueryClient();
+  const c = colorClasses(INDUSTRY_COLOR(s.industry));
+  const Icon = industryIcon(s.industry);
+  const restore = useMutation({
+    mutationFn: () => api.post<SimulationOut>(`/simulations/${s.id}/restore`),
+    onSuccess: (out) => {
+      toast.success(out.status === "published" ? `“${out.title}” restored — live again for learners` : `“${out.title}” restored as a draft`, {
+        action: { label: "Open builder", onClick: () => router.push(`/app/instructor/simulations/${out.id}`) },
+      });
+      qc.invalidateQueries({ queryKey: sk.all });
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  return (
+    <Card className="flex flex-col overflow-hidden">
+      <div className="relative flex h-20 items-start justify-between bg-gradient-to-br from-slate-500 to-slate-700 p-4">
+        <div className="absolute -right-4 -top-6 size-24 rounded-full bg-white/10" aria-hidden />
+        <span className="relative grid size-10 place-items-center rounded-xl bg-white/20 text-white ring-1 ring-white/30">
+          <Icon className="size-5" aria-hidden />
+        </span>
+        <span className="relative inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-2xs font-bold text-slate-700 shadow-sm">
+          <Archive className="size-3" aria-hidden /> Archived
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col p-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {s.published_version ? <Badge tone="neutral" size="sm">Was live v{s.published_version}</Badge> : <Badge tone="neutral" size="sm">Never published</Badge>}
+          {s.ai_generated && <Badge tone="violet" size="sm">AI-generated</Badge>}
+        </div>
+        <p className="mt-2 line-clamp-2 font-display text-base font-semibold leading-snug text-slate-900">{s.title}</p>
+        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{s.description || "No description."}</p>
+        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 pt-3 text-xs text-slate-500">
+          <span className={cn("font-semibold", c.text)}>{industryLabel(s.industry)}</span>
+          <span>Archived {formatRelative(s.updated_at)}</span>
+          <Button size="sm" variant="secondary" className="ml-auto" leftIcon={<ArchiveRestore />} loading={restore.isPending} onClick={() => restore.mutate()}>
+            Restore
+          </Button>
+        </div>
+      </div>
     </Card>
   );
 }

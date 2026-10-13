@@ -20,7 +20,7 @@ from app.models.ai import AIUsage
 from app.models.platform import AuditLog, Notification, Payment, StripeEvent, Subscription
 from app.models.tenancy import Organisation
 from app.modules.billing import gateway, service
-from tests.factories import add_member, set_plan, signup
+from tests.factories import add_member, set_plan, signup, unique_email
 from tests.ops_seed import tenant_session
 
 API = "/api/v1/billing"
@@ -157,16 +157,16 @@ async def test_plans_public_and_subscription_view(client):
 
 
 async def test_seat_limit_mirrors_enforcement_for_agreements(client):
-    """Enterprise with no recorded seat number: no purchased count and no limit (null), matching check_limit."""
+    """Enterprise with no recorded seat number: no purchased count and no limit (null).
+
+    Matches what check_limit enforces."""
     admin = await signup(client)
     await set_plan(admin.org_id, "enterprise")
     body = (await client.get(f"{API}/subscription", headers=admin.headers)).json()
     assert body["plan"]["code"] == "enterprise"
     assert body["seat_limit"] is None and body["seats_purchased"] is None and body["seats_used"] == 1
-    r = await client.post(
-        f"{API}/invitations", headers=admin.headers, json={"invitations": [{"email": "a@ent.test", "roles": ["learner"]}]}
-    )
-    assert r.status_code in (200, 201), r.text  # not blocked by a phantom 1-seat limit
+    r = await client.post("/api/v1/invitations", headers=admin.headers, json={"email": unique_email()})
+    assert r.status_code == 201, r.text  # not blocked by a phantom 1-seat limit
 
     await set_plan(admin.org_id, "enterprise", seats=40)
     body = (await client.get(f"{API}/subscription", headers=admin.headers)).json()
