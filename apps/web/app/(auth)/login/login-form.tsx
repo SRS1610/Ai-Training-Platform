@@ -39,6 +39,10 @@ export function LoginForm() {
   const [mfaToken, setMfaToken] = React.useState<string | null>(null);
   const [sso, setSso] = React.useState<SSODiscoverOut | null>(null);
   const email = form.watch("email");
+  // Until React has hydrated, the form has no JS submit handler — keep submit disabled so a fast
+  // Enter/click can never fall through to a native submission (method="post" is a second guard).
+  const [hydrated, setHydrated] = React.useState(false);
+  React.useEffect(() => setHydrated(true), []);
 
   // SSO discovery as the user types their email (debounced).
   React.useEffect(() => {
@@ -111,7 +115,7 @@ export function LoginForm() {
         </Alert>
       )}
       <ProviderButtons returnTo={next} />
-      <form onSubmit={onSubmit} noValidate className="space-y-5" aria-describedby={formError ? "login-error" : undefined}>
+      <form method="post" onSubmit={onSubmit} noValidate className="space-y-5" aria-describedby={formError ? "login-error" : undefined}>
         {formError && (
           <Alert tone="danger" id="login-error">
             {formError}
@@ -151,7 +155,7 @@ export function LoginForm() {
             >
               <PasswordInput autoComplete="current-password" placeholder="••••••••••" {...form.register("password")} />
             </FormField>
-            <Button type="submit" variant="gradient" size="lg" block loading={form.formState.isSubmitting}>
+            <Button type="submit" variant="gradient" size="lg" block loading={form.formState.isSubmitting} disabled={!hydrated}>
               Sign in
             </Button>
           </>
@@ -206,6 +210,7 @@ function MfaStep({ mfaToken, onBack, onDone }: { mfaToken: string; onBack: () =>
         description={useRecovery ? "Enter one of the recovery codes you saved when you set up MFA." : "Enter the 6-digit code from your authenticator app."}
       />
       <form
+        method="post"
         onSubmit={(e) => {
           e.preventDefault();
           submit();

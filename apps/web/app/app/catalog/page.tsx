@@ -3,7 +3,7 @@
 import type { Page } from "@praxis/types";
 import { Button, EmptyState, Input, Pagination, SimpleSelect, categoryClasses, cn, colorClasses, humanize } from "@praxis/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { BookOpenCheck, Filter, Library, Search, Sparkles, X } from "lucide-react";
+import { BookOpenCheck, Check, Filter, Library, Search, Sparkles, X } from "lucide-react";
 import * as React from "react";
 import { Suspense } from "react";
 import { CatalogCard, CatalogCardSkeleton } from "@/components/learn/catalog-card";
@@ -47,12 +47,13 @@ function CategoryChips({ categories, active, onSelect, total }: { categories: Ca
                 onClick={() => onSelect(on ? null : cat.category)}
                 className={cn(
                   "inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-semibold ring-1 ring-inset transition focus-visible:focus-ring",
-                  on ? cn("bg-gradient-to-r text-white shadow-sm ring-transparent", c.gradient) : cn("bg-white hover:-translate-y-px", c.text, c.ring),
+                  // On-state keeps the category's 700 text on its 50 tint (>= 4.5:1 for every colour).
+                  on ? cn("shadow-sm ring-2 ring-current", c.soft, c.text) : cn("bg-white hover:-translate-y-px", c.text, c.ring),
                 )}
               >
-                <span className={cn("size-2 rounded-full", on ? "bg-white" : c.solid)} aria-hidden />
+                {on ? <Check className="size-3.5" strokeWidth={3} aria-hidden /> : <span className={cn("size-2 rounded-full", c.solid)} aria-hidden />}
                 {cat.category}
-                <span className={cn("rounded-full px-1.5 text-2xs tabular-nums", on ? "bg-white/25" : c.soft)}>{cat.count}</span>
+                <span className={cn("rounded-full px-1.5 text-2xs tabular-nums", on ? "bg-white" : c.soft)}>{cat.count}</span>
               </button>
             </li>
           );
@@ -96,11 +97,28 @@ function Catalog() {
   const skill = url.get("skill");
   const show = url.get("show"); // enrolled | available
   const page = Math.max(1, Number(url.get("page")) || 1);
+  // The input (`term`) is the source of truth while typing; `q` is only copied back into it when the
+  // URL changes from elsewhere (back/forward, "Clear filters"), never as an echo of our own debounce.
   const [term, setTerm] = React.useState(q);
-  React.useEffect(() => setTerm(q), [q]);
+  const written = React.useRef(q);
   React.useEffect(() => {
-    if (term === q) return;
-    const t = setTimeout(() => url.set({ q: term.trim() || null, page: null }), 350);
+    if (q !== written.current) {
+      written.current = q;
+      setTerm(q);
+    }
+  }, [q]);
+  const commit = React.useCallback(
+    (value: string) => {
+      const next = value.trim();
+      if (next === written.current) return;
+      written.current = next;
+      url.set({ q: next || null, page: null });
+    },
+    [url],
+  );
+  React.useEffect(() => {
+    if (term.trim() === written.current) return;
+    const t = setTimeout(() => commit(term), 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term]);
@@ -156,7 +174,7 @@ function Catalog() {
             className="mt-6 flex flex-col gap-2 sm:flex-row"
             onSubmit={(e) => {
               e.preventDefault();
-              url.set({ q: term.trim() || null, page: null });
+              commit(term);
             }}
           >
             <div className="flex-1">

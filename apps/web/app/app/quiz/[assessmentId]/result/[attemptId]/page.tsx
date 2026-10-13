@@ -60,7 +60,8 @@ export default function QuizResultPage() {
     .map((x, i) => ({ x, i }))
     .filter(({ x }) => (filter === "all" ? true : filter === "correct" ? x.is_correct === true : filter === "incorrect" ? x.is_correct === false : x.pending_review));
   const courseId = ov.data?.assessment.course_id;
-  const canRetry = ov.data?.can_start && !passed;
+  // No retry offer until the final grade is in — the pending answers may still pass.
+  const canRetry = ov.data?.can_start && !passed && !pending;
 
   const theme = passed
     ? { wrap: "from-emerald-500 via-teal-500 to-sky-500", icon: Trophy, title: "You passed! 🎉", sub: "Brilliant work — this result has been added to your progress." }
@@ -82,19 +83,35 @@ export default function QuizResultPage() {
           <div className={cn("pointer-events-none absolute -right-16 -top-16 size-64 rounded-full bg-gradient-to-br opacity-15 blur-2xl", theme.wrap)} aria-hidden />
           <div className="relative flex flex-col items-center gap-6 text-center md:flex-row md:text-left">
             <div className="relative">
-              <ProgressRing
-                value={pending && r.percentage === null ? 0 : pct}
-                size={152}
-                stroke={14}
-                color={passed ? "emerald" : failed ? "amber" : "brand"}
-                aria-label={`Score ${r.percentage === null ? "pending" : `${Math.round(pct)}%`}`}
-                label={
+              {pending ? (
+                <div
+                  role="img"
+                  aria-label={`Score pending review${r.percentage !== null ? `, provisional ${Math.round(pct)}%` : ""}`}
+                  className="grid size-[152px] place-items-center rounded-full bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 ring-[14px] ring-inset ring-violet-100"
+                >
                   <span className="flex flex-col items-center">
-                    <span className="font-display text-4xl font-extrabold tabular-nums text-slate-900">{r.percentage === null ? "—" : `${Math.round(pct)}%`}</span>
-                    <span className="text-xs font-medium text-slate-500">{r.score !== null && r.max_score !== null ? `${Math.round(r.score * 10) / 10} / ${r.max_score}` : "pending"}</span>
+                    <Hourglass className="size-7 text-violet-600 motion-safe:animate-pulse" aria-hidden />
+                    <span className="mt-1 font-display text-xl font-bold text-slate-900">Pending</span>
+                    <span className="text-xs font-medium text-slate-500">
+                      {r.percentage !== null && r.percentage > 0 ? `${Math.round(pct)}% so far` : "awaiting review"}
+                    </span>
                   </span>
-                }
-              />
+                </div>
+              ) : (
+                <ProgressRing
+                  value={pct}
+                  size={152}
+                  stroke={14}
+                  color={passed ? "emerald" : failed ? "amber" : "brand"}
+                  aria-label={`Score ${r.percentage === null ? "pending" : `${Math.round(pct)}%`}`}
+                  label={
+                    <span className="flex flex-col items-center">
+                      <span className="font-display text-4xl font-extrabold tabular-nums text-slate-900">{r.percentage === null ? "—" : `${Math.round(pct)}%`}</span>
+                      <span className="text-xs font-medium text-slate-500">{r.score !== null && r.max_score !== null ? `${Math.round(r.score * 10) / 10} / ${r.max_score}` : "pending"}</span>
+                    </span>
+                  }
+                />
+              )}
               <span className={cn("absolute -bottom-1 -right-1 grid size-12 place-items-center rounded-2xl bg-gradient-to-br text-white shadow-lift", theme.wrap)}>
                 <theme.icon className="size-6" aria-hidden />
               </span>

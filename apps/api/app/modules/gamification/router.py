@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from app.auth.deps import Ctx, get_ctx, require_permission
 from app.core.errors import BadRequest, Conflict, Forbidden, NotFound
 from app.models.platform import Badge, UserBadge
-from app.models.tenancy import MembershipStatus, OrganisationUser
+from app.models.tenancy import Department, MembershipStatus, OrganisationUser
 from app.modules.gamification import events as _events  # noqa: F401  (registers subscribers)
 from app.modules.gamification import service as g
 from app.modules.gamification.schemas import (
@@ -33,7 +33,19 @@ _member = require_permission("learning.access", "analytics.view", any_of=True)
 
 @router.get("/me", response_model=GamificationMeOut)
 async def my_gamification(ctx: Ctx = Depends(get_ctx)) -> GamificationMeOut:
-    return GamificationMeOut.model_validate(await g.my_summary(ctx.db, ctx.org, ctx.user_id))
+    data = await g.my_summary(ctx.db, ctx.org, ctx.user_id)
+    department = None
+    if ctx.membership is not None and ctx.membership.department_id is not None:
+        dept = await ctx.db.scalar(
+            select(Department).where(
+                Department.id == ctx.membership.department_id,
+                Department.organisation_id == ctx.org_id,
+                Department.deleted_at.is_(None),
+            )
+        )
+        if dept is not None:
+            department = {"id": dept.id, "name": dept.name}
+    return GamificationMeOut.model_validate({**data, "department": department})
 
 
 @router.put("/me/leaderboard-opt-out", response_model=OptOutIn)

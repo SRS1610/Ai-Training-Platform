@@ -259,7 +259,8 @@ export interface LearnerAnalytics {
 
 /* ------------------------------------------------------------------ gamification */
 
-export type GamificationMe = S["GamificationMeOut"];
+/** `department` = the viewer's own department (lets members scope the leaderboard without users.view). */
+export type GamificationMe = S["GamificationMeOut"] & { department?: { id: string; name: string } | null };
 export type Badge = S["BadgeOut"];
 export type BadgeList = S["BadgeListOut"];
 export type Leaderboard = S["LeaderboardOut"];

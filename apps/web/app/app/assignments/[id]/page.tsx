@@ -43,6 +43,9 @@ import { ApiError, api, errorMessage } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 
 const TABS = ["brief", "workspace", "history", "feedback"] as const;
+/** Stacked icon + label on phones so all four tabs fit at 390px; inline from sm up. */
+const TRIGGER =
+  "flex-col gap-1 text-xs group-data-[variant=pill]/tabs:px-1 group-data-[variant=pill]/tabs:py-2 sm:flex-row sm:gap-2 sm:text-sm sm:group-data-[variant=pill]/tabs:px-3 sm:group-data-[variant=pill]/tabs:py-1.5";
 type Tab = (typeof TABS)[number];
 
 function RequestReview({ assignmentId, open, onOpenChange }: { assignmentId: string; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -364,21 +367,21 @@ function AssignmentDetail() {
       <StatusBanner s={s} a={a} onRevise={() => go("workspace")} onRequestReview={() => setReviewOpen(true)} />
 
       <Tabs value={tab} onValueChange={(v) => go(v as Tab)}>
-        <TabsList aria-label="Assignment sections" className="max-w-full overflow-x-auto no-scrollbar">
-          <TabsTrigger value="brief">
+        <TabsList aria-label="Assignment sections" className="grid w-full grid-cols-4 sm:inline-flex sm:w-auto">
+          <TabsTrigger value="brief" className={TRIGGER}>
             <BookOpen aria-hidden /> Brief
           </TabsTrigger>
-          <TabsTrigger value="workspace">
+          <TabsTrigger value="workspace" className={TRIGGER}>
             <PenSquare aria-hidden /> Workspace
-            {editable && s?.current_version ? <span className="text-xs tabular-nums text-slate-500">v{s.current_version}</span> : null}
+            {editable && s?.current_version ? <span className="hidden text-xs tabular-nums text-slate-500 sm:inline">v{s.current_version}</span> : null}
           </TabsTrigger>
-          <TabsTrigger value="history">
+          <TabsTrigger value="history" className={TRIGGER}>
             <History aria-hidden /> Versions
-            {s?.current_version ? <span className="text-xs tabular-nums text-slate-500">{s.current_version}</span> : null}
+            {s?.current_version ? <span className="hidden text-xs tabular-nums text-slate-500 sm:inline">{s.current_version}</span> : null}
           </TabsTrigger>
-          <TabsTrigger value="feedback">
+          <TabsTrigger value="feedback" className={cn(TRIGGER, "relative")}>
             <Trophy aria-hidden /> Feedback
-            {grade ? <span className="size-1.5 rounded-full bg-emerald-500" aria-label="available" /> : null}
+            {grade ? <span className="absolute right-2 top-1.5 size-1.5 rounded-full bg-emerald-500 sm:static" aria-label="available" /> : null}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="brief">
@@ -391,7 +394,8 @@ function AssignmentDetail() {
             </div>
           )}
         </TabsContent>
-        <TabsContent value="workspace">
+        {/* Force-mounted so switching tabs never discards unsaved workspace edits. */}
+        <TabsContent value="workspace" forceMount hidden={tab !== "workspace"}>
           <AssignmentWorkspace assignment={a} submission={s} onSubmitted={() => go("history")} />
         </TabsContent>
         <TabsContent value="history">

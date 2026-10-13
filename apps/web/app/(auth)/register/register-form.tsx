@@ -88,7 +88,7 @@ export function RegisterForm() {
     <>
       <AuthHeading title="Create your account" description="Start free — no credit card required." />
       <ProviderButtons returnTo={next} label="Sign up" />
-      <form onSubmit={onSubmit} noValidate className="space-y-5">
+      <form method="post" onSubmit={onSubmit} noValidate className="space-y-5">
         {formError && <Alert tone="danger">{formError}</Alert>}
         <fieldset>
           <legend className="mb-2 text-sm font-medium text-slate-800">I&apos;m signing up as</legend>

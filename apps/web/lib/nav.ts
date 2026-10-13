@@ -29,6 +29,7 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
+  Trophy,
   UsersRound,
   Wand2,
   Workflow,
@@ -61,10 +62,12 @@ export const NAV: NavSection[] = [
       { label: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard, color: "indigo", description: "Your learning at a glance" },
       { label: "Catalog", href: "/app/catalog", icon: Library, anyOf: LEARN, color: "sky", description: "Browse and enrol in courses" },
       { label: "My learning", href: "/app/learning", icon: BookOpen, anyOf: LEARN, color: "emerald", description: "Courses and learning paths you're enrolled in" },
+      { label: "Assignments", href: "/app/assignments", icon: ClipboardCheck, anyOf: LEARN, color: "orange", description: "Practical work, drafts and feedback" },
       { label: "Simulations", href: "/app/simulations", icon: MonitorPlay, anyOf: LEARN, color: "violet", description: "Practise in realistic work environments" },
       { label: "AI Tutor", href: "/app/tutor", icon: Bot, anyOf: LEARN, color: "fuchsia", description: "Ask questions, get explanations and hints" },
       { label: "Certificates", href: "/app/certificates", icon: Award, anyOf: LEARN, color: "amber", description: "Your earned credentials" },
       { label: "Skills", href: "/app/skills", icon: Target, anyOf: LEARN, color: "teal", description: "Competency profile and personalised plan" },
+      { label: "Achievements", href: "/app/achievements", icon: Trophy, anyOf: LEARN, color: "rose", description: "Points, levels, streaks, badges and leaderboard" },
     ],
   },
   {
@@ -113,10 +116,16 @@ export function visibleNav(can: (p: string) => boolean, isSuperadmin: boolean): 
   })).filter((s) => s.items.length > 0);
 }
 
+/** Routes that are not nav entries themselves but live under one (course player, lessons, quizzes). */
+const ROUTE_PARENTS: Record<string, string> = { "/app/learn": "/app/learning", "/app/quiz": "/app/learning" };
+
 export function findNavItem(pathname: string): NavItem | undefined {
   let best: NavItem | undefined;
   for (const s of NAV)
     for (const i of s.items)
       if ((pathname === i.href || pathname.startsWith(`${i.href}/`)) && (!best || i.href.length > best.href.length)) best = i;
-  return best;
+  if (best) return best;
+  for (const [prefix, parent] of Object.entries(ROUTE_PARENTS))
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) return NAV.flatMap((s) => s.items).find((i) => i.href === parent);
+  return undefined;
 }

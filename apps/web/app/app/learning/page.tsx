@@ -63,7 +63,7 @@ function MyLearning() {
             <Button asChild variant="secondary" leftIcon={<ClipboardCheck />}>
               <Link href="/app/assignments">Assignments</Link>
             </Button>
-            <Button asChild variant="secondary" leftIcon={<Trophy />} className="hidden sm:inline-flex">
+            <Button asChild variant="secondary" leftIcon={<Trophy />}>
               <Link href="/app/achievements">Achievements</Link>
             </Button>
             <Button asChild variant="gradient" leftIcon={<Library />}>

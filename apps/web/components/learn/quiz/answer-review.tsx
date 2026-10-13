@@ -6,6 +6,7 @@ import { Markdown } from "@/components/common/markdown";
 import { QUESTION_LABELS } from "../meta";
 import type { ResultQuestion } from "../types";
 import { choices } from "./inputs";
+import { isAnswered } from "./question-input";
 
 type R = Record<string, unknown>;
 
@@ -203,12 +204,23 @@ function AnswerDetail({ q }: { q: ResultQuestion }) {
 }
 
 export function ResultQuestionCard({ q, index }: { q: ResultQuestion; index: number }) {
-  const state = q.pending_review ? "pending" : q.is_correct === true ? "correct" : q.is_correct === false ? ((q.score ?? 0) > 0 ? "partial" : "incorrect") : "graded";
+  const state = q.pending_review
+    ? "pending"
+    : !isAnswered(q.question_type, q.response)
+      ? "unanswered"
+      : q.is_correct === true
+        ? "correct"
+        : q.is_correct === false
+          ? (q.score ?? 0) > 0
+            ? "partial"
+            : "incorrect"
+          : "graded";
   const meta = {
     correct: { icon: CheckCircle2, cls: "text-emerald-600", bar: "bg-emerald-500", label: "Correct" },
     incorrect: { icon: XCircle, cls: "text-rose-600", bar: "bg-rose-500", label: "Incorrect" },
     partial: { icon: MinusCircle, cls: "text-amber-600", bar: "bg-amber-500", label: "Partially correct" },
     pending: { icon: Hourglass, cls: "text-violet-600", bar: "bg-violet-500", label: "Awaiting review" },
+    unanswered: { icon: CircleDashed, cls: "text-slate-600", bar: "bg-slate-300", label: "Not answered" },
     graded: { icon: CheckCircle2, cls: "text-sky-600", bar: "bg-sky-500", label: "Graded" },
   }[state];
   const ai = q.ai_feedback as { feedback?: string; strengths?: string[]; improvements?: string[] } | null | undefined;

@@ -47,6 +47,11 @@ class PointsEntry(BaseModel):
     created_at: datetime
 
 
+class DepartmentRef(BaseModel):
+    id: uuid.UUID
+    name: str
+
+
 class GamificationMeOut(BaseModel):
     enabled: bool
     points: int
@@ -56,6 +61,8 @@ class GamificationMeOut(BaseModel):
     streak: StreakOut
     recent_points: list[PointsEntry]
     rank: int | None
+    # The viewer's own department, so members can scope the leaderboard without users.view.
+    department: DepartmentRef | None = None
 
 
 class LeaderboardEntry(BaseModel):

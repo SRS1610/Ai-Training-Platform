@@ -64,6 +64,8 @@ export default function AttemptPage() {
   const [confirm, setConfirm] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [timeUp, setTimeUp] = React.useState(false);
+  const [autoError, setAutoError] = React.useState<string | null>(null);
+  const submittingRef = React.useRef(false);
   const [focusLost, setFocusLost] = React.useState(0);
   const [closed, setClosed] = React.useState<string | null>(null);
   const { flags, toggle: toggleFlag } = useFlags(attemptId);
@@ -115,6 +117,8 @@ export default function AttemptPage() {
           }
           pending.current.set(qid, pending.current.get(qid) ?? body);
           setSaveState("error");
+          // Retry on our own instead of waiting for the next keystroke.
+          if (!timers.current.has(qid)) timers.current.set(qid, window.setTimeout(() => void saveNow(qid), 5000));
         })
         .finally(() => inflight.current.delete(p));
       inflight.current.add(p);
@@ -139,17 +143,24 @@ export default function AttemptPage() {
 
   const submit = React.useCallback(
     async (auto = false) => {
-      if (submitting) return;
+      // A ref (not state) so the timer, the dialog and a fast double-click can't submit twice.
+      if (submittingRef.current) return;
+      submittingRef.current = true;
       setSubmitting(true);
+      setAutoError(null);
       try {
         await flush();
         await api.post<AttemptSummary>(`/attempts/${attemptId}/submit`);
       } catch (e) {
         if (!(e instanceof ApiError && (e.code === "attempt_closed" || e.status === 409))) {
-          toast.error(errorMessage(e));
+          submittingRef.current = false;
           setSubmitting(false);
-          if (!auto) throw e;
-          return;
+          if (auto) {
+            setAutoError(errorMessage(e));
+            return;
+          }
+          toast.error(errorMessage(e));
+          throw e;
         }
       }
       qc.invalidateQueries({ queryKey: lk.quiz.overview(assessmentId) });
@@ -162,7 +173,7 @@ export default function AttemptPage() {
       }
       router.replace(`/app/quiz/${assessmentId}/result/${attemptId}`);
     },
-    [submitting, flush, attemptId, qc, assessmentId, router],
+    [flush, attemptId, qc, assessmentId, router],
   );
 
   // countdown
@@ -262,18 +273,26 @@ export default function AttemptPage() {
               </span>
             </div>
           </div>
-          <span className="hidden items-center gap-1.5 text-xs font-medium text-slate-500 sm:flex" aria-live="polite">
+          <span
+            role="status"
+            aria-live="polite"
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold sm:bg-transparent sm:px-0 sm:py-0 sm:font-medium",
+              saveState === "error" ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200 sm:ring-0" : "bg-slate-50 text-slate-600 sm:text-slate-500",
+            )}
+          >
             {saveState === "saving" ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" aria-hidden /> Saving…
               </>
             ) : saveState === "error" ? (
-              <span className="flex items-center gap-1.5 text-rose-700">
-                <CloudOff className="size-3.5" aria-hidden /> Not saved — retrying on next change
-              </span>
+              <>
+                <CloudOff className="size-3.5" aria-hidden /> Not saved<span className="hidden sm:inline"> — retrying</span>
+              </>
             ) : saveState === "saved" ? (
               <>
-                <Check className="size-3.5 text-emerald-600" aria-hidden /> Saved{savedAt ? ` ${savedAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` : ""}
+                <Check className="size-3.5 text-emerald-600" aria-hidden /> Saved
+                <span className="hidden sm:inline">{savedAt ? ` ${savedAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` : ""}</span>
               </>
             ) : (
               <>
@@ -293,6 +312,21 @@ export default function AttemptPage() {
             : "Switching tabs or windows is recorded for review only — it never affects your score automatically."}
         </p>
       </div>
+
+      {saveState === "error" && !closed && (
+        <Alert
+          tone="danger"
+          title="Some answers aren't saved yet"
+          className="mb-5"
+          action={
+            <Button size="sm" variant="secondary" onClick={() => void flush()}>
+              Retry now
+            </Button>
+          }
+        >
+          Check your connection — we&apos;ll keep retrying every few seconds. Don&apos;t close this page until it says Saved.
+        </Alert>
+      )}
 
       {closed && (
         <Alert tone="warning" title="This attempt is closed" className="mb-5" action={<Button size="sm" onClick={() => router.replace(`/app/quiz/${assessmentId}/result/${attemptId}`)}>See results</Button>}>
@@ -456,8 +490,27 @@ export default function AttemptPage() {
       <Dialog open={timeUp}>
         <DialogContent hideClose size="sm" className="text-center">
           <DialogTitle>Time&apos;s up</DialogTitle>
-          <DialogDescription>We&apos;re submitting your saved answers now…</DialogDescription>
-          <Spinner className="mx-auto" label="Submitting" />
+          {autoError ? (
+            <>
+              <DialogDescription>We couldn&apos;t submit your attempt automatically. Your saved answers are safe — try again, or check your results.</DialogDescription>
+              <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-800 ring-1 ring-rose-200" role="alert">
+                {autoError}
+              </p>
+              <div className="flex flex-col-reverse justify-center gap-2 sm:flex-row">
+                <Button variant="secondary" onClick={() => router.replace(`/app/quiz/${assessmentId}/result/${attemptId}`)}>
+                  See results
+                </Button>
+                <Button variant="gradient" leftIcon={<Send />} onClick={() => void submit(true)}>
+                  Try again
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <DialogDescription>We&apos;re submitting your saved answers now…</DialogDescription>
+              <Spinner className="mx-auto" label="Submitting" />
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

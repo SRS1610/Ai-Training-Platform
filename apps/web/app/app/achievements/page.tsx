@@ -206,7 +206,7 @@ export default function AchievementsPage() {
           </div>
 
           <aside className="min-w-0 space-y-6">
-            <LeaderboardPanel />
+            <LeaderboardPanel myDepartment={g.department} />
             <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-soft sm:p-6" aria-labelledby="points-history">
               <SectionTitle id="points-history" icon={History} color="sky" title="Recent points" />
               <div className="mt-3">

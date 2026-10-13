@@ -2,6 +2,7 @@
 
 import { Alert, Badge, Button, ConfirmDialog, FileDropzone, FormField, Input, Textarea, cn, formatBytes, toast } from "@praxis/ui";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Code2, Eye, FileText, Image as ImageIcon, Lock, PenLine, Save, Send, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import * as React from "react";
 import { Markdown } from "@/components/common/markdown";
@@ -118,10 +119,11 @@ export function AssignmentWorkspace({ assignment: a, submission: s, onSubmitted 
   const missingRef = React.useRef<HTMLDivElement>(null);
   const savedVersion = s?.current_version ?? 0;
 
-  // Re-sync the editor when a different saved version arrives (e.g. after save or "load version").
+  // Re-sync the editor only when the saved *content* changes (after a save or "load version") — a
+  // background refetch that returns the same version must never clobber what the learner is typing.
   const lastSync = React.useRef(saved);
   React.useEffect(() => {
-    if (lastSync.current !== saved) {
+    if (!same(lastSync.current, saved)) {
       lastSync.current = saved;
       setDraft(saved);
     }
@@ -138,7 +140,66 @@ export function AssignmentWorkspace({ assignment: a, submission: s, onSubmitted 
     return () => window.removeEventListener("beforeunload", onBefore);
   }, [dirty]);
 
+  // Local safety net: unsaved edits are mirrored to this device and restored if the page is reloaded
+  // or the learner navigates away. Scoped to the assignment + the saved version they were based on.
+  const storeKey = `praxis:assignment-draft:${a.id}`;
+  const restoredRef = React.useRef(false);
+  React.useEffect(() => {
+    if (restoredRef.current || !editable) return;
+    restoredRef.current = true;
+    try {
+      const raw = window.localStorage.getItem(storeKey);
+      if (!raw) return;
+      const st = JSON.parse(raw) as { v?: number; at?: string; draft?: DraftState };
+      if (!st.draft || st.v !== savedVersion || same(st.draft, saved)) {
+        window.localStorage.removeItem(storeKey);
+        return;
+      }
+      const local: DraftState = { text: st.draft.text ?? "", code: st.draft.code ?? "", structured: st.draft.structured ?? {}, files: st.draft.files ?? [] };
+      setDraft(local);
+      toast.info("Restored your unsaved changes", {
+        description: `${st.at ? `Kept on this device ${formatRelative(st.at)}. ` : ""}Save the draft to add them to your version history.`,
+        action: { label: "Discard", onClick: () => setDraft(saved) },
+      });
+    } catch {
+      /* storage unavailable — nothing to restore */
+    }
+  }, [editable, saved, savedVersion, storeKey]);
+  React.useEffect(() => {
+    if (!restoredRef.current) return;
+    try {
+      if (dirty) window.localStorage.setItem(storeKey, JSON.stringify({ v: savedVersion, at: new Date().toISOString(), draft }));
+      else window.localStorage.removeItem(storeKey);
+    } catch {
+      /* storage full / blocked — the beforeunload guard still applies */
+    }
+  }, [draft, dirty, savedVersion, storeKey]);
+
+  // In-app navigation guard (beforeunload doesn't fire for client-side route changes).
+  const router = useRouter();
+  const [leaveTo, setLeaveTo] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!dirty) return;
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const el = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!el || (el.target && el.target !== "_self") || el.hasAttribute("download")) return;
+      const to = new URL(el.href, window.location.href);
+      if (to.origin !== window.location.origin || to.pathname === window.location.pathname) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setLeaveTo(to.pathname + to.search + to.hash);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [dirty]);
+
   const checklist = evidenceStatus(a.required_evidence, a.structured_fields, draft);
+  // Server-reported gaps, re-checked live against the current draft so fixed items drop off.
+  const stillMissing = (missing ?? []).filter((m) => {
+    const c = m.id ? checklist.find((x) => x.item.id === m.id) : undefined;
+    return c ? !c.met : !evidenceReady(checklist);
+  });
   const ready = evidenceReady(checklist);
   const showText = needsText(a) || !!draft.text;
   const showCode = needsCode(a) || !!draft.code;
@@ -234,11 +295,11 @@ export function AssignmentWorkspace({ assignment: a, submission: s, onSubmitted 
         )}
 
         <div ref={missingRef} aria-live="assertive">
-          {missing && (
+          {stillMissing.length > 0 && (
             <Alert tone="danger" title="Some required evidence is missing" icon={<AlertTriangle aria-hidden />}>
               <p className="text-sm">Add these before submitting:</p>
               <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm">
-                {missing.map((m, i) => (
+                {stillMissing.map((m, i) => (
                   <li key={m.id ?? i}>
                     <span className="font-semibold">{m.label ?? m.id}</span>
                     {m.type ? <span className="text-rose-700"> · {m.type}</span> : null}
@@ -416,6 +477,20 @@ export function AssignmentWorkspace({ assignment: a, submission: s, onSubmitted 
       >
         <EvidenceChecklist items={checklist} />
       </ConfirmDialog>
+      <ConfirmDialog
+        open={leaveTo !== null}
+        onOpenChange={(o) => !o && setLeaveTo(null)}
+        title="Leave without saving?"
+        description="Your latest edits aren't in your version history yet. A copy stays on this device and is restored next time you open this assignment."
+        confirmLabel="Leave page"
+        cancelLabel="Keep editing"
+        destructive
+        onConfirm={() => {
+          const to = leaveTo;
+          setLeaveTo(null);
+          if (to) router.push(to);
+        }}
+      />
     </div>
   );
 }

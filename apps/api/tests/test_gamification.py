@@ -260,6 +260,16 @@ async def test_leaderboard_period_department_and_opt_out(client):
     )
     assert [e["full_name"] for e in r.json()["entries"]] == ["Bob"]
     assert r.json()["me"]["rank"] is None
+    # Members learn their own department from /me (no users.view needed) and may filter by it.
+    me_b = (await client.get(f"{API}/me", headers=b.headers)).json()
+    assert me_b["department"] == {"id": str(dept.id), "name": "Support"}
+    assert (await client.get(f"{API}/me", headers=a.headers)).json()["department"] is None
+    r = await client.get(
+        f"{API}/leaderboard",
+        params={"period": "all", "department_id": me_b["department"]["id"]},
+        headers=b.headers,
+    )
+    assert r.status_code == 200 and r.json()["me"]["rank"] == 1
 
     assert (
         await client.put(f"{API}/me/leaderboard-opt-out", json={"opt_out": True}, headers=b.headers)

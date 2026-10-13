@@ -86,7 +86,7 @@ export default function QuizOverviewPage() {
   const rules = [
     { icon: Save, text: "Answers save automatically as you go — you can leave and resume." },
     a.time_limit_minutes
-      ? { icon: Clock, text: `The ${a.time_limit_minutes}-minute timer starts when you begin and keeps running if you leave. Unsaved work is submitted when time runs out.` }
+      ? { icon: Clock, text: `The ${a.time_limit_minutes}-minute timer starts when you begin and keeps running if you leave. Your saved answers are submitted automatically when time runs out.` }
       : { icon: Clock, text: "There's no time limit — take the time you need." },
     { icon: Eye, text: FEEDBACK_COPY[a.show_feedback] ?? FEEDBACK_COPY.after_submit! },
     {

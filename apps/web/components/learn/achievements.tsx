@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Award,
   BookOpen,
+  Building2,
   Cpu,
   Crown,
   EyeOff,
@@ -161,7 +162,7 @@ interface DepartmentLite {
   name: string;
 }
 
-export function LeaderboardPanel() {
+export function LeaderboardPanel({ myDepartment }: { myDepartment?: DepartmentLite | null }) {
   const qc = useQueryClient();
   const canDepartments = usePermission("users.view");
   const [period, setPeriod] = React.useState<"week" | "month" | "all">("week");
@@ -214,6 +215,32 @@ export function LeaderboardPanel() {
             ))}
           </TabsList>
         </Tabs>
+        {!canDepartments && myDepartment && (
+          <div className="inline-flex w-full rounded-xl bg-slate-100 p-1" role="group" aria-label="Leaderboard scope">
+            {[
+              { value: null, label: "Organisation", icon: Building2 },
+              { value: myDepartment.id, label: myDepartment.name, icon: Users },
+            ].map((o) => {
+              const on = department === o.value;
+              return (
+                <button
+                  key={o.value ?? "org"}
+                  type="button"
+                  aria-pressed={on}
+                  title={o.value ? `My department: ${o.label}` : "Everyone in your organisation"}
+                  onClick={() => setDepartment(o.value)}
+                  className={cn(
+                    "inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition focus-visible:focus-ring",
+                    on ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900",
+                  )}
+                >
+                  <o.icon className="size-4 shrink-0" aria-hidden />
+                  <span className="truncate">{o.value ? <><span className="sr-only">My department: </span>{o.label}</> : o.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
         {canDepartments && (depts.data?.length ?? 0) > 0 && (
           <SimpleSelect
             className="h-9"
