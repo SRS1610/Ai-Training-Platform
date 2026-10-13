@@ -185,6 +185,36 @@ async def test_grading_heuristic_discriminates_and_explains():
     assert 0 < g["confidence"] <= 0.5 and g["summary"]
 
 
+def test_grading_heuristic_summary_matches_breakdown_score():
+    """The quoted overall score, the returned score and the weighted breakdown agree, even when
+    requirements are missing (they are listed, not silently deducted)."""
+    from praxis_ai.grading import heuristic_grade_submission
+
+    assignment = {
+        "instructions": "1. Capture ipconfig output\n2. Escalate to the network team\n3. Notify the users",
+        "rubric": {
+            "criteria": [
+                {"id": "rc", "name": "Root cause", "description": "DHCP scope exhausted", "weight": 70},
+                {"id": "doc", "name": "Documentation", "description": "Clear timeline", "weight": 30},
+            ]
+        },
+        "required_evidence": [{"id": "shot", "label": "Screenshot", "type": "screenshot", "required": True}],
+        "provided_evidence": [],
+    }
+    text = (
+        "The root cause was an exhausted DHCP scope, so new laptops self-assigned 169.254 addresses. I wrote "
+        "a clear timeline of what happened, when, and what I changed, and extended the scope by fifty leases."
+    )
+    g = heuristic_grade_submission(assignment, text)
+    assert g["missing_requirements"]
+    acc = 0.0  # the platform recomputes the score from the breakdown with a running sum
+    for c in g["criteria"]:
+        acc += c["weight"] * (c["score"] / c["max"])
+    expected = round(100 * acc / sum(c["weight"] for c in g["criteria"]), 1)
+    assert g["score"] == expected
+    assert f"({g['score']:g}/100)" in g["summary"] and "not clearly met" in g["summary"]
+
+
 async def test_answer_grading():
     q = {
         "prompt": "Explain why verification matters after a fix.",

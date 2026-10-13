@@ -20,6 +20,7 @@ from sqlalchemy import update
 
 from app.core.db import get_sessionmaker, system_session
 from app.models.identity import User
+from app.modules.assignments.service import AI_AGREEMENT_TOLERANCE
 from app.seed import content_courses as CC
 from app.seed import content_it as IT
 from app.seed import people as P
@@ -27,17 +28,27 @@ from app.seed.api import Actor, Api
 from app.seed.content_kb import DOCUMENTS, MINIMAL_DOCUMENTS
 from app.seed.qb import api_payload, respond
 from app.seed.sims import PATHS, as_request
-from app.seed.timeline import Timeline, days_ago, utcnow
+from app.seed.timeline import LOCAL_TZ, Clock, Timeline, days_ago, earlier_today, local_today, utcnow
 from app.workers import drain
 
-OVERRIDE_REASONS = [
-    "The AI under-credited the communication log: updates went to Level 3 staff and the Finance manager "
-    "with times and a plain-language all-clear. Raised Stakeholder communication.",
-    "The screenshot shows the 169.254 address and failed gateway ping that the AI said were missing; "
-    "evidence criterion adjusted accordingly.",
-    "Root cause is correct (uplink failure after the firmware update, VLAN 30 not trunked); the AI "
-    "penalised wording rather than substance.",
-]
+# Assessor justifications per rubric criterion, used to explain only the criteria that actually changed.
+RAISE_WHY = {
+    "root_cause": "the report correctly ties the 169.254 (APIPA) addresses to the uplink failure and the "
+    "VLAN 30 trunk after the firmware update",
+    "process": "the screenshot shows the APIPA address and the failed gateway ping, and the scoping by floor "
+    "and wired-only users is explicit",
+    "resolution": "the fix was verified with affected users and a follow-up check is recorded",
+    "communication": "updates went to Level 3 staff and the Finance manager with times and a plain-language "
+    "all-clear",
+    "documentation": "the timeline is complete enough for another analyst to follow",
+}
+LOWER_WHY = {
+    "root_cause": "the root cause is asserted rather than evidenced",
+    "process": "the steps are listed without the command output to back them up",
+    "resolution": "there is no evidence the fix was verified with users",
+    "communication": "there is no timestamped communication log",
+    "documentation": "the write-up is hard to follow without a timeline",
+}
 
 
 @dataclass
@@ -77,14 +88,23 @@ class Learner:
 
 
 class Seeder:
-    def __init__(self, api: Api, profile: str = "full", log: Callable[[str], None] = print) -> None:
+    def __init__(
+        self,
+        api: Api,
+        profile: str = "full",
+        log: Callable[[str], None] = print,
+        clock: Clock | None = None,
+    ) -> None:
         self.api = api
         self.profile = profile
         self.full = profile == "full"
         self.log = log
-        self.tl = Timeline()
-        self.now = utcnow()
-        self.today = self.now.date()
+        self.clock = clock or Clock()
+        self.tl = Timeline(self.clock)
+        self.now = self.clock.now()
+        # Days are counted in the learners' local calendar (activity days, streaks and due dates are too).
+        self.tz = LOCAL_TZ
+        self.today = local_today(self.now, self.tz)
         self.rng = random.Random(20261012)
         self.questions: dict[str, dict[str, Any]] = {}  # question id → spec
         self.skills: dict[str, str] = {}
@@ -97,12 +117,12 @@ class Seeder:
         self.org_ids: list[uuid.UUID] = []
         self.user_ids: list[uuid.UUID] = []
         self.summary: dict[str, Any] = {"accounts": []}
-        self._override_n = 0
 
     # ------------------------------------------------------------------------------------------ helpers
 
     def d(self, days: float, hour: int = 9, minute: int = 0) -> datetime:
-        return days_ago(days, hour, minute, now=self.now)
+        """``days`` local calendar days ago at ``hour:minute`` local time (as UTC)."""
+        return days_ago(days, hour, minute, now=self.now, tz=self.tz)
 
     def due(self, days_from_today: int) -> str:
         return (self.today + timedelta(days=days_from_today)).isoformat()
@@ -187,14 +207,6 @@ class Seeder:
             if slug not in new_hires:
                 await self._create_learner(slug, f"{slug}@northwind.demo", name, dept, title, team, profile)
         await self.end_span()
-        if any(x[0] in new_hires for x in learners):
-            await self.span(9, 9, 30)
-            for slug, name, dept, title, team, profile in learners:
-                if slug in new_hires:
-                    await self._create_learner(
-                        slug, f"{slug}@northwind.demo", name, dept, title, team, profile
-                    )
-            await self.end_span()
 
         # Teams
         await self.span(147, 11, 30)
@@ -205,12 +217,20 @@ class Seeder:
                 body["lead_user_id"] = str(lead)
             r = await api.post("/teams", admin, body)
             self.teams[tname] = r["id"]
-            members = [
-                lr.actor.user_id for lr in self.learners.values() if lr.actor.meta.get("team") == tname
-            ]
-            if members:
-                await api.post(f"/teams/{r['id']}/members", admin, {"user_ids": [str(m) for m in members]})
+            await self._add_to_team(tname, list(self.learners.values()))
         await self.end_span()
+
+        # Recent hires join nine days ago (and only then join their teams).
+        if any(x[0] in new_hires for x in learners):
+            await self.span(9, 9, 30)
+            for slug, name, dept, title, team, profile in learners:
+                if slug in new_hires:
+                    await self._create_learner(
+                        slug, f"{slug}@northwind.demo", name, dept, title, team, profile
+                    )
+            for tname in self.teams:
+                await self._add_to_team(tname, [self.learners[s] for s in new_hires if s in self.learners])
+            await self.end_span()
 
         # Sign everyone in (sessions are real "today" logins).
         for a in self.staff.values():
@@ -269,6 +289,13 @@ class Seeder:
         )
         await self.end_span()
         self.log(f"  orgs and {len(self.user_ids)} users ready")
+
+    async def _add_to_team(self, tname: str, learners: list[Learner]) -> None:
+        members = [str(lr.actor.user_id) for lr in learners if lr.actor.meta.get("team") == tname]
+        if members:
+            await self.api.post(
+                f"/teams/{self.teams[tname]}/members", self.staff["admin"], {"user_ids": members}
+            )
 
     async def _create_learner(
         self, slug: str, email: str, name: str, dept: str, title: str, team: str | None, profile: str
@@ -557,6 +584,7 @@ class Seeder:
                     self.dns_lesson = lesson
             if mi == 4:
                 self.dns_module_id = m["id"]
+                self.dns_module_pos = int(m.get("position", mi))
         await self.end_span()
 
         await self.span(110, 14, 30)
@@ -593,6 +621,24 @@ class Seeder:
         new = Lesson(r["id"], r["title"], "lesson", 4, None, 10, True)
         idx = course.lessons.index(self.dns_lesson) + 2
         course.lessons.insert(idx, new)
+        # Inserting at a position doesn't shift the lessons after it: renumber the module (drag-and-drop
+        # structure endpoint) so positions stay unique and match the intended order.
+        await api.put(
+            f"/courses/{course.id}/structure",
+            inst,
+            {
+                "modules": [
+                    {
+                        "id": self.dns_module_id,
+                        "position": self.dns_module_pos,
+                        "lessons": [
+                            {"id": x.id, "position": i}
+                            for i, x in enumerate(y for y in course.lessons if y.module == 4)
+                        ],
+                    }
+                ]
+            },
+        )
         await api.patch(
             f"/assessments/{course.final_id}",
             inst,
@@ -736,7 +782,7 @@ class Seeder:
         await self.end_span()
 
     async def self_enrol(self, lr: Learner, key: str, days: float) -> None:
-        await self.span(days, 0, 5)
+        await self.span(days, 8, 5)
         await self.api.post("/enrolments", lr.actor, {"course_id": self.courses[key].id})
         await self.end_span()
 
@@ -917,16 +963,14 @@ class Seeder:
         await drain()  # AI recommendation
         return r["id"]
 
-    async def grade(
-        self, submission_id: str, quality: int, *, override_note: str | None = None
-    ) -> dict[str, Any]:
+    async def grade(self, submission_id: str, quality: int, *, override: bool = False) -> dict[str, Any]:
         from app.modules.assignments import logic
 
         grace = self.staff["assessor"]
         detail = await self.api.get(f"/grading/submissions/{submission_id}", grace)
         crits = [c for c in detail["assignment"]["rubric"]["criteria"]]
         levels = {4: [4, 4, 4, 3, 4], 3: [3, 3, 3, 3, 3], 2: [2, 2, 3, 2, 2], 1: [1, 1, 2, 1, 1]}[quality]
-        if override_note:
+        if override:  # the assessor credits root cause and resolution more than the rubric default
             levels = [min(4, x + 1) if i in (0, 2) else x for i, x in enumerate(levels)]
         comments = {
             "root_cause": "Links the APIPA addresses to the failed uplink and VLAN trunk clearly.",
@@ -955,7 +999,7 @@ class Seeder:
             else ["Include command output as evidence", "Add a timestamped communication log"],
         }
         breakdown = (ai or {}).get("rubric_breakdown") or []
-        if quality == 4 and not override_note and len(breakdown) == len(crits):
+        if quality == 4 and not override and len(breakdown) == len(crits):
             # The assessor agrees with the AI recommendation and confirms its criterion scores.
             body["rubric_scores"] = [
                 {"criterion_id": x["criterion_id"], "score": x["score"], "comment": x.get("comment")}
@@ -964,12 +1008,43 @@ class Seeder:
             body["summary"] = "Agree with the AI recommendation: an excellent, thorough resolution record."
             pct, _, _ = logic.score_rubric(crits, body["rubric_scores"])
         ai_pct = float(ai["score"]) / float(ai["max_score"] or 100) * 100 if ai else None
-        if ai_pct is not None and abs(ai_pct - pct) > 1e-9:
-            self._override_n += 1
-            body["override_reason"] = (
-                override_note or OVERRIDE_REASONS[self._override_n % len(OVERRIDE_REASONS)]
-            )
+        if ai_pct is not None and abs(ai_pct - pct) > AI_AGREEMENT_TOLERANCE:
+            body["override_reason"] = self._override_reason(crits, breakdown, body["rubric_scores"])
         return await self.api.post(f"/grading/submissions/{submission_id}/grade", grace, body)
+
+    @staticmethod
+    def _override_reason(
+        crits: list[dict[str, Any]], ai: list[dict[str, Any]], human: list[dict[str, Any]]
+    ) -> str:
+        """Explain an override from the criteria whose scores actually differ from the AI's."""
+        ai_by = {str(x["criterion_id"]): float(x["score"]) for x in ai}
+        hu_by = {str(x["criterion_id"]): float(x["score"]) for x in human}
+        changes = []
+        for c in crits:
+            cid = str(c["id"])
+            if cid in ai_by and cid in hu_by and abs(hu_by[cid] - ai_by[cid]) > 1e-9:
+                changes.append((abs(hu_by[cid] - ai_by[cid]), c, ai_by[cid], hu_by[cid]))
+        changes.sort(key=lambda x: -x[0])
+        big = [x for x in changes if x[0] >= 0.5][:3]
+        if not big:
+            name = changes[0][1]["name"] if changes else "each criterion"
+            return (
+                "Scored on the rubric's whole performance levels: the AI's fractional criterion scores "
+                f"round to the nearest level descriptor (largest adjustment: {name})."
+            )
+        parts = []
+        for _, c, a, h in big:
+            label = next(
+                (lv.get("label") for lv in c.get("levels") or [] if float(lv.get("score", -1)) == h), None
+            )
+            raised = h > a
+            why = (RAISE_WHY if raised else LOWER_WHY).get(str(c["id"]), "the evidence supports this level")
+            parts.append(
+                f"{'Raised' if raised else 'Lowered'} {c['name']} to {h:g}"
+                + (f" ({label})" if label else "")
+                + f" from the AI's {a:g}: {why}."
+            )
+        return " ".join(parts)
 
     async def tutor(
         self,
@@ -1006,7 +1081,7 @@ class Seeder:
         sim_levels: tuple[str, ...] = ("competent",),
         assignment_quality: int = 3,
         final_fail_first: bool = False,
-        override: str | None = None,
+        override: bool = False,
         per_session: int = 3,
     ) -> None:
         """Walk a learner through a course's lessons in order (up to ``upto`` lessons), spreading sessions
@@ -1019,7 +1094,7 @@ class Seeder:
             return
         n_sessions = max(1, (len(lessons) + per_session - 1) // per_session)
         step = (start_day - end_day) / max(1, n_sessions - 1) if n_sessions > 1 else 0
-        hours = [1, 3, 5, 7, 9, 10]  # UTC: 12:00–21:00 in Sydney, so local and UTC dates agree
+        hours = [9, 10, 11, 13, 14, 15, 16]  # local working hours
         for si in range(n_sessions):
             day = start_day - si * step
             chunk = lessons[si * per_session : (si + 1) * per_session]
@@ -1048,7 +1123,7 @@ class Seeder:
         sim_levels: tuple[str, ...],
         quality: int,
         final_fail_first: bool,
-        override: str | None,
+        override: bool,
         day: float,
     ) -> None:
         if lesson.kind == "lesson":
@@ -1068,7 +1143,7 @@ class Seeder:
             sub = await self.submit_assignment(lr, quality)
             await self.end_span()
             await self.span(max(day - 1.2, 0.2), 15, 20)  # assessor grades the next working day
-            await self.grade(sub, quality, override_note=override)
+            await self.grade(sub, quality, override=override)
             await self.end_span()
             await self.span(max(day - 1.3, 0.15), 18, 30)
 
@@ -1105,8 +1180,7 @@ class Seeder:
                 quiz_fail={2},
                 sim_levels=("fail", "advanced"),
                 assignment_quality=3,
-                override="AI under-scored the root cause analysis: the report "
-                "correctly ties the APIPA addresses to the VLAN trunk failure. Raised to Exemplary.",
+                override=True,
             ),
             "rajesh.iyer": dict(
                 start_day=82, end_day=49, quiz_fail={4}, sim_levels=("competent",), assignment_quality=3
@@ -1202,7 +1276,7 @@ class Seeder:
         # Work waiting in the assessor's queue (AI recommendation ready, human grade pending).
         for slug, day, quality in (("aisha.rahman", 2, 4), ("kwame.mensah", 1, 2)):
             if slug in L:
-                await self.span(day, 6, 60)
+                await self.span(day, 11, 60)
                 await self.submit_assignment(L[slug], quality)
                 await self.end_span()
         if self.full:
@@ -1256,9 +1330,14 @@ class Seeder:
         await self.walk(L["emma.johansson"], "cyber", version=1, start_day=6, end_day=2, upto=3)
         await self.walk(L["zara.ahmed"], "cyber", version=1, start_day=12, end_day=8, upto=1)
 
-        # WHS: mandatory for everyone, assigned a month ago, due in 10 days.
-        everyone = [lr for lr in L.values() if lr.slug != "alex"]
+        # WHS: mandatory for everyone, assigned a month ago, due in 10 days; recent hires get it the day
+        # after they join (nine days ago).
+        new_hires = {"meilin.zhang", "tomas.garcia"}
+        everyone = [lr for lr in L.values() if lr.slug != "alex" and lr.slug not in new_hires]
         await self.assign("whs", everyone, 32, 10)
+        recent = [lr for lr in L.values() if lr.slug in new_hires]
+        if recent:
+            await self.assign("whs", recent, 8, 10)
         done = [
             "sofia.martinez",
             "liam.oconnor",
@@ -1329,11 +1408,11 @@ class Seeder:
         # Modules 1–3 and the start of module 4 (lessons before the simulation)
         await self.walk(lr, "it", version=2, start_day=20, end_day=12, upto=idx[m4_sim.id], quiz_fail={2})
         # Simulation attempt 1: needs improvement (11 days ago)
-        await self.span(11, 5, 35)
+        await self.span(11, 14, 35)
         await self.play_sim(lr, it.sim_id, it.sim_template, "needs_improvement", use_chat=True)
         await self.end_span()
         # Attempt 2 (6 days ago): asks the tutor for help mid-simulation (hint mode), then finishes Competent.
-        await self.span(6, 2, 50)
+        await self.span(6, 13, 50)
         paused = await self.play_sim(lr, it.sim_id, it.sim_template, "competent", use_chat=True, pause_at=7)
         await self.tutor(
             lr,
@@ -1350,10 +1429,10 @@ class Seeder:
         m5 = [x for x in lessons if x.module == 4]
         plan = [(5, m5[0]), (4, m5[1]), (2, m5[2])]
         for day, lesson in plan:
-            await self.span(day, 8, 25, 10)
+            await self.span(day, 12, 25, 10)
             await self.complete(lr, lesson)
             await self.end_span()
-        await self.span(3, 9, 20)
+        await self.span(3, 17, 20)
         await self.tutor(
             lr,
             "it",
@@ -1362,10 +1441,10 @@ class Seeder:
             title="DNS and the intranet",
         )
         await self.end_span()
-        await self.span(1, 8, 25)
+        await self.span(1, 12, 25)
         await self.complete(lr, m5[3])  # AI tutor practice lesson
         await self.end_span()
-        await self.span(0.08, max(self.now.hour - 2, 0), 20)
+        await self.tl.begin(earlier_today(self.now, self.tz), 20)  # today, local time
         nxt = next(x for x in lessons if x.module == 5)
         await self.api.post(f"/progress/lessons/{nxt.id}/start", lr.actor)
         await self.api.post(
@@ -1375,11 +1454,11 @@ class Seeder:
         if self.full:
             await self.self_enrol(lr, "cyber", 13)
             await self.walk(lr, "cyber", version=1, start_day=12, end_day=9, upto=2, per_session=1)
-            await self.span(8, 7, 25)
+            await self.span(8, 17, 25)
             cy = self.courses["cyber"]
             await self.play_sim(lr, cy.sim_id, cy.sim_template, "needs_improvement")
             await self.end_span()
-        await self.span(7, 4, 5)
+        await self.span(7, 14, 5)
         await self.tutor(
             lr,
             None,

@@ -409,6 +409,48 @@ async def test_ai_grade_override_requires_reason_and_contract(client, monkeypatc
         assert submission.final_score == 92.0 and submission.status == "graded"
 
 
+async def test_accepting_ai_rubric_verbatim_needs_no_override_reason(client, monkeypatch):
+    """The AI score is kept to 1 dp and the rubric percentage to 2 dp: confirming the AI's own criterion
+    scores (92.88% → stored as 92.9) is agreement, not an override."""
+
+    async def fake_enqueue(name, **kw):  # noqa: ANN001, ANN003
+        return None
+
+    monkeypatch.setattr(asg_service, "enqueue", fake_enqueue)
+    admin, instructor, learner, _, aid = await _setup(
+        client, grading_mode="ai_recommend_human_final", high_stakes=True
+    )
+    await client.put(
+        f"{API}/assignments/{aid}/submission", json={"text_content": ESSAY}, headers=learner.headers
+    )
+    sub = (await client.post(f"{API}/assignments/{aid}/submission/submit", headers=learner.headers)).json()
+    ai_scores = [{"criterion_id": "diag", "score": 3.8}, {"criterion_id": "comm", "score": 8.97}]
+    pct, _, _ = logic.score_rubric(logic.normalise_criteria(CRITERIA)[0], ai_scores)
+    assert pct == 92.88
+    async with get_sessionmaker()() as s:
+        s.info["rls_bypass"] = True
+        submission = await s.get(Submission, uuid.UUID(sub["id"]))
+        ai = Grade(
+            organisation_id=admin.org_id,
+            target_type="submission",
+            target_id=submission.id,
+            source="ai",
+            score=round(pct, 1),
+            max_score=100.0,
+            ai_model="offline",
+            rubric_breakdown=[{**x, "max": m} for x, m in zip(ai_scores, (4, 10), strict=True)],
+        )
+        await apply_grade(s, submission, ai, make_final=False)
+        await s.commit()
+
+    url = f"{API}/grading/submissions/{sub['id']}/grade"
+    r = await client.post(url, json={"rubric_scores": GOOD}, headers=instructor.headers)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "override_reason_required"
+    r = await client.post(url, json={"rubric_scores": ai_scores}, headers=instructor.headers)
+    assert r.status_code == 201, r.text
+    assert r.json()["override_reason"] is None and r.json()["score"] == 92.88
+
+
 async def test_apply_grade_ai_assisted_final(client, monkeypatch):
     async def fake_enqueue(name, **kw):  # noqa: ANN001, ANN003
         kw.pop("db", None)

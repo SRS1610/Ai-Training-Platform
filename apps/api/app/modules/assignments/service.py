@@ -613,6 +613,10 @@ async def request_review(ctx: Ctx, assignment_id: uuid.UUID, note: str) -> dict[
 # ============================================================================= grading (public contract)
 
 
+# Percentage points within which a human score counts as agreeing with the AI recommendation.
+AI_AGREEMENT_TOLERANCE = 0.05 + 1e-9
+
+
 def _pct(grade: Grade) -> float:
     if grade.max_score and grade.max_score != 100.0:
         return round(grade.score / grade.max_score * 100.0, 2)
@@ -850,7 +854,9 @@ async def human_grade(ctx: Ctx, submission_id: uuid.UUID, data: HumanGradeIn) ->
         # A grade of an earlier version (before a resubmission) is not being overridden.
         return g is not None and (g.submission_version is None or g.submission_version == s.current_version)
 
-    ai_differs = _same_version(ai) and abs(_pct(ai) - pct) > 1e-9
+    # AI grades are stored to 1 dp and rubric percentages to 2 dp, so accepting the AI's criterion scores
+    # verbatim can differ by rounding alone (93.0 vs 92.99): that is agreement, not an override.
+    ai_differs = _same_version(ai) and abs(_pct(ai) - pct) > AI_AGREEMENT_TOLERANCE
     human_differs = (
         _same_version(previous_final)
         and previous_final.source == GradeSource.HUMAN

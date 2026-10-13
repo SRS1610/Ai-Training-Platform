@@ -18,8 +18,9 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, tzinfo
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import DateTime, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,16 +39,52 @@ EXCLUDED_TABLES = {
 }
 
 
+# Every demo account uses the platform's default timezone (``User.timezone``); activity days, streaks and
+# due dates are all reckoned in the learner's local calendar, so the history is anchored there too.
+LOCAL_TZ = ZoneInfo("Australia/Sydney")
+
+
+class Clock:
+    """The seeder's notion of "now": real time, optionally shifted by a fixed offset (tests pin it to awkward
+    times of day, e.g. 23:30 UTC, to prove the local-day arithmetic)."""
+
+    def __init__(self, pinned: datetime | None = None) -> None:
+        self.offset = (pinned - datetime.now(UTC)) if pinned is not None else timedelta(0)
+
+    def now(self) -> datetime:
+        return datetime.now(UTC) + self.offset
+
+
 def utcnow() -> datetime:
     return datetime.now(UTC)
 
 
-def days_ago(days: float, hour: int = 9, minute: int = 0, now: datetime | None = None) -> datetime:
-    """A historical moment ``days`` before today at the given local-ish (UTC) time of day, never in the
-    future."""
+def days_ago(
+    days: float, hour: int = 9, minute: int = 0, now: datetime | None = None, tz: tzinfo = LOCAL_TZ
+) -> datetime:
+    """A historical moment ``days`` before now at the given *local* time of day (in ``tz``), as UTC, never
+    later than five minutes ago. Whole ``days`` always land on the local calendar day ``days`` before today,
+    whatever the UTC time of day the seeder runs at."""
     now = now or utcnow()
-    base = (now - timedelta(days=days)).replace(hour=hour, minute=minute, second=0, microsecond=0)
-    return min(base, now - timedelta(minutes=5))
+    local = (now.astimezone(tz) - timedelta(days=days)).replace(
+        hour=hour, minute=minute, second=0, microsecond=0
+    )
+    return min(local.astimezone(UTC), now - timedelta(minutes=5))
+
+
+def local_today(now: datetime | None = None, tz: tzinfo = LOCAL_TZ) -> date:
+    return (now or utcnow()).astimezone(tz).date()
+
+
+def earlier_today(now: datetime | None = None, tz: tzinfo = LOCAL_TZ) -> datetime:
+    """A moment earlier on the local "today": about 90 minutes ago, no later than 17:00 local and never
+    before local midnight (so "today's" activity counts for today's streak even just after midnight)."""
+    now = now or utcnow()
+    local_now = now.astimezone(tz)
+    midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    five_pm = local_now.replace(hour=17, minute=0, second=0, microsecond=0)
+    when = max(min(local_now - timedelta(minutes=90), five_pm), midnight + timedelta(minutes=1))
+    return when.astimezone(UTC)
 
 
 @dataclass
@@ -64,9 +101,10 @@ class Span:
 
 
 class Timeline:
-    def __init__(self) -> None:
+    def __init__(self, clock: Clock | None = None) -> None:
         self.spans: list[Span] = []
         self._open = False
+        self.clock = clock or Clock()
 
     @asynccontextmanager
     async def at(self, when: datetime, minutes: float = 30.0) -> AsyncIterator[None]:
@@ -91,7 +129,7 @@ class Timeline:
         self._open = False
         r0, when, minutes = self._cur
         r1 = utcnow()
-        h1 = min(when + timedelta(minutes=minutes), utcnow() - timedelta(minutes=1))
+        h1 = min(when + timedelta(minutes=minutes), self.clock.now() - timedelta(minutes=1))
         if r1 > r0 and h1 > when:
             self.spans.append(Span(r0, r1, when, h1))
 

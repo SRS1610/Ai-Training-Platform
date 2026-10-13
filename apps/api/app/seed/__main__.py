@@ -30,7 +30,11 @@ def _configure_env() -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.seed", description="Seed Praxis demo data.")
     parser.add_argument("--reset", action="store_true", help="DEV ONLY: drop all tables, migrate and reseed")
-    parser.add_argument("--if-empty", action="store_true", help="skip (exit 0) when demo data already exists")
+    parser.add_argument(
+        "--if-empty",
+        action="store_true",
+        help="skip (exit 0) when complete demo data already exists; a partial seed still exits 1",
+    )
     parser.add_argument("--profile", choices=("full", "minimal"), default="full")
     args = parser.parse_args(argv)
     _configure_env()
@@ -65,9 +69,8 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 return 0
             if existing is not None:
-                if args.if_empty:
-                    print("[seed] demo organisation exists but is incomplete; skipping (--if-empty).")
-                    return 0
+                # A partial dataset (an earlier run failed part-way) is never "not empty": fail loudly,
+                # with --if-empty too, so docker compose doesn't report a broken demo as seeded.
                 print(
                     "[seed] found a partial demo dataset (an earlier run failed?). Re-run with --reset.",
                     file=sys.stderr,

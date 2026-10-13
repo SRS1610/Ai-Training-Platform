@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import random
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from praxis_ai.pricing import estimate_cost
@@ -15,7 +15,9 @@ from app.core.db import get_sessionmaker
 from app.models.ai import AIUsage
 from app.models.platform import Certificate, Payment, Subscription
 from app.models.tenancy import Organisation
-from app.seed.timeline import Timeline
+from app.seed.timeline import LOCAL_TZ, Timeline, local_today
+
+USAGE_DAYS = 92  # historical AI usage covers the whole ~90-day learning history
 
 # Seconds credited per activity when rebuilding activity_days from the backdated event timestamps.
 _ACTIVITY_SQL = """
@@ -95,15 +97,16 @@ async def finalise(
             ),
             params,
         )
+        stats["attempts_clamped"] = await _clamp_attempts(db, params)
         await db.execute(text("DELETE FROM activity_days WHERE organisation_id = ANY(:orgs)"), params)
         await db.execute(text(_ACTIVITY_SQL), params)
         await db.execute(
             text(
                 """
             UPDATE users u SET email_verified_at = u.created_at + interval '7 minutes',
-                   last_login_at = greatest(coalesce(a.last_day, u.created_at), u.created_at)
-              FROM (SELECT user_id, max(day)::timestamptz + interval '9 hours' AS last_day
-                      FROM activity_days GROUP BY user_id) a
+                   last_login_at = least(now(), greatest(
+                       (a.last_day + time '08:45') AT TIME ZONE coalesce(u.timezone, 'UTC'), u.created_at))
+              FROM (SELECT user_id, max(day) AS last_day FROM activity_days GROUP BY user_id) a
              WHERE a.user_id = u.id AND u.id = ANY(:users)
             """
             ),
@@ -137,6 +140,74 @@ async def finalise(
         stats["certificates"] = len(certs)
         await db.commit()
     return stats
+
+
+_CLAMP_SQL = [
+    # Timed attempts whose backdated duration ran past 90% of the time limit (the span mapping is linear in
+    # real time, which knows nothing about time limits): finish them at 40–90% of the limit instead.
+    """
+    CREATE TEMP TABLE seed_clamp ON COMMIT DROP AS
+    SELECT id, started_at AS s0, submitted_at AS old_sub,
+           started_at + (expires_at - started_at) * (0.4 + random() * 0.5) AS new_sub
+      FROM assessment_attempts
+     WHERE organisation_id = ANY(:orgs) AND submitted_at IS NOT NULL AND expires_at IS NOT NULL
+       AND submitted_at > started_at + (expires_at - started_at) * 0.9
+    """,
+    # Answers saved during the attempt are compressed proportionally; anything after submission (marking)
+    # moves earlier by the same amount, so the order of events is unchanged.
+    """
+    UPDATE attempt_answers x SET
+           created_at = CASE WHEN x.created_at <= c.old_sub
+                THEN c.s0 + (x.created_at - c.s0) * (extract(epoch FROM c.new_sub - c.s0)
+                     / greatest(extract(epoch FROM c.old_sub - c.s0), 1))
+                ELSE x.created_at + (c.new_sub - c.old_sub) END,
+           updated_at = CASE WHEN x.updated_at <= c.old_sub
+                THEN c.s0 + (x.updated_at - c.s0) * (extract(epoch FROM c.new_sub - c.s0)
+                     / greatest(extract(epoch FROM c.old_sub - c.s0), 1))
+                ELSE x.updated_at + (c.new_sub - c.old_sub) END
+      FROM seed_clamp c WHERE x.attempt_id = c.id AND x.created_at >= c.s0
+    """,
+    """
+    UPDATE assessment_attempts x SET
+           submitted_at = c.new_sub,
+           graded_at = CASE WHEN x.graded_at IS NULL THEN NULL
+                            ELSE greatest(x.graded_at + (c.new_sub - c.old_sub), c.new_sub) END,
+           updated_at = greatest(x.updated_at + (c.new_sub - c.old_sub), c.new_sub)
+      FROM seed_clamp c WHERE x.id = c.id
+    """,
+]
+
+
+async def _clamp_attempts(db: Any, params: dict[str, Any]) -> int:
+    await db.execute(text(_CLAMP_SQL[0]), params)
+    n = int((await db.execute(text("SELECT count(*) FROM seed_clamp"))).scalar() or 0)
+    for stmt in _CLAMP_SQL[1:]:
+        await db.execute(text(stmt), params)
+    await db.execute(text("DROP TABLE seed_clamp"))
+    return n
+
+
+async def evaluate_badges(org_ids: list[uuid.UUID]) -> int:
+    """Badge criteria that depend on the rebuilt history (streaks) are only known after :func:`finalise`:
+    evaluate every member's badges once more, as the product does after each learning event."""
+    from app.core.db import system_session
+    from app.modules.gamification import service as g
+    from app.workers import drain
+
+    awarded = 0
+    for org_id in org_ids:
+        async with system_session(org_id) as db:
+            if not await g.org_enabled(db, org_id):
+                continue
+            members = (
+                await db.execute(
+                    text("SELECT user_id FROM organisation_users WHERE organisation_id = :o"), {"o": org_id}
+                )
+            ).scalars()
+            for uid in list(members):
+                awarded += len(await g.evaluate_badges(db, org_id, uid))
+        await drain()
+    return awarded
 
 
 async def billing_and_usage(
@@ -220,7 +291,8 @@ async def billing_and_usage(
             )
         out["payments"] = 5
 
-        # Historical AI usage: 45 days of realistic gpt-4o-mini traffic (weekday-heavy), bulk inserted.
+        # Historical AI usage: ~90 days (the span of the learning history) of realistic gpt-4o-mini
+        # traffic in local working hours (weekday-heavy), bulk inserted.
         features = [  # feature, weight, tokens_in range, tokens_out range, model
             ("tutor", 0.46, (1200, 4200), (180, 700), "gpt-4o-mini"),
             ("grading", 0.16, (1800, 5200), (300, 900), "gpt-4o-mini"),
@@ -231,18 +303,24 @@ async def billing_and_usage(
         ]
         weights = [f[1] for f in features]
         rows: list[dict[str, Any]] = []
-        for day in range(45, 0, -1):
-            when = now - timedelta(days=day)
+        today = local_today(now)
+
+        def local_at(d: date, hour: int, minute: int = 0, second: int = 0) -> datetime:
+            return datetime.combine(d, time(hour, minute, second), tzinfo=LOCAL_TZ).astimezone(UTC)
+
+        for day in range(USAGE_DAYS, 0, -1):
+            when = today - timedelta(days=day)
             weekday = when.weekday() < 5
-            ramp = 0.6 + 0.4 * (45 - day) / 45  # adoption grows over the period
+            ramp = 0.6 + 0.4 * (USAGE_DAYS - day) / USAGE_DAYS  # adoption grows over the period
             n = int((rng.randint(260, 420) if weekday else rng.randint(30, 70)) * ramp)
             for _ in range(n):
                 feat, _w, tin, tout, model = rng.choices(features, weights=weights)[0]
                 ti, to = rng.randint(*tin), (rng.randint(*tout) if tout[1] else 0)
-                at = when.replace(
-                    hour=rng.choice((22, 23, 0, 0, 1, 1, 2, 3, 3, 4, 5, 6, 7)),
-                    minute=rng.randint(0, 59),
-                    second=rng.randint(0, 59),
+                at = local_at(
+                    when,
+                    rng.choice((9, 10, 11, 11, 12, 12, 13, 14, 14, 15, 16, 17, 18)),
+                    rng.randint(0, 59),
+                    rng.randint(0, 59),
                 )
                 rows.append(
                     {
@@ -269,7 +347,7 @@ async def billing_and_usage(
                     {
                         "id": uuid.uuid4(),
                         "organisation_id": contoso,
-                        "created_at": when.replace(hour=rng.randint(0, 7)),
+                        "created_at": local_at(when, rng.randint(9, 17), rng.randint(0, 59)),
                         "user_id": None,
                         "course_id": None,
                         "feature": "tutor",

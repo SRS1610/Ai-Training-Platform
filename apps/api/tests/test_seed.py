@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import time
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import func, select, text
 
 from app.models.ai import AIMessage, AISession, AIUsage
@@ -18,6 +19,41 @@ from app.models.tenancy import Organisation
 from app.seed import people as P
 from app.seed import runner
 from app.seed.api import Api
+from app.seed.build import Seeder
+from app.seed.timeline import LOCAL_TZ, Clock, days_ago, earlier_today, local_today
+
+
+def _last_utc(hour: int, minute: int) -> datetime:
+    """The most recent instant (at or before now) with this UTC time of day."""
+    now = datetime.now(UTC)
+    t = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    return t if t <= now else t - timedelta(days=1)
+
+
+@pytest.mark.parametrize(
+    "pinned",
+    [
+        datetime(2026, 10, 12, 23, 30, tzinfo=UTC),  # 10:30 next day in Sydney: local date = UTC date + 1
+        datetime(2026, 10, 13, 1, 0, tzinfo=UTC),  # 12:00 in Sydney
+        datetime(2026, 10, 13, 13, 10, tzinfo=UTC),  # 00:10 in Sydney, just after local midnight
+        datetime(2026, 6, 30, 14, 5, tzinfo=UTC),  # 00:05 in Sydney in winter (UTC+10)
+    ],
+)
+def test_seed_clock_counts_local_days(pinned):
+    """Whatever the UTC time of day, whole days back land on consecutive *local* calendar days (so streaks
+    hold), "today" activity is on the local today and in the past, and due dates count from local today."""
+    sd = Seeder(None, "minimal", log=lambda *_a: None, clock=Clock(pinned))  # type: ignore[arg-type]
+    assert abs((sd.now - pinned).total_seconds()) < 5
+    today = pinned.astimezone(LOCAL_TZ).date()
+    assert sd.today == local_today(pinned) == today
+    for k in range(1, 40):  # crosses the October daylight-saving change
+        for hour in (9, 12, 16, 18):
+            at = days_ago(k, hour, now=pinned)
+            assert at.astimezone(LOCAL_TZ).date() == today - timedelta(days=k)
+            assert at.astimezone(LOCAL_TZ).hour == hour and at < pinned
+    t = earlier_today(pinned)
+    assert t.astimezone(LOCAL_TZ).date() == today and t < pinned - timedelta(minutes=1)
+    assert sd.due(5) == (today + timedelta(days=5)).isoformat()
 
 
 async def _login(client, email: str) -> dict[str, str]:
@@ -31,9 +67,11 @@ async def _login(client, email: str) -> dict[str, str]:
 
 
 async def test_minimal_seed_builds_consistent_demo_data(client, db):
+    # Pin the seeder's clock to 23:30 UTC (10:30 the next morning in Sydney), the time of day at which UTC
+    # and local calendar days disagree: the streak and due dates must still come out right.
     started = time.perf_counter()
-    summary = await runner.seed("minimal", api=Api(client), log=lambda *_a, **_k: None)
-    assert time.perf_counter() - started < 60
+    summary = await runner.seed("minimal", api=Api(client), log=lambda *_a, **_k: None, now=_last_utc(23, 30))
+    assert time.perf_counter() - started < 150  # generous: ~50 s on a loaded machine
     assert summary["counts"]["certificates"] >= 3
 
     # Organisations, plans, branding and the idempotency marker
@@ -97,12 +135,42 @@ async def test_minimal_seed_builds_consistent_demo_data(client, db):
     )
     assert bad == 0
 
+    # Timed attempts finish within their time limit; lesson positions are unique within a module; nobody
+    # was enrolled before their account existed; nobody logged in in the future (seeded tenants only: the
+    # test database is shared with the rest of the suite).
+    orgs = list(
+        (
+            await db.execute(
+                text(
+                    "SELECT DISTINCT ou.organisation_id FROM organisation_users ou "
+                    "JOIN users u ON u.id = ou.user_id WHERE u.email LIKE '%.demo'"
+                )
+            )
+        ).scalars()
+    )
+    for sql in (
+        "SELECT count(*) FROM assessment_attempts WHERE submitted_at > expires_at "
+        "AND organisation_id = ANY(:o)",
+        "SELECT count(*) FROM (SELECT module_id, position FROM lessons WHERE deleted_at IS NULL "
+        "AND organisation_id = ANY(:o) GROUP BY 1, 2 HAVING count(*) > 1) d",
+        "SELECT count(*) FROM enrolments e JOIN users u ON u.id = e.user_id "
+        "WHERE e.created_at < u.created_at AND e.organisation_id = ANY(:o)",
+        "SELECT count(*) FROM users u JOIN organisation_users ou ON ou.user_id = u.id "
+        "WHERE u.last_login_at > now() AND ou.organisation_id = ANY(:o)",
+        # An override reason is only given when the human grade really differs from the AI's.
+        "SELECT count(*) FROM grades h JOIN grades a ON a.target_id = h.target_id AND a.source = 'ai' "
+        "WHERE h.source = 'human' AND h.override_reason IS NOT NULL AND abs(h.score - a.score) <= 0.05 "
+        "AND h.organisation_id = ANY(:o)",
+    ):
+        assert await db.scalar(text(sql), {"o": orgs}) == 0, sql
+
     # Alex: an in-progress course due soon, a completed course with a valid certificate, a streak
     alex = next(u for u in users if u.email == "learner@northwind.demo")
     enrols = (await db.execute(select(Enrolment).where(Enrolment.user_id == alex.id))).scalars().all()
     it = next(e for e in enrols if e.course_id == course.id)
     assert it.status == "in_progress" and 30 < it.progress_pct < 100
-    assert date.today() < it.due_date <= date.today() + timedelta(days=7)
+    local = local_today()
+    assert local < it.due_date <= local + timedelta(days=7)
     assert any(e.status == "completed" for e in enrols)
     cert = await db.scalar(select(Certificate).where(Certificate.user_id == alex.id))
     r = await client.get(f"/api/v1/verify/{cert.certificate_number}")
@@ -143,6 +211,15 @@ async def test_minimal_seed_builds_consistent_demo_data(client, db):
         )
         >= 1
     )
+    # The AI recommendation's summary quotes the score that was persisted.
+    for score, summary in (
+        await db.execute(
+            select(Grade.score, Grade.summary).where(
+                Grade.organisation_id == nw.id, Grade.source == "ai", Grade.target_type == "submission"
+            )
+        )
+    ).all():
+        assert f"({score:g}/100)" in summary, (score, summary)
     cost = await db.scalar(select(func.sum(AIUsage.cost_usd)).where(AIUsage.organisation_id == nw.id))
     assert cost and float(cost) > 0.5
 

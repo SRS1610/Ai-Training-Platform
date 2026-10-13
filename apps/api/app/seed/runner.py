@@ -6,6 +6,7 @@ import asyncio
 import random
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -104,13 +105,18 @@ async def existing_seed() -> dict[str, Any] | None:
     return None
 
 
-async def seed(profile: str = "full", *, api: Any = None, log: Any = print) -> dict[str, Any]:
-    """Build the demo dataset in the configured database. Returns a summary."""
+async def seed(
+    profile: str = "full", *, api: Any = None, log: Any = print, now: datetime | None = None
+) -> dict[str, Any]:
+    """Build the demo dataset in the configured database. Returns a summary.
+
+    ``now`` pins the seeder's clock (history is laid out relative to it; tests use awkward times of day)."""
     from app.auth.bootstrap import ensure_rbac_catalogue
     from app.core.db import get_sessionmaker
     from app.seed.api import Api
     from app.seed.build import Seeder
-    from app.seed.history import billing_and_usage, finalise, mark_seeded
+    from app.seed.history import billing_and_usage, evaluate_badges, finalise, mark_seeded
+    from app.seed.timeline import Clock
     from app.workers import drain, run_task
 
     t0 = time.perf_counter()
@@ -121,10 +127,11 @@ async def seed(profile: str = "full", *, api: Any = None, log: Any = print) -> d
     own_api = api is None
     api = api or Api.in_process()
     try:
-        sd = Seeder(api, profile, log)
+        sd = Seeder(api, profile, log, clock=Clock(now))
         summary = await sd.run()
         t1 = time.perf_counter()
         stats = await finalise(sd.tl, sd.org_ids, sd.user_ids, sd.rng)
+        stats["badges_after_history"] = await evaluate_badges(sd.org_ids)
         nw_users = [lr.actor.user_id for lr in sd.learners.values()]
         stats.update(
             await billing_and_usage(
@@ -222,4 +229,7 @@ def print_summary(summary: dict[str, Any], log: Any = print) -> None:
     log("")
     c = summary.get("counts", {})
     log("Data: " + ", ".join(f"{k}={v}" for k, v in c.items()))
+    log("")
+    log("Note: learning history is backdated over ~90 days, but the audit log is append-only and")
+    log("hash-chained, so its entries all carry the time the seeder ran (today).")
     log("")

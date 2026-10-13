@@ -75,7 +75,6 @@ def heuristic_grade_submission(assignment: dict[str, Any], submission_text: str)
     ref_terms = _terms(reference)
     lf = _length_factor(submission_text)
     breakdown: list[dict[str, Any]] = []
-    weighted = 0.0
     total_w = 0.0
     strengths: list[str] = []
     weaknesses: list[str] = []
@@ -113,7 +112,6 @@ def heuristic_grade_submission(assignment: dict[str, Any], submission_text: str)
             weaknesses.append(f"{name}: little or no evidence.")
             improvements.append(f"Address {name.lower()} directly" + (f": {desc}" if desc else "."))
         weight = float(c.get("weight") or 1.0)
-        weighted += weight * frac
         total_w += weight
         breakdown.append(
             {
@@ -147,17 +145,28 @@ def heuristic_grade_submission(assignment: dict[str, Any], submission_text: str)
         if len(st) >= 2 and overlap(st, submission_text) < 0.2:
             missing.append(f"Instruction not clearly addressed: {step[:120]}")
 
-    pct = round(100.0 * weighted / total_w, 1) if total_w else 0.0
-    if missing:
-        pct = round(pct * max(0.6, 1 - 0.1 * len(missing)), 1)
+    # The overall score is the weighted rubric breakdown exactly as reported, accumulated the same way
+    # platforms recompute it (a plain running sum: ``sum()`` compensates float error and can round
+    # differently), so the persisted score, the breakdown and the summary below always agree. Missing
+    # requirements are listed for the reviewer rather than silently deducted from the score.
+    acc = 0.0
+    for r in breakdown:
+        acc += r["weight"] * (r["score"] / r["max"] if r["max"] else 0)
+    pct = round(100.0 * acc / total_w, 1) if total_w else 0.0
     band = "strong" if pct >= 80 else "solid" if pct >= 65 else "developing" if pct >= 40 else "insufficient"
     summary = (
-        f"Overall a {band} submission ({pct:.0f}/100). "
+        f"Overall {'an' if band[0] in 'aeiou' else 'a'} {band} submission ({pct:g}/100). "
         + (f"Strengths: {', '.join(s.split(':')[0] for s in strengths[:3])}. " if strengths else "")
         + (
             f"Focus next on: {', '.join(w.split(':')[0] for w in weaknesses[:3])}."
             if weaknesses
             else "Keep building depth and specific evidence."
+        )
+        + (
+            f" {len(missing)} requirement{'s' if len(missing) != 1 else ''} not clearly met; see the missing "
+            "requirements."
+            if missing
+            else ""
         )
     )
     return {
