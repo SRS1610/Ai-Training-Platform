@@ -27,7 +27,7 @@ import * as React from "react";
 import { DateRangePicker, daysAgo } from "@/components/admin/date-range";
 import { ak } from "@/components/admin/keys";
 import type { PlatformAnalytics } from "@/components/admin/types";
-import { BarList, SectionCard, plural, fmtBytes, fmtCents, fmtCompact, fmtNumber, fmtUsd, humanizeFeature } from "@/components/admin/ui";
+import { BarList, SectionCard, plural, fmtBytes, fmtCompact, fmtMoneyCompact, fmtNumber, fmtUsd, humanizeFeature } from "@/components/admin/ui";
 import { ErrorState } from "@/components/common/error-state";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -58,7 +58,16 @@ function MonthColumns({ data }: { data: { month: string; cents: number }[] }) {
 }
 
 function fmtCompactCents(cents: number) {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(cents / 100);
+  return fmtMoneyCompact(cents / 100);
+}
+
+/** KPI value that may shrink and wrap instead of clipping inside a narrow tile. */
+function Fit({ children, title }: { children: React.ReactNode; title?: string }) {
+  return (
+    <span className="block min-w-0 break-words [overflow-wrap:anywhere]" title={title}>
+      {children}
+    </span>
+  );
 }
 
 function ActivityTile({ icon: Icon, label, value, color }: { icon: typeof Activity; label: string; value: number; color: CategoryColor }) {
@@ -122,12 +131,12 @@ export function PlatformOverview() {
       </div>
 
       <section aria-label="Platform totals" className="stagger grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiTile label="Organisations" value={fmtNumber(d.organisations.total)} icon={<Building2 />} color="indigo" hint={`${d.organisations.active} active · ${d.organisations.suspended} suspended`} />
-        <KpiTile label="Users" value={fmtCompact(d.users.total)} icon={<UsersRound />} color="sky" hint={`${fmtNumber(d.users.active_30d)} active in 30d`} delta={d.users.new_in_range ? { value: `+${fmtNumber(d.users.new_in_range)}`, direction: "up" } : undefined} />
-        <KpiTile label="MRR (est.)" value={fmtCents(d.revenue.mrr_cents_estimate)} icon={<TrendingUp />} color="emerald" hint="Active & past-due subscriptions" />
-        <KpiTile label="Revenue in range" value={fmtCents(d.revenue.paid_in_range_cents)} icon={<DollarSign />} color="teal" hint={`${fmtCents(d.revenue.total_paid_cents)} all time`} />
-        <KpiTile label="Courses" value={fmtNumber(d.courses.total)} icon={<GraduationCap />} color="violet" hint={`${fmtNumber(d.courses.published)} published · ${fmtNumber(d.courses.ai_generated)} AI-built`} />
-        <KpiTile label="AI cost" value={fmtUsd(d.ai_usage.cost_usd)} icon={<Bot />} color="fuchsia" hint={`${fmtCompact(d.ai_usage.requests)} requests · ${fmtNumber(d.ai_usage.errors)} errors`} />
+        <KpiTile className="min-w-0" label="Organisations" value={fmtNumber(d.organisations.total)} icon={<Building2 />} color="indigo" hint={`${d.organisations.active} active · ${d.organisations.suspended} suspended`} />
+        <KpiTile className="min-w-0" label="Users" value={fmtCompact(d.users.total)} icon={<UsersRound />} color="sky" hint={`${fmtNumber(d.users.active_30d)} active in 30d`} delta={d.users.new_in_range ? { value: `+${fmtNumber(d.users.new_in_range)}`, direction: "up" } : undefined} />
+        <KpiTile className="min-w-0" label="MRR (est.)" value={<Fit>{fmtCompactCents(d.revenue.mrr_cents_estimate)}</Fit>} icon={<TrendingUp />} color="emerald" hint="Active & past-due subscriptions" />
+        <KpiTile className="min-w-0" label="Revenue in range" value={<Fit>{fmtCompactCents(d.revenue.paid_in_range_cents)}</Fit>} icon={<DollarSign />} color="teal" hint={`${fmtCompactCents(d.revenue.total_paid_cents)} all time`} />
+        <KpiTile className="min-w-0" label="Courses" value={fmtNumber(d.courses.total)} icon={<GraduationCap />} color="violet" hint={`${fmtNumber(d.courses.published)} published · ${fmtNumber(d.courses.ai_generated)} AI-built`} />
+        <KpiTile className="min-w-0" label="AI cost" value={<Fit>{fmtMoneyCompact(d.ai_usage.cost_usd)}</Fit>} icon={<Bot />} color="fuchsia" hint={`${fmtCompact(d.ai_usage.requests)} requests · ${fmtNumber(d.ai_usage.errors)} errors`} />
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -175,7 +184,7 @@ export function PlatformOverview() {
           <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
             <div className="rounded-xl bg-emerald-50 p-3">
               <dt className="text-xs font-medium text-emerald-800">ARR run-rate</dt>
-              <dd className="font-display text-lg font-bold tabular-nums text-slate-900">{fmtCents(d.revenue.mrr_cents_estimate * 12)}</dd>
+              <dd className="font-display text-lg font-bold tabular-nums text-slate-900">{fmtCompactCents(d.revenue.mrr_cents_estimate * 12)}</dd>
             </div>
             <div className="rounded-xl bg-sky-50 p-3">
               <dt className="text-xs font-medium text-sky-800">Paid all time</dt>
@@ -207,14 +216,14 @@ export function PlatformOverview() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <SectionCard title="AI cost by organisation" icon={Building2} color="fuchsia">
-          <BarList data={d.ai_usage.by_organisation.slice(0, 8).map((o) => ({ key: o.organisation_id, label: o.name, value: o.cost_usd, display: fmtUsd(o.cost_usd), hint: plural(o.requests, "request") }))} empty="No AI usage in range" />
+          <BarList data={d.ai_usage.by_organisation.slice(0, 8).map((o) => ({ key: o.organisation_id, label: o.name, value: o.cost_usd, display: fmtMoneyCompact(o.cost_usd), hint: plural(o.requests, "request") }))} empty="No AI usage in range" />
         </SectionCard>
         <SectionCard title="AI cost by feature" icon={Zap} color="violet">
           {d.ai_usage.by_feature.length ? (
             <DonutChart
               data={d.ai_usage.by_feature.map((f) => ({ name: humanizeFeature(f.feature), value: Number(f.cost_usd.toFixed(4)) }))}
               valueFormatter={(v) => fmtUsd(Number(v), { precise: true })}
-              centerLabel={fmtUsd(d.ai_usage.cost_usd)}
+              centerLabel={fmtMoneyCompact(d.ai_usage.cost_usd)}
               centerSub="total"
               height={170}
               className="sm:flex-col"
@@ -236,7 +245,7 @@ export function PlatformOverview() {
                     </p>
                   </div>
                   <span className="text-xs tabular-nums text-slate-500">{fmtNumber(m.requests)} req</span>
-                  <span className="w-20 text-right font-semibold tabular-nums text-slate-900">{fmtUsd(m.cost_usd)}</span>
+                  <span className="w-20 text-right font-semibold tabular-nums text-slate-900">{fmtMoneyCompact(m.cost_usd)}</span>
                 </li>
               ))}
             </ul>

@@ -50,6 +50,7 @@ export function fmtUsd(v: number | null | undefined, opts: { precise?: boolean }
   return new Intl.NumberFormat(undefined, {
     style: "currency",
     currency: "USD",
+    currencyDisplay: "narrowSymbol",
     minimumFractionDigits: precise ? 2 : 0,
     maximumFractionDigits: precise ? (Math.abs(v) < 1 && v !== 0 ? 4 : 2) : 0,
   }).format(v);
@@ -58,6 +59,21 @@ export function fmtUsd(v: number | null | undefined, opts: { precise?: boolean }
 export function fmtCents(cents: number | null | undefined, currency = "usd"): string {
   if (cents === null || cents === undefined) return "—";
   return new Intl.NumberFormat(undefined, { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
+}
+
+/**
+ * Compact money for KPI tiles: narrow symbol ("$145", "$43.8K", "$5.25") so values never clip in narrow tiles
+ * (some locales otherwise render "USD 145.00").
+ */
+export function fmtMoneyCompact(amount: number | null | undefined, currency = "usd"): string {
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return "—";
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    currencyDisplay: "narrowSymbol",
+    notation: "compact",
+    maximumFractionDigits: Math.abs(amount) < 100 ? 2 : 1,
+  }).format(amount);
 }
 
 export function fmtPct(v: number | null | undefined, digits = 0): string {
