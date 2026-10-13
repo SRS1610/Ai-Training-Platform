@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from app.auth.deps import Ctx, get_ctx, require_permission
 from app.core.pagination import Page, PageParams, page_params, paginate
 from app.models.assessment import Assessment, Question
+from app.modules.ai import policy as grading_policy
 from app.modules.assessments import service
 from app.modules.assessments.schemas import (
     AnswerIn,
@@ -179,7 +180,8 @@ async def delete_question(question_id: uuid.UUID, ctx: Ctx = Depends(MANAGE)) ->
 async def _detail(ctx: Ctx, a) -> AssessmentDetail:  # noqa: ANN001
     items = await service.get_items(ctx.db, a.id)
     return AssessmentDetail(
-        **AssessmentOut.model_validate(a).model_dump(),
+        **AssessmentOut.model_validate(a).model_dump(exclude={"effective_grading_mode"}),
+        effective_grading_mode=await grading_policy.assessment_mode(ctx.db, a),
         items=[ItemOut.model_validate(i) for i in items],
         question_count=await service.count_questions(ctx.db, ctx.org_id, items),
     )
@@ -195,6 +197,7 @@ async def review_queue(
     stmt = await service.review_queue(ctx, assessment_id, course_id)
     total = await ctx.db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
     rows = (await ctx.db.execute(stmt.limit(params.page_size).offset(params.offset))).all()
+    org_mode = await grading_policy.org_grading_mode(ctx.db, ctx.org_id)
     items = [
         ReviewQueueItem(
             attempt_id=att.id,
@@ -208,6 +211,12 @@ async def review_queue(
             pending_questions=int(pending or 0),
             high_stakes=a.high_stakes,
             grading_mode=a.grading_mode,
+            effective_grading_mode=grading_policy.effective_mode(
+                org_mode,
+                (att.settings_snapshot or {}).get("grading_mode"),
+                a.grading_mode,
+                high_stakes=bool(a.high_stakes or (att.settings_snapshot or {}).get("high_stakes")),
+            ),
         )
         for att, a, name, pending in rows
     ]

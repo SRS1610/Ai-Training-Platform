@@ -30,8 +30,15 @@ from app.models.assignment import (
 from app.models.content import Course, StoredFile
 from app.models.identity import User
 from app.models.learning import Enrolment, EnrolmentStatus
+from app.modules.ai import policy as grading_policy
 from app.modules.assignments import logic
-from app.modules.assignments.schemas import AssignmentCreate, AssignmentUpdate, DraftIn, HumanGradeIn
+from app.modules.assignments.schemas import (
+    AssignmentCreate,
+    AssignmentOut,
+    AssignmentUpdate,
+    DraftIn,
+    HumanGradeIn,
+)
 from app.workers import enqueue
 
 log = structlog.get_logger(__name__)
@@ -566,7 +573,9 @@ async def submit(ctx: Ctx, assignment_id: uuid.UUID) -> dict[str, Any]:
             "user_id": ctx.user_id,
         },
     )
-    if a.grading_mode in AI_MODES:
+    # The org-wide AI grading mode can only make grading stricter: under "manual" the submission waits
+    # in the grading queue for a person and no AI grade is produced.
+    if grading_policy.ai_may_grade(await grading_policy.assignment_mode(ctx.db, a)):
         await enqueue(
             "ai.grade_submission", db=ctx.db, submission_id=str(s.id), organisation_id=str(ctx.org_id)
         )
@@ -631,7 +640,8 @@ async def apply_grade(db: AsyncSession, submission: Submission, grade: Grade, *,
     this grade as the only final one, emits ``submission.graded`` and notifies the learner. Otherwise an AI
     grade moves the submission to ``ai_graded`` (recommendation awaiting a human).
 
-    Safeguards: AI grades are never final for ``ai_recommend_human_final`` / high-stakes assignments, and an
+    Safeguards: AI grades are never final unless the effective grading mode (the stricter of the org's AI
+    grading mode and the assignment's, with high stakes forcing a human decision) is ``ai_assisted``, and an
     AI grade never replaces an existing human final grade.
     """
     if grade not in db:
@@ -648,8 +658,8 @@ async def apply_grade(db: AsyncSession, submission: Submission, grade: Grade, *,
     if grade.source == GradeSource.AI:
         submission.ai_score = pct
         human_final = submission.status == SubmissionStatus.GRADED and submission.human_score is not None
-        human_required = assignment is not None and (
-            assignment.grading_mode == "ai_recommend_human_final" or assignment.high_stakes
+        human_required = assignment is not None and not grading_policy.ai_grade_is_final(
+            await grading_policy.assignment_mode(db, assignment)
         )
         if make_final and (human_final or human_required):
             make_final = False
@@ -814,9 +824,11 @@ async def grading_detail(ctx: Ctx, submission_id: uuid.UUID) -> dict[str, Any]:
     )
     versions = [await version_out(ctx.db, ctx.org_id, v) for v in reversed(await _versions(ctx.db, s.id))]
     ai = next((g for g in grades if g.source == GradeSource.AI and g.target_type == "submission"), None)
+    assignment = AssignmentOut.model_validate(a)
+    assignment.effective_grading_mode = await grading_policy.assignment_mode(ctx.db, a)
     return {
         "submission": await submission_out(ctx.db, s, a, released_only=False),
-        "assignment": a,
+        "assignment": assignment,
         "learner": {"id": learner.id, "full_name": learner.full_name, "email": learner.email},
         "versions": versions,
         "grades": grades,

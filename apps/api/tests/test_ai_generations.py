@@ -274,3 +274,64 @@ async def test_applied_rubric_weights_are_percentages(client):
     assert all(c["id"] and c["max_score"] > 0 for c in criteria)
     r = await client.patch(f"/api/v1/rubrics/{rubric_id}", headers=admin.headers, json={"criteria": criteria})
     assert r.status_code == 200, r.text
+
+
+async def _apply_course(client, admin, inputs=COURSE_INPUT):
+    gen = await generate(client, admin.headers, "course", inputs)
+    r = await client.post(f"/api/v1/ai/generations/{gen['id']}/approve", headers=admin.headers, json={})
+    assert r.status_code == 200, r.text
+    r = await client.post(f"/api/v1/ai/generations/{gen['id']}/apply", headers=admin.headers)
+    assert r.status_code == 200, r.text
+    return uuid.UUID(r.json()["entity_id"])
+
+
+async def test_applied_course_keeps_a_human_final_decision_for_certificate_work(client):
+    admin = await signup(client)
+    await set_plan(admin.org_id, "business")
+    cid = await _apply_course(client, admin)
+    async with bypass_session() as s:
+        assessments = (await s.scalars(select(Assessment).where(Assessment.course_id == cid))).all()
+        final = next(a for a in assessments if a.kind == "final")
+        asg = (await s.scalars(select(Assignment).where(Assignment.course_id == cid))).one()
+        practical = (
+            await s.scalars(select(Lesson).where(Lesson.course_id == cid, Lesson.lesson_type == "assignment"))
+        ).one()
+    # The final assessment and the practical both count toward the certificate.
+    assert final.high_stakes is True
+    assert all(not a.high_stakes for a in assessments if a.kind != "final")
+    assert final.grading_mode == "ai_recommend_human_final"  # it has long answers: AI only recommends
+    assert asg.grading_mode == "ai_recommend_human_final"
+    # The generated title already starts with "Practical:" — no doubled prefix.
+    assert practical.title == asg.title and asg.title.startswith("Practical: ")
+    assert not practical.title.startswith("Practical: Practical")
+
+
+async def test_applied_course_adopts_a_stricter_org_grading_mode(client):
+    admin = await signup(client)
+    await set_plan(admin.org_id, "business")
+    r = await client.put("/api/v1/ai/config", headers=admin.headers, json={"grading_mode": "manual"})
+    assert r.status_code == 200, r.text
+    cid = await _apply_course(client, admin)
+    async with bypass_session() as s:
+        asg = (await s.scalars(select(Assignment).where(Assignment.course_id == cid))).one()
+    assert asg.grading_mode == "manual"
+    r = await client.get(f"/api/v1/assignments/{asg.id}", headers=admin.headers)
+    assert r.json()["effective_grading_mode"] == "manual"
+
+
+async def test_practical_lesson_prefix_added_only_when_missing(client):
+    from app.modules.generations.apply import Applier
+
+    admin = await signup(client)
+    await set_plan(admin.org_id, "business")
+    gen = await generate(client, admin.headers, "course", COURSE_INPUT)
+    data = gen["output"]
+    data["assignments"][0]["title"] = "Restore the payments service"
+    async with bypass_session() as s:
+        course = await Applier(s, admin.org_id, admin.user_id).apply_course(data)
+        lesson = (
+            await s.scalars(
+                select(Lesson).where(Lesson.course_id == course.id, Lesson.lesson_type == "assignment")
+            )
+        ).one()
+        assert lesson.title == "Practical: Restore the payments service"

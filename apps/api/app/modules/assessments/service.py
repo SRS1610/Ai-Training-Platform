@@ -26,7 +26,6 @@ from app.models.assessment import (
     AssessmentItem,
     AttemptAnswer,
     AttemptStatus,
-    GradingMode,
     Question,
     QuestionBank,
 )
@@ -35,6 +34,7 @@ from app.models.content import Course
 from app.models.identity import User
 from app.models.learning import Enrolment, EnrolmentStatus
 from app.models.simulation import SimulationSession
+from app.modules.ai import policy as grading_policy
 from app.modules.assessments import grading
 from app.modules.assessments.schemas import (
     AssessmentCreate,
@@ -53,7 +53,6 @@ SUBMIT_GRACE = timedelta(seconds=60)  # submissions later than expiry + grace ar
 MAX_RESPONSE_BYTES = 100_000
 MAX_INTEGRITY_EVENTS = 1000
 STAFF_PERMS = ("assessments.manage", "submissions.review")
-AI_MODES = {GradingMode.AI_ASSISTED.value, GradingMode.AI_RECOMMEND_HUMAN_FINAL.value}
 
 
 def utcnow() -> datetime:
@@ -937,7 +936,9 @@ async def submit_attempt(
     att.submitted_at = now
     await db.flush()
     await finalize_attempt(db, att)
-    if att.status == AttemptStatus.NEEDS_REVIEW and settings_snap.get("grading_mode") in AI_MODES:
+    if att.status == AttemptStatus.NEEDS_REVIEW and grading_policy.ai_may_grade(
+        await grading_policy.attempt_mode(db, att, await db.get(Assessment, att.assessment_id))
+    ):
         await enqueue(
             "ai.grade_attempt_answers",
             db=db,

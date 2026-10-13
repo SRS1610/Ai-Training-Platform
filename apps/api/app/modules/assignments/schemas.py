@@ -141,6 +141,9 @@ class AssignmentOut(LearnerAssignmentOut):
     expected_output: str | None
     created_by: uuid.UUID | None
     ai_generated: bool
+    # Grading mode actually applied: the stricter of the org's AI grading mode and this item's mode
+    # (high stakes forces a human final decision). Staff views only.
+    effective_grading_mode: str | None = None
 
 
 # ----------------------------------------------------------------------------- submissions
@@ -281,6 +284,7 @@ class QueueItem(BaseModel):
     final_score: float | None = None
     passed: bool | None = None
     graded_at: datetime | None = None
+    effective_grading_mode: str | None = None
 
 
 class IntegritySignalOut(BaseModel):

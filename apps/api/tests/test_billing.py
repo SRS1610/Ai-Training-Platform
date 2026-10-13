@@ -123,6 +123,39 @@ async def _sub(org_id) -> Subscription:
         )
 
 
+def _limit_value(v):
+    return float("inf") if v is None else float(v)
+
+
+def test_plan_limits_are_monotonic_across_tiers():
+    from app.modules.billing.plans import PERSONAL_PLANS, PLANS, TIER_ORDER
+
+    assert set(TIER_ORDER) | set(PERSONAL_PLANS) == set(PLANS)
+    numeric = {
+        k for p in PLANS.values() for k, v in p.limits.items() if v is None or isinstance(v, int | float)
+    }
+    assert {"max_users", "max_courses", "max_simulations", "ai_monthly_budget_usd", "storage_gb"} <= numeric
+    for lower, higher in zip(TIER_ORDER, TIER_ORDER[1:], strict=False):
+        for key in numeric:
+            lo, hi = PLANS[lower].limits.get(key), PLANS[higher].limits.get(key)
+            assert _limit_value(hi) >= _limit_value(lo), f"{higher}.{key}={hi} < {lower}.{key}={lo}"
+        # a higher tier never loses a feature
+        for feat, on in PLANS[lower].features.items():
+            assert not on or PLANS[higher].features.get(feat), f"{higher} lacks {feat} that {lower} has"
+    # personal plans: one-person workspace, otherwise between Free and Professional
+    for code in PERSONAL_PLANS:
+        assert PLANS[code].limits["max_users"] == 1
+        for key in numeric - {"max_users"}:
+            v = _limit_value(PLANS[code].limits.get(key))
+            assert (
+                _limit_value(PLANS["free"].limits.get(key))
+                <= v
+                <= _limit_value(PLANS["professional"].limits.get(key))
+            ), key
+    # paid plans never allow fewer users than Free (except the one-person personal workspace)
+    assert PLANS["professional"].limits["max_users"] >= 10 > PLANS["free"].limits["max_users"]
+
+
 async def test_plans_public_and_subscription_view(client):
     r = await client.get(f"{API}/plans")
     assert r.status_code == 200

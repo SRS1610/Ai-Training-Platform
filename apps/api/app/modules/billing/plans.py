@@ -80,7 +80,7 @@ PLANS: dict[str, Plan] = {
         49000,
         False,
         {
-            "max_users": 3,
+            "max_users": 10,
             "max_courses": None,
             "ai_monthly_budget_usd": 50,
             "max_simulations": None,
@@ -150,6 +150,13 @@ PLANS: dict[str, Plan] = {
         },
     ),
 }
+
+
+# Upgrade ladder for organisations: each tier's numeric limits are >= the previous tier's (None = unlimited).
+TIER_ORDER: tuple[str, ...] = ("free", "professional", "business", "enterprise")
+# Personal plans sit beside the ladder: a one-person workspace (max_users is 1 by design) whose other limits
+# are between Free and Professional.
+PERSONAL_PLANS: tuple[str, ...] = ("individual",)
 
 
 def get_plan(code: str | None) -> Plan:

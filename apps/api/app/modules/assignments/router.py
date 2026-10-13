@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from app.auth.deps import Ctx, get_ctx, require_permission
 from app.core.pagination import Page, PageParams, page_params, paginate
 from app.models.assignment import Assignment, Rubric
+from app.modules.ai import policy as grading_policy
 from app.modules.assignments import service
 from app.modules.assignments.schemas import (
     AIRecommendation,
@@ -127,15 +128,21 @@ async def list_assignments(
     )
 
 
+async def _staff_out(ctx: Ctx, a: Assignment) -> AssignmentOut:
+    out = AssignmentOut.model_validate(a)
+    out.effective_grading_mode = await grading_policy.assignment_mode(ctx.db, a)
+    return out
+
+
 @assignments.post("", response_model=AssignmentOut, status_code=201)
-async def create_assignment(body: AssignmentCreate, ctx: Ctx = Depends(MANAGE)) -> Assignment:
-    return await service.create_assignment(ctx, body)
+async def create_assignment(body: AssignmentCreate, ctx: Ctx = Depends(MANAGE)) -> AssignmentOut:
+    return await _staff_out(ctx, await service.create_assignment(ctx, body))
 
 
 @assignments.get("/{assignment_id}", response_model=LearnerAssignmentOut | AssignmentOut)
 async def get_assignment(assignment_id: uuid.UUID, ctx: Ctx = Depends(get_ctx)) -> LearnerAssignmentOut:
     if ctx.can_any("assignments.manage", "submissions.review"):
-        return AssignmentOut.model_validate(await service.get_assignment(ctx, assignment_id))
+        return await _staff_out(ctx, await service.get_assignment(ctx, assignment_id))
     ctx.require("learning.access")
     a, _ = await service.learner_assignment(ctx, assignment_id)
     return LearnerAssignmentOut.model_validate(a)  # never includes expected_output
@@ -144,18 +151,21 @@ async def get_assignment(assignment_id: uuid.UUID, ctx: Ctx = Depends(get_ctx)) 
 @assignments.patch("/{assignment_id}", response_model=AssignmentOut)
 async def update_assignment(
     assignment_id: uuid.UUID, body: AssignmentUpdate, ctx: Ctx = Depends(MANAGE)
-) -> Assignment:
-    return await service.update_assignment(ctx, await service.get_assignment(ctx, assignment_id), body)
+) -> AssignmentOut:
+    a = await service.update_assignment(ctx, await service.get_assignment(ctx, assignment_id), body)
+    return await _staff_out(ctx, a)
 
 
 @assignments.post("/{assignment_id}/publish", response_model=AssignmentOut)
-async def publish_assignment(assignment_id: uuid.UUID, ctx: Ctx = Depends(MANAGE)) -> Assignment:
-    return await service.publish_assignment(ctx, await service.get_assignment(ctx, assignment_id))
+async def publish_assignment(assignment_id: uuid.UUID, ctx: Ctx = Depends(MANAGE)) -> AssignmentOut:
+    a = await service.publish_assignment(ctx, await service.get_assignment(ctx, assignment_id))
+    return await _staff_out(ctx, a)
 
 
 @assignments.post("/{assignment_id}/archive", response_model=AssignmentOut)
-async def archive_assignment(assignment_id: uuid.UUID, ctx: Ctx = Depends(MANAGE)) -> Assignment:
-    return await service.archive_assignment(ctx, await service.get_assignment(ctx, assignment_id))
+async def archive_assignment(assignment_id: uuid.UUID, ctx: Ctx = Depends(MANAGE)) -> AssignmentOut:
+    a = await service.archive_assignment(ctx, await service.get_assignment(ctx, assignment_id))
+    return await _staff_out(ctx, a)
 
 
 @assignments.delete("/{assignment_id}", status_code=204)
@@ -216,6 +226,7 @@ async def queue(
     total = await ctx.db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
     rows = (await ctx.db.execute(stmt.limit(params.page_size).offset(params.offset))).all()
     recs = await service.ai_recommendations(ctx.db, [s.id for s, *_ in rows])
+    org_mode = await grading_policy.org_grading_mode(ctx.db, ctx.org_id)
     items = []
     for s, a, name, flags in rows:
         g = recs.get(s.id)
@@ -247,6 +258,7 @@ async def queue(
                 final_score=s.final_score,
                 passed=s.passed,
                 graded_at=s.graded_at,
+                effective_grading_mode=await grading_policy.assignment_mode(ctx.db, a, org_mode=org_mode),
             )
         )
     return Page(items=items, total=int(total or 0), page=params.page, page_size=params.page_size)

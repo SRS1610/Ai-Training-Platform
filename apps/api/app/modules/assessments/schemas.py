@@ -201,6 +201,9 @@ class AssessmentOut(BaseModel):
     created_by: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
+    # Grading mode actually applied: the stricter of the org's AI grading mode and this item's mode
+    # (high stakes forces a human final decision). Staff views only.
+    effective_grading_mode: str | None = None
 
 
 class AssessmentDetail(AssessmentOut):
@@ -356,6 +359,7 @@ class ReviewQueueItem(BaseModel):
     pending_questions: int
     high_stakes: bool
     grading_mode: str
+    effective_grading_mode: str | None = None
 
 
 class QuestionStat(BaseModel):

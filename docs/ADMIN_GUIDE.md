@@ -255,7 +255,7 @@ Every generated report is written to the audit log with its filters and row coun
 | **Provider & model** | AI provider, chat model, embedding model, max output tokens. Provider API keys live **only in the server environment**. They're never stored in the app or shown in the browser. If the server has no key for the provider you pick, Praxis warns you. |
 | **Features** | Turn **AI tutor**, **Content generation**, **Simulation AI**, **AI grading** and **Recommendations** on or off for the whole organisation. |
 | **Tutor behaviour** | Tone (Precise ↔ Creative, or a custom tone), response language, **Knowledge-only mode** (answer strictly from course content and *approved* knowledge-base documents), **Cite sources** and **Socratic questioning**. |
-| **Grading mode** | **Manual only**, **AI-assisted** (AI scores and gives feedback, and assessors can override), or **AI recommends, human decides** (nothing is released until an assessor confirms). |
+| **Grading mode** | **Manual only**, **AI-assisted** (AI scores and gives feedback, and assessors can override), or **AI recommends, human decides** (nothing is released until an assessor confirms). It applies to every assignment and assessment: the stricter of this setting and the item's own grading mode wins, and high-stakes items always need a human decision. Under **Manual only** no AI grading runs at all. |
 | **Budget & limits** | **Monthly budget (USD)** (or use the plan's included budget), **Alert thresholds**, **Hard limit** (block AI requests once the budget is used up instead of only alerting) and **Requests per user per day**. |
 
 ### Usage
@@ -400,7 +400,7 @@ Certificates are issued automatically on course completion. Manual issue and rev
 
 | | Free | Individual | Professional | Business | Enterprise |
 |---|:-:|:-:|:-:|:-:|:-:|
-| Users | 5 | 1 | 3 | per seat | per seat / agreement |
+| Users | 5 | 1 (personal workspace) | 10 | per seat | per seat / agreement |
 | Courses | 3 | unlimited | unlimited | unlimited | unlimited |
 | Simulations | – | 5 | unlimited | unlimited | unlimited |
 | Included AI budget / month | $5 | $10 | $50 | $500 | agreement |

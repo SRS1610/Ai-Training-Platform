@@ -290,14 +290,20 @@ generation record for the simulation builder). Question formats map to the asses
   screened so the model answer is not leaked. Creates `Grade(source="ai", rubric_breakdown, strengths,
   weaknesses, missing_requirements, improvements, summary, confidence, ai_model, is_final=False)` then calls
   `assignments.service.apply_grade(db, submission, grade, make_final=…)` with
-  `make_final = grading_mode == "ai_assisted" and not high_stakes and not injection_flagged`. Injection
+  `make_final = effective_mode == "ai_assisted" and not injection_flagged`. Injection
   attempts in submissions cap confidence at 0.3 and force human review.
+* **Effective grading mode** (`app/modules/ai/policy.py`): the stricter of the organisation's AI settings
+  grading mode and the assignment's / assessment's own mode (`manual` > `ai_recommend_human_final` >
+  `ai_assisted`; an assessment's `auto` counts as `manual` for open-ended answers); `high_stakes` always forces
+  a human final decision. Under `manual` no AI job is queued and the tasks below create no AI grade; the work
+  waits in the grading / review queue. Staff assignment and assessment responses and both queues expose it
+  as `effective_grading_mode`.
 * `ai.grade_attempt_answers(attempt_id, organisation_id)`: grades answers whose type is not auto-graded
   and have no manual/AI score, using the frozen question snapshot (prompt, model answer/guidance,
   explanation, rubric criteria) → `AttemptAnswer.ai_score/ai_feedback` + `Grade(target_type=
-  "attempt_answer")`. For high-stakes or `ai_recommend_human_final` assessments (attempt settings snapshot
-  or live row) the attempt stays `needs_review`; otherwise `assessments.service.finalize_attempt(db,
-  attempt)` is called.
+  "attempt_answer")`. When the effective mode (org mode, attempt settings snapshot and live row, plus high
+  stakes) is `ai_recommend_human_final` the attempt stays `needs_review`; under `manual`/`auto` nothing is
+  AI-graded; otherwise `assessments.service.finalize_attempt(db, attempt)` is called.
 
 Contract functions are imported lazily and called by parameter name.
 

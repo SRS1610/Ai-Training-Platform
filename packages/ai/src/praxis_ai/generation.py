@@ -6,6 +6,7 @@ Every generation kind validates against a Pydantic model here before an instruct
 
 from __future__ import annotations
 
+import math
 import re
 import types
 import typing
@@ -322,11 +323,40 @@ def _topics(inp: GenerationInput, n: int) -> list[str]:
     return out
 
 
+def _lc(s: str) -> str:
+    """``s`` for use mid-sentence: first letter lower-cased unless it starts an acronym (``IT``, ``DNS``)."""
+    s = s.strip()
+    if len(s) > 1 and s[1].isupper():
+        return s
+    return s[:1].lower() + s[1:]
+
+
+def _industry(industry: str) -> str:
+    """Industry for mid-sentence use: acronyms kept (``IT``), other words lower-cased (``banking``)."""
+    return " ".join(w if len(w) > 1 and w.isupper() else w.lower() for w in industry.split())
+
+
 def _ctx(inp: GenerationInput) -> str:
     bits = [f"for {inp.audience}"]
     if inp.industry:
-        bits.append(f"in the {inp.industry} industry")
+        bits.append(f"in the {_industry(inp.industry)} industry")
     return " ".join(bits)
+
+
+def _workplace(inp: GenerationInput) -> str:
+    if inp.industry:
+        return f"a mid-sized organisation in the {_industry(inp.industry)} sector"
+    return "a mid-sized organisation"
+
+
+WORDS_PER_MINUTE = 200
+MIN_LESSON_MINUTES = 2
+
+
+def reading_minutes(*texts: str) -> int:
+    """Estimated reading time at ~200 words per minute (never less than two minutes)."""
+    words = sum(len((t or "").split()) for t in texts)
+    return max(MIN_LESSON_MINUTES, math.ceil(words / WORDS_PER_MINUTE))
 
 
 def _source_sentences(inp: GenerationInput, topic: str, k: int = 3) -> list[str]:
@@ -339,152 +369,443 @@ def _source_sentences(inp: GenerationInput, topic: str, k: int = 3) -> list[str]
     return [s for s in ranked[:k] if len(s) > 20]
 
 
-def build_lesson(inp: GenerationInput, topic: str, *, with_check: bool = True) -> dict[str, Any]:
+# Lesson "angles": the first lesson of a module is the overview (titled with the topic itself); further
+# lessons look at the same topic from a distinct, practical angle so titles and content are not repetitive.
+LESSON_ANGLES: list[dict[str, Any]] = [
+    {
+        "name": "a worked example",
+        "summary": "See {topic} applied step by step in a realistic {subj} situation.",
+        "intro": "Here you follow one realistic situation from first report to verified outcome, so you can "
+        "see {topic} applied end to end.",
+        "heading": "The situation, step by step",
+        "points": [
+            "1. **Report** — a user reports an urgent {subj} problem that is affecting their team.",
+            "2. **Investigate** — you confirm scope, impact and recent changes before touching anything.",
+            "3. **Diagnose** — you test the most likely hypothesis with the least disruptive check first.",
+            "4. **Resolve and verify** — you apply a minimal fix and confirm with the user that it worked.",
+            "5. **Record** — you document what happened so the next person can resolve it faster.",
+        ],
+    },
+    {
+        "name": "common pitfalls",
+        "summary": "Recognise and avoid the most common mistakes in {topic}.",
+        "intro": "Most problems with {topic} come from a handful of avoidable mistakes. This lesson shows "
+        "how to spot them early and what to do instead.",
+        "heading": "Pitfalls to avoid",
+        "points": [
+            "- **Acting before investigating** — a familiar fix applied without evidence often hides the "
+            "real cause.",
+            "- **Skipping verification** — a change that 'should' work is not a confirmed outcome.",
+            "- **Going quiet** — stakeholders who are not kept informed escalate and lose confidence.",
+            "- **No record** — without documentation the same {subj} issue is solved from scratch next time.",
+        ],
+    },
+    {
+        "name": "tools and checklists",
+        "summary": "Use a repeatable checklist to apply {topic} consistently.",
+        "intro": "Experienced practitioners rely on simple, repeatable checklists. This lesson gives you one "
+        "for {topic} that you can adapt to your own team.",
+        "heading": "A practical checklist",
+        "points": [
+            "- Scope, impact and urgency confirmed with the person reporting the problem.",
+            "- Recent changes and relevant logs reviewed.",
+            "- Hypothesis written down and tested with the least disruptive check.",
+            "- Fix applied, verified with the user and checked for side effects.",
+            "- Outcome and next steps documented and communicated.",
+        ],
+    },
+    {
+        "name": "handling complex cases",
+        "summary": "Handle {topic} when information is incomplete or the stakes are high.",
+        "intro": "Not every situation is straightforward. This lesson looks at {topic} when information is "
+        "incomplete, several teams are involved or the business impact is high.",
+        "heading": "When it gets harder",
+        "points": [
+            "- **Intermittent problems** — collect timestamps and patterns before drawing conclusions.",
+            "- **Several teams involved** — agree who owns the problem and who decides on changes.",
+            "- **High impact** — escalate early, communicate on a fixed schedule and keep a decision log.",
+        ],
+    },
+]
+
+
+def lesson_title(topic: str, angle: int) -> str:
+    if angle <= 0:
+        return topic
+    spec = LESSON_ANGLES[(angle - 1) % len(LESSON_ANGLES)]
+    cycle = (angle - 1) // len(LESSON_ANGLES)
+    return f"{topic}: {spec['name']}" + (f" (part {cycle + 1})" if cycle else "")
+
+
+def build_lesson(
+    inp: GenerationInput, topic: str, *, with_check: bool = True, angle: int = 0
+) -> dict[str, Any]:
     subj = inp.subject
+    lc = _lc(topic)
     grounded = _source_sentences(inp, topic)
-    body = [
-        f"# {topic}",
-        "",
-        f"This lesson introduces **{topic.lower()}** {_ctx(inp)}. By the end you will be able to explain why "
-        f"it matters, recognise it in day-to-day work and apply it confidently.",
-        "",
-        "## Why it matters",
-        f"Teams that understand {topic.lower()} resolve issues faster, communicate more clearly with "
-        f"stakeholders and make fewer costly mistakes. In {subj}, small misunderstandings here often cascade "
-        "into larger incidents.",
-        "",
-        "## Key ideas",
-        f"1. **Definition** — what {topic.lower()} means and the vocabulary used by practitioners.",
-        "2. **Process** — the typical sequence: identify, investigate, decide, act and verify.",
-        "3. **Signals** — the evidence that tells you something is going right or wrong.",
-        "4. **Communication** — how to document and explain your reasoning to others.",
-    ]
+    title = lesson_title(topic, angle)
+    if angle <= 0:
+        summary = f"Understand and apply {lc} {_ctx(inp)}."
+        body = [
+            f"# {title}",
+            "",
+            f"This lesson introduces **{lc}** {_ctx(inp)}. By the end you will be able to explain why "
+            "it matters, recognise it in day-to-day work and apply it confidently.",
+            "",
+            "## Why it matters",
+            f"Teams that understand {lc} resolve issues faster, communicate more clearly with "
+            f"stakeholders and make fewer costly mistakes. In {subj}, small misunderstandings here often "
+            "cascade into larger incidents.",
+            "",
+            "## Key ideas",
+            f"1. **Definition** — what {lc} means and the vocabulary used by practitioners.",
+            "2. **Process** — the typical sequence: identify, investigate, decide, act and verify.",
+            "3. **Signals** — the evidence that tells you something is going right or wrong.",
+            "4. **Communication** — how to document and explain your reasoning to others.",
+        ]
+    else:
+        spec = LESSON_ANGLES[(angle - 1) % len(LESSON_ANGLES)]
+        fmt = {"topic": lc, "subj": subj}
+        summary = spec["summary"].format(**fmt)
+        body = [
+            f"# {title}",
+            "",
+            spec["intro"].format(**fmt),
+            "",
+            f"## {spec['heading']}",
+            *[p.format(**fmt) for p in spec["points"]],
+        ]
     if grounded:
         body += ["", "## From your materials", *[f"> {s}" for s in grounded]]
+    if angle <= 0:
+        body += [
+            "",
+            "## Worked example",
+            f"A colleague reports a problem related to {subj}. Rather than guessing, you gather facts, form "
+            "a hypothesis, test it with the least disruptive check first, and record what you found.",
+        ]
     body += [
         "",
-        "## Worked example",
-        f"A colleague reports a problem related to {subj}. Rather than guessing, you gather facts, form a "
-        "hypothesis, test it with the least disruptive check first, and record what you found.",
-        "",
         "## Summary",
-        f"{topic} is a practical skill: ask good questions, use evidence, act safely and verify the outcome.",
+        f"{_title(topic)} is a practical skill: ask good questions, use evidence, act safely and verify the "
+        "outcome.",
     ]
+    examples = [
+        f"Example: applying {lc} when a customer reports an urgent {subj} issue.",
+        f"Example: reviewing a past {subj} incident to find what evidence was missed.",
+    ]
+    key_points = [
+        f"Use evidence before acting on {lc}.",
+        "Verify the outcome and document it.",
+        "Escalate early when impact or risk is high.",
+    ]
+    markdown = "\n".join(body)
     lesson: dict[str, Any] = {
-        "title": topic,
-        "summary": f"Understand and apply {topic.lower()} {_ctx(inp)}.",
-        "duration_minutes": 15,
-        "body_markdown": "\n".join(body),
-        "examples": [
-            f"Example: applying {topic.lower()} when a customer reports an urgent {subj} issue.",
-            f"Example: reviewing a past {subj} incident to find what evidence was missed.",
-        ],
-        "key_points": [
-            f"Use evidence before acting on {topic.lower()}.",
-            "Verify the outcome and document it.",
-            "Escalate early when impact or risk is high.",
-        ],
+        "title": title,
+        "summary": summary,
+        "duration_minutes": reading_minutes(markdown, *examples, *key_points),
+        "body_markdown": markdown,
+        "examples": examples,
+        "key_points": key_points,
         "case_study": None,
-        "knowledge_check": build_quiz(inp, [topic], count=2, title=f"Check: {topic}") if with_check else None,
+        "knowledge_check": build_quiz(inp, [topic], count=2, title=f"Check: {title}") if with_check else None,
     }
     return lesson
 
 
-def _questions_for(inp: GenerationInput, topic: str, idx: int, qtype: str) -> dict[str, Any]:
+# --------------------------------------------------------------------------- question variants
+# Each (topic, type, variant) combination yields a distinct question. Prompts carry the topic as a label so
+# they read correctly whether the topic is a noun phrase ("Foundations of DNS") or an objective
+# ("Triage incidents").
+
+_MC_VARIANTS: list[tuple[str, str, list[str], str]] = [
+    (
+        "Which approach best reflects good practice in {subj}?",
+        "Gather evidence, form a hypothesis and test it before changing anything",
+        [
+            "Apply the most common fix immediately without investigating",
+            "Wait for the problem to resolve itself",
+            "Escalate every issue without collecting any details",
+        ],
+        "Evidence-led investigation avoids unnecessary changes and finds the real cause.",
+    ),
+    (
+        "A new {subj} problem has just been reported. What should you do first?",
+        "Confirm the scope, the impact and any recent changes",
+        [
+            "Apply the fix that worked last time",
+            "Close the ticket and wait for the user to call back",
+            "Restart every affected system at once",
+        ],
+        "Understanding scope, impact and recent changes guides a safe, targeted response.",
+    ),
+    (
+        "How do you know that your {subj} work was successful?",
+        "The affected users confirm the outcome and you have checked for side effects",
+        [
+            "Nobody has complained for an hour",
+            "The change was applied without errors",
+            "A colleague agreed the fix looked right",
+        ],
+        "Only verification with the people affected, plus a check for side effects, confirms success.",
+    ),
+    (
+        "Why should you document your {subj} work as you go?",
+        "So colleagues can understand, repeat or audit what was done",
+        [
+            "Documentation is only needed when a fix fails",
+            "It is only required by auditors once a year",
+            "It replaces the need to verify the fix",
+        ],
+        "Clear records speed up future work and support accountability.",
+    ),
+]
+_MS_VARIANTS: list[tuple[str, list[str], list[str], str]] = [
+    (
+        "Select ALL good practices in {subj}.",
+        [
+            "Gather evidence, form a hypothesis and test it before changing anything",
+            "Document what you found and verify the outcome",
+        ],
+        [
+            "Apply the most common fix immediately without investigating",
+            "Wait for the problem to resolve itself",
+            "Escalate every issue without collecting any details",
+        ],
+        "Evidence-led investigation, verification and documentation are core practices.",
+    ),
+    (
+        "Select ALL the information worth collecting before you act on a new {subj} problem.",
+        [
+            "The scope and number of affected users",
+            "Recent changes to the systems involved",
+            "Relevant logs or error messages",
+        ],
+        ["The user's opinion of the support team", "Unrelated tickets from last year"],
+        "Scope, recent changes and logs point to the cause; opinions and unrelated history do not.",
+    ),
+]
+_TF_VARIANTS: list[tuple[str, bool, str]] = [
+    (
+        "In {subj}, decisions should be based on evidence gathered before taking action.",
+        True,
+        "Evidence-led work avoids unnecessary changes.",
+    ),
+    (
+        "In {subj}, it is best practice to skip verification once a fix is applied.",
+        False,
+        "Always verify the outcome; skipping verification hides unresolved problems.",
+    ),
+    (
+        "Documenting decisions helps colleagues handle similar {subj} issues later.",
+        True,
+        "Good records make future work faster and more consistent.",
+    ),
+    (
+        "In {subj}, the quickest fix should always be applied before any evidence is gathered.",
+        False,
+        "Acting without evidence often treats symptoms and hides the real cause.",
+    ),
+]
+_SA_VARIANTS: list[tuple[str, list[str], str]] = [
+    (
+        "In {subj}, name the step that confirms a fix actually worked.",
+        ["verification", "verify", "validation", "testing"],
+        "Verification/validation confirms the fix resolved the issue.",
+    ),
+    (
+        "In {subj}, what term describes the underlying reason a problem occurs?",
+        ["root cause", "root-cause", "the root cause"],
+        "The root cause is the underlying reason; fixing it prevents recurrence.",
+    ),
+    (
+        "In {subj}, what should you do early when the impact or risk of a problem is high?",
+        ["escalate", "escalation", "escalate it", "escalate early"],
+        "Early escalation brings the right people and authority in before impact grows.",
+    ),
+]
+_LONG_VARIANTS: list[tuple[str, str]] = [
+    (
+        "Explain, with an example from your workplace, how you would put this into practice in {subj}.",
+        "A strong answer explains the key ideas, then describes gathering evidence, choosing an action, "
+        "verifying the outcome and documenting it.",
+    ),
+    (
+        "Describe a situation in {subj} where this went wrong. What evidence would have helped, and what "
+        "would you do differently?",
+        "A strong answer identifies the missing evidence or untested assumption, explains its impact and "
+        "proposes a structured, verified approach.",
+    ),
+]
+_SCENARIO_VARIANTS: list[tuple[str, str]] = [
+    (
+        "Scenario: a stakeholder reports an urgent {subj} problem and wants it fixed immediately. Describe "
+        "your first three steps and how you would keep them informed.",
+        "A strong answer confirms scope and impact, investigates before changing anything, sets "
+        "expectations and agrees a time for the next update.",
+    ),
+    (
+        "Scenario: your first fix for the {subj} problem did not work and users are frustrated. What do "
+        "you do next?",
+        "A strong answer reverts or contains the change safely, revisits the evidence, tests a new "
+        "hypothesis and communicates honestly with users.",
+    ),
+]
+
+
+_GROUNDED_PER_TOPIC = 5
+# Upper bound on variants of any type (grounded fill-in-the-blanks come before the generic short answers).
+_MAX_VARIANTS = _GROUNDED_PER_TOPIC + max(
+    len(v)
+    for v in (_MC_VARIANTS, _MS_VARIANTS, _TF_VARIANTS, _SA_VARIANTS, _LONG_VARIANTS, _SCENARIO_VARIANTS)
+)
+
+
+def _key(prompt: str) -> str:
+    return " ".join(prompt.lower().split())
+
+
+def _labelled(prompt: str, topic: str) -> str:
+    return f"{prompt} (Topic: {_title(topic)})"
+
+
+def _question(inp: GenerationInput, topic: str, qtype: str, variant: int, rot: int) -> dict[str, Any] | None:
+    """Question ``variant`` of ``qtype`` about ``topic``, or None once that type has no more variants."""
     subj = inp.subject
-    grounded = _source_sentences(inp, topic, 5)
-    if qtype in ("short_answer", "fill_blank") and grounded:
-        sent = grounded[idx % len(grounded)]
-        terms = [t for t in keywords(sent, 5) if len(t) > 3]
-        if terms:
-            word = next(
-                (w for w in re.findall(r"[A-Za-z][A-Za-z\-]{3,}", sent) if w.lower().startswith(terms[0])),
-                terms[0],
-            )
-            return {
-                "type": "fill_blank" if qtype == "fill_blank" else "short_answer",
-                "prompt": "Complete the statement: "
-                + re.sub(re.escape(word), "_____", sent, count=1, flags=re.I),
-                "choices": [],
-                "answer_key": {"accepted": [word.lower()]},
-                "explanation": f"From the course material: “{sent}”",
-                "difficulty": 2,
-                "points": 1.0,
-            }
-    if qtype == "true_false":
-        value = idx % 2 == 0
-        statement = (
-            f"In {subj}, {topic.lower()} should be based on evidence gathered before taking action."
-            if value
-            else f"In {subj}, it is best practice to skip verification once a fix is applied."
-        )
-        return {
-            "type": "true_false",
-            "prompt": statement,
-            "choices": [],
-            "answer_key": {"value": value},
-            "explanation": "Evidence-led work and verification are core practices."
-            if value
-            else "Always verify the outcome; skipping verification hides unresolved problems.",
-            "difficulty": 1,
-            "points": 1.0,
-        }
+    fmt = {"subj": subj}
     if qtype in ("short_answer", "fill_blank"):
+        grounded = _source_sentences(inp, topic, _GROUNDED_PER_TOPIC)
+        if variant < len(grounded):
+            sent = grounded[variant]
+            terms = [t for t in keywords(sent, 5) if len(t) > 3]
+            if terms:
+                word = next(
+                    (
+                        w
+                        for w in re.findall(r"[A-Za-z][A-Za-z\-]{3,}", sent)
+                        if w.lower().startswith(terms[0])
+                    ),
+                    terms[0],
+                )
+                prompt = "Complete the statement: " + re.sub(
+                    re.escape(word), "_____", sent, count=1, flags=re.I
+                )
+                return {
+                    "type": "fill_blank" if qtype == "fill_blank" else "short_answer",
+                    "prompt": prompt,
+                    "_key": _key(prompt),
+                    "choices": [],
+                    "answer_key": {"accepted": [word.lower()]},
+                    "explanation": f"From the course material: “{sent}”",
+                    "difficulty": 2,
+                    "points": 1.0,
+                }
+            return None  # try the next variant (a later pass reaches the generic questions)
+        v = variant - len(grounded)
+        if v >= len(_SA_VARIANTS):
+            return None
+        prompt, accepted, why = _SA_VARIANTS[v]
         return {
             "type": "short_answer",
-            "prompt": f"Name the step that confirms a {subj} fix actually worked.",
+            "prompt": _labelled(prompt.format(**fmt), topic),
+            "_key": _key(prompt.format(**fmt)),
             "choices": [],
-            "answer_key": {"accepted": ["verification", "verify", "validation", "testing"]},
-            "explanation": "Verification/validation confirms the fix resolved the issue.",
+            "answer_key": {"accepted": accepted},
+            "explanation": why,
             "difficulty": 2,
             "points": 1.0,
         }
-    if qtype == "long_answer":
+    if qtype == "true_false":
+        if variant >= len(_TF_VARIANTS):
+            return None
+        statement, value, why = _TF_VARIANTS[variant]
         return {
-            "type": "long_answer",
-            "prompt": f"Explain, with an example from your workplace, how you would apply {topic.lower()}.",
+            "type": "true_false",
+            "prompt": _labelled(statement.format(**fmt), topic),
+            "_key": _key(statement.format(**fmt)),
             "choices": [],
-            "answer_key": {
-                "model_answer": f"A strong answer defines {topic.lower()}, describes "
-                "gathering evidence, choosing an action, verifying and documenting."
-            },
-            "explanation": "Look for definition, process, evidence, verification and communication.",
+            "answer_key": {"value": value},
+            "explanation": why,
+            "difficulty": 1,
+            "points": 1.0,
+        }
+    if qtype in ("long_answer", "scenario"):
+        variants = _LONG_VARIANTS if qtype == "long_answer" else _SCENARIO_VARIANTS
+        if variant >= len(variants):
+            return None
+        prompt, model = variants[variant]
+        return {
+            "type": qtype,
+            "prompt": _labelled(prompt.format(**fmt), topic),
+            "_key": _key(prompt.format(**fmt)),
+            "choices": [],
+            "answer_key": {"model_answer": model},
+            "explanation": "Look for evidence gathering, a clear decision, verification and communication.",
             "difficulty": 3,
             "points": 5.0,
         }
-    correct = f"Gather evidence, form a hypothesis and test it before changing anything ({topic.lower()})"
-    distractors = [
-        "Apply the most common fix immediately without investigating",
-        "Wait for the problem to resolve itself",
-        "Escalate every issue without collecting any details",
-    ]
-    rot = idx % 4
+    if qtype == "multiple_select":
+        if variant >= len(_MS_VARIANTS):
+            return None
+        prompt, correct, wrong, why = _MS_VARIANTS[variant]
+        texts = correct + wrong
+        shift = (rot + variant) % len(texts)
+        ordered = texts[shift:] + texts[:shift]
+        choices = [{"id": chr(97 + i), "text": t} for i, t in enumerate(ordered)]
+        return {
+            "type": "multiple_select",
+            "prompt": _labelled(prompt.format(**fmt), topic),
+            "_key": _key(prompt.format(**fmt)),
+            "choices": choices,
+            "answer_key": {"choice_ids": [c["id"] for c in choices if c["text"] in correct]},
+            "explanation": why,
+            "difficulty": 2,
+            "points": 1.0,
+        }
+    # multiple_choice (also the fallback for unknown types)
+    if variant >= len(_MC_VARIANTS):
+        return None
+    prompt, correct, distractors, why = _MC_VARIANTS[variant]
+    pos = (rot + variant) % (len(distractors) + 1)
     options = distractors[:]
-    options.insert(rot, correct)
-    choices = [{"id": chr(97 + i), "text": t} for i, t in enumerate(options)]
-    q: dict[str, Any] = {
+    options.insert(pos, correct)
+    return {
         "type": "multiple_choice",
-        "prompt": f"Which approach best reflects good practice for {topic.lower()} in {subj}?",
-        "choices": choices,
-        "answer_key": {"choice_ids": [chr(97 + rot)]},
-        "explanation": "Evidence-led investigation avoids unnecessary changes and finds the real cause.",
+        "prompt": _labelled(prompt.format(**fmt), topic),
+        "_key": _key(prompt.format(**fmt)),
+        "choices": [{"id": chr(97 + i), "text": t} for i, t in enumerate(options)],
+        "answer_key": {"choice_ids": [chr(97 + pos)]},
+        "explanation": why,
         "difficulty": 2,
         "points": 1.0,
     }
-    if qtype == "multiple_select":
-        q["type"] = "multiple_select"
-        choices.append({"id": "e", "text": "Document what you found and verify the outcome"})
-        q["answer_key"] = {"choice_ids": [chr(97 + rot), "e"]}
-        q["prompt"] = f"Select ALL good practices for {topic.lower()} in {subj}."
-    return q
 
 
 def build_quiz(
     inp: GenerationInput, topics: list[str], *, count: int | None = None, title: str | None = None
 ) -> dict[str, Any]:
+    """Up to ``count`` questions, every one distinct. Variants are visited type by type (so the first
+    questions mix the requested types) and labelled with the topics in turn; a question whose wording
+    (ignoring the topic label) was already used is skipped. When fewer unique questions exist than were
+    requested the quiz is capped at the unique ones instead of repeating questions."""
     n = count or inp.question_count
-    types_ = [t for t in inp.question_types if t in typing.get_args(QuestionKind)] or ["multiple_choice"]
-    qs = [_questions_for(inp, topics[i % len(topics)], i, types_[i % len(types_)]) for i in range(n)]
+    known = typing.get_args(QuestionKind)
+    types_ = list(dict.fromkeys(t for t in inp.question_types if t in known)) or ["multiple_choice"]
+    topics_ = list(dict.fromkeys(t for t in topics if t and t.strip())) or [_title(inp.subject)]
+    qs: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for variant in range(_MAX_VARIANTS):
+        for qtype in types_:
+            if len(qs) >= n:
+                break
+            q = _question(inp, topics_[len(qs) % len(topics_)], qtype, variant, rot=len(qs))
+            if q is None:
+                continue
+            key = q.pop("_key")
+            if key in seen:
+                continue
+            seen.add(key)
+            qs.append(q)
     return {
         "title": title or f"{_title(inp.subject)} quiz",
         "description": f"Check your understanding of {inp.subject}.",
@@ -543,12 +864,11 @@ def build_rubric(inp: GenerationInput, title: str | None = None) -> dict[str, An
 
 def build_assignment(inp: GenerationInput) -> dict[str, Any]:
     subj = inp.subject
-    industry = inp.industry or "a mid-sized organisation"
     return {
         "title": f"Practical: resolving a {subj} issue",
-        "scenario": f"You work {_ctx(inp)} at {industry}. A stakeholder reports an urgent {subj} "
-        "problem that is "
-        "affecting several users. Information is incomplete and the stakeholder is under pressure.",
+        "scenario": f"You are part of a team of {inp.audience} at {_workplace(inp)}. A stakeholder reports "
+        f"an urgent {subj} problem that is affecting several users. Information is incomplete and the "
+        "stakeholder is under pressure.",
         "objective": f"Demonstrate a structured, evidence-led approach to a realistic {subj} problem.",
         "instructions": "1. Describe how you would investigate, listing the evidence you would collect.\n"
         "2. State the most likely root cause and why.\n3. Describe the fix and how you will "
@@ -579,7 +899,7 @@ def build_flashcards(inp: GenerationInput, topics: list[str]) -> dict[str, Any]:
     for t in topics:
         cards.append(
             {
-                "front": f"What is the goal of {t.lower()}?",
+                "front": f"What is the goal of {_lc(t)}?",
                 "back": f"To apply {inp.subject} reliably: gather evidence, act safely, verify and document.",
             }
         )
@@ -605,7 +925,7 @@ def build_revision_notes(inp: GenerationInput, topics: list[str]) -> dict[str, A
             {
                 "heading": t,
                 "points": [
-                    f"Define {t.lower()} in your own words.",
+                    f"Define {_lc(t)} in your own words.",
                     "Use evidence before acting.",
                     "Verify outcomes and document decisions.",
                 ],
@@ -672,15 +992,12 @@ def build_scenario(inp: GenerationInput) -> dict[str, Any]:
 
 
 def build_module(inp: GenerationInput, title: str, week: int | None, n_lessons: int = 2) -> dict[str, Any]:
-    subs = [title] + [
-        f"{title}: applying it" if i == 1 else f"{title}: deeper dive {i}" for i in range(1, n_lessons)
-    ]
     return {
         "title": title,
-        "description": f"Module covering {title.lower()}.",
+        "description": f"Module covering {_lc(title)}.",
         "week": week,
-        "lessons": [build_lesson(inp, s, with_check=False) for s in subs],
-        "quiz": build_quiz(inp, subs, count=min(inp.question_count, 4), title=f"Quiz: {title}"),
+        "lessons": [build_lesson(inp, title, with_check=False, angle=i) for i in range(max(1, n_lessons))],
+        "quiz": build_quiz(inp, [title], count=min(inp.question_count, 4), title=f"Quiz: {title}"),
     }
 
 

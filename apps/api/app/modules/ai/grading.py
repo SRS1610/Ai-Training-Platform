@@ -3,10 +3,13 @@
 Results are stored as append-only ``Grade`` rows (source="ai") and handed to the owning modules through
 their contract functions:
 
-* ``app.modules.assignments.service.apply_grade`` — final only for ``grading_mode == "ai_assisted"`` and
-  not ``high_stakes`` (high-stakes AI grades are recommendations awaiting a human final grade);
+* ``app.modules.assignments.service.apply_grade`` — final only when the effective grading mode is
+  ``ai_assisted`` (high-stakes / human-final AI grades are recommendations awaiting a human final grade);
 * ``app.modules.assessments.service.finalize_attempt`` — skipped for high-stakes / human-final
   assessments, which are left in ``needs_review``.
+
+The effective mode is the stricter of the organisation's AI grading mode and the item's own mode (see
+``app.modules.ai.policy``); under ``manual`` no AI grading happens at all.
 """
 
 from __future__ import annotations
@@ -33,7 +36,7 @@ from app.models.assessment import (
 )
 from app.models.assignment import Assignment, Grade, Rubric, Submission, SubmissionStatus, SubmissionVersion
 from app.models.content import StoredFile
-from app.modules.ai import gateway
+from app.modules.ai import gateway, policy
 
 log = structlog.get_logger(__name__)
 
@@ -263,6 +266,11 @@ async def grade_submission(
     assignment = await db.get(Assignment, sub.assignment_id)
     if assignment is None:
         return None
+    mode = await policy.assignment_mode(db, assignment)
+    if not policy.ai_may_grade(mode):
+        # Manual grading (org-wide or for this assignment): no AI grade; the submission waits for a person.
+        log.info("ai.grade_submission.skipped_manual", submission_id=str(sub.id), mode=mode)
+        return None
     version = await db.scalar(
         select(SubmissionVersion)
         .where(SubmissionVersion.submission_id == sub.id)
@@ -395,9 +403,7 @@ async def grade_submission(
     )
     db.add(grade)
     await db.flush()
-    make_final = (
-        assignment.grading_mode == "ai_assisted" and not assignment.high_stakes and not injection.flagged
-    )
+    make_final = policy.ai_grade_is_final(mode) and not injection.flagged
     try:
         from app.modules.assignments.service import apply_grade
     except ImportError:
@@ -457,6 +463,11 @@ async def grade_attempt_answers(
         return []
     assessment = await db.get(Assessment, attempt.assessment_id)
     if assessment is None:
+        return []
+    mode = await policy.attempt_mode(db, attempt, assessment)
+    if not policy.ai_may_grade(mode):
+        # Manual grading: open-ended answers are left for a person (the attempt stays in needs_review).
+        log.info("ai.grade_attempt_answers.skipped_manual", attempt_id=str(attempt.id), mode=mode)
         return []
     snapshot = {
         str(_q_get(q, "id", "question_id")): q
@@ -580,17 +591,7 @@ async def grade_attempt_answers(
         grades.append(g)
         graded_any = True
     await db.flush()
-    snap_settings = attempt.settings_snapshot or {}  # frozen at attempt start; falls back to the live row
-    high_stakes = bool(snap_settings.get("high_stakes", assessment.high_stakes)) or bool(
-        assessment.high_stakes
-    )
-    mode = snap_settings.get("grading_mode") or assessment.grading_mode
-    human_final = (
-        high_stakes
-        or mode == "ai_recommend_human_final"
-        or assessment.grading_mode == "ai_recommend_human_final"
-    )
-    if human_final:
+    if not policy.ai_grade_is_final(mode):  # high stakes / human final: AI scores are recommendations
         if attempt.status not in (AttemptStatus.GRADED,):
             attempt.status = AttemptStatus.NEEDS_REVIEW
         await db.flush()

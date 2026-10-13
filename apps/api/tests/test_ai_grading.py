@@ -5,13 +5,15 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
+import pytest
 from sqlalchemy import select
 
 from app.core.storage import get_storage
 from app.models.assessment import Assessment, AssessmentAttempt, AttemptAnswer
 from app.models.assignment import Assignment, Grade, Rubric, Submission, SubmissionVersion
 from app.models.content import LearnerSkill, StoredFile
-from app.workers import run_task
+from app.modules.ai import policy
+from app.workers import drain, run_task
 from tests.ai_helpers import bypass_session, make_skill
 from tests.factories import add_member, signup
 
@@ -318,3 +320,235 @@ async def test_attempt_grading_calls_contract_with_monkeypatch(client, monkeypat
         )
         is None
     )
+
+
+# --------------------------------------------------------------------------- org-wide grading mode policy
+
+MODES = ["ai_assisted", "ai_recommend_human_final", "manual"]
+RANK = {"ai_assisted": 0, "ai_recommend_human_final": 1, "manual": 2, "auto": 2}
+
+
+def _expected(org_mode: str, item_mode: str, high_stakes: bool = False) -> str:
+    mode = item_mode if RANK[item_mode] >= RANK[org_mode] else org_mode
+    if high_stakes and RANK[mode] < 1:
+        mode = "ai_recommend_human_final"
+    return mode
+
+
+async def set_org_grading_mode(client, admin, mode: str) -> None:
+    r = await client.put("/api/v1/ai/config", headers=admin.headers, json={"grading_mode": mode})
+    assert r.status_code == 200 and r.json()["grading_mode"] == mode, r.text
+
+
+@pytest.mark.parametrize("high_stakes", [False, True])
+@pytest.mark.parametrize("item_mode", [*MODES, "auto"])
+@pytest.mark.parametrize("org_mode", MODES)
+def test_effective_mode_is_the_stricter(org_mode, item_mode, high_stakes):
+    got = policy.effective_mode(org_mode, item_mode, high_stakes=high_stakes)
+    expected = _expected(org_mode, item_mode, high_stakes)
+    assert RANK[got] == RANK[expected]
+    if item_mode == "auto" and org_mode != "manual":
+        assert got == "auto"
+    assert policy.ai_grade_is_final(got) == (got == "ai_assisted")
+    assert policy.ai_may_grade(got) == (got in ("ai_assisted", "ai_recommend_human_final"))
+    # unset org config behaves as ai_assisted; unknown modes are treated as manual (fail safe)
+    assert policy.effective_mode(None, item_mode) == item_mode
+    assert policy.effective_mode("bogus", "ai_assisted") == "manual"
+
+
+@pytest.mark.parametrize("item_mode", MODES)
+@pytest.mark.parametrize("org_mode", MODES)
+async def test_submission_grading_applies_stricter_of_org_and_assignment_mode(client, org_mode, item_mode):
+    admin = await signup(client)
+    learner = await add_member(admin.org_id, "learner")
+    await set_org_grading_mode(client, admin, org_mode)
+    sid = await make_submission(admin.org_id, learner.user_id, mode=item_mode)
+    grade_id = await run_task(
+        "ai.grade_submission", submission_id=str(sid), organisation_id=str(admin.org_id)
+    )
+    async with bypass_session() as s:
+        sub = await s.get(Submission, sid)
+        grades = (
+            await s.scalars(select(Grade).where(Grade.target_type == "submission", Grade.target_id == sid))
+        ).all()
+    expected = _expected(org_mode, item_mode)
+    if expected == "manual":  # no AI grading at all: waits for a person
+        assert grade_id is None and grades == []
+        assert sub.status == "submitted" and sub.ai_score is None and sub.final_score is None
+    elif expected == "ai_recommend_human_final":  # AI recommendation awaiting a human decision
+        assert len(grades) == 1 and grades[0].source == "ai" and grades[0].is_final is False
+        assert sub.status == "ai_graded" and sub.final_score is None and sub.ai_score is not None
+    else:
+        assert len(grades) == 1 and grades[0].source == "ai" and grades[0].is_final is True
+        assert sub.status == "graded" and sub.final_score == grades[0].score
+
+
+@pytest.mark.parametrize("org_mode", MODES)
+async def test_high_stakes_submission_never_ai_final_whatever_the_org_mode(client, org_mode):
+    admin = await signup(client)
+    learner = await add_member(admin.org_id, "learner")
+    await set_org_grading_mode(client, admin, org_mode)
+    sid = await make_submission(admin.org_id, learner.user_id, high_stakes=True)
+    await run_task("ai.grade_submission", submission_id=str(sid), organisation_id=str(admin.org_id))
+    async with bypass_session() as s:
+        sub = await s.get(Submission, sid)
+        grades = (await s.scalars(select(Grade).where(Grade.target_id == sid))).all()
+    assert sub.final_score is None and not any(g.is_final for g in grades)
+    assert sub.status == ("submitted" if org_mode == "manual" else "ai_graded")
+
+
+async def test_apply_grade_contract_respects_org_mode(client):
+    from app.modules.assignments.service import apply_grade
+
+    admin = await signup(client)
+    learner = await add_member(admin.org_id, "learner")
+    await set_org_grading_mode(client, admin, "ai_recommend_human_final")
+    sid = await make_submission(admin.org_id, learner.user_id, mode="ai_assisted")
+    async with bypass_session() as s:
+        sub = await s.get(Submission, sid)
+        g = Grade(
+            organisation_id=admin.org_id,
+            target_type="submission",
+            target_id=sid,
+            source="ai",
+            score=90.0,
+            max_score=100.0,
+            is_final=False,
+        )
+        await apply_grade(s, sub, g, make_final=True)  # caller asks for final; policy says no
+        assert g.is_final is False and sub.status == "ai_graded" and sub.final_score is None
+
+
+@pytest.mark.parametrize("item_mode", [*MODES, "auto"])
+@pytest.mark.parametrize("org_mode", MODES)
+async def test_open_ended_answer_grading_applies_stricter_mode(client, org_mode, item_mode):
+    admin = await signup(client)
+    learner = await add_member(admin.org_id, "learner")
+    await set_org_grading_mode(client, admin, org_mode)
+    att_id = await make_attempt(admin.org_id, learner.user_id, mode=item_mode)
+    grade_ids = await run_task(
+        "ai.grade_attempt_answers", attempt_id=str(att_id), organisation_id=str(admin.org_id)
+    )
+    async with bypass_session() as s:
+        att = await s.get(AssessmentAttempt, att_id)
+        answers = (await s.scalars(select(AttemptAnswer).where(AttemptAnswer.attempt_id == att_id))).all()
+        long_ans = next(a for a in answers if a.auto_score is None)
+        grades = (
+            await s.scalars(
+                select(Grade).where(Grade.target_type == "attempt_answer", Grade.target_id == long_ans.id)
+            )
+        ).all()
+    expected = _expected(org_mode, item_mode)
+    if expected in ("manual", "auto"):
+        assert grade_ids == [] and grades == []
+        assert long_ans.ai_score is None and long_ans.final_score is None and att.status == "needs_review"
+    elif expected == "ai_recommend_human_final":
+        assert len(grades) == 1 and not grades[0].is_final and long_ans.ai_score is not None
+        assert long_ans.final_score is None and att.status == "needs_review"
+    else:
+        assert len(grades) == 1 and long_ans.final_score == long_ans.ai_score and att.status == "graded"
+
+
+@pytest.mark.parametrize("org_mode", MODES)
+async def test_submitted_attempt_enqueues_ai_grading_only_when_allowed(client, monkeypatch, org_mode):
+    import app.modules.assessments.service as assessments_service
+
+    queued = []
+
+    async def fake_enqueue(name, **kw):  # noqa: ANN001, ANN003
+        queued.append(name)
+
+    monkeypatch.setattr(assessments_service, "enqueue", fake_enqueue)
+    admin = await signup(client)
+    learner = await add_member(admin.org_id, "learner")
+    await set_org_grading_mode(client, admin, org_mode)
+    att_id = await make_attempt(admin.org_id, learner.user_id, mode="ai_assisted")
+    async with bypass_session() as s:
+        att = await s.get(AssessmentAttempt, att_id)
+        att.status = "in_progress"
+        att.submitted_at = None
+        att.expires_at = None
+        await s.flush()
+        await assessments_service.submit_attempt(s, att)
+        assert att.status == "needs_review"  # the open-ended answer still needs grading
+    assert queued == ([] if org_mode == "manual" else ["ai.grade_attempt_answers"])
+
+
+async def test_manual_org_mode_submit_waits_in_queue_and_exposes_effective_mode(client):
+    from tests.assess_helpers import API, enrol
+    from tests.assess_helpers import make_course as make_published_course
+
+    admin = await signup(client)
+    learner = await add_member(admin.org_id, "learner")
+    course_id, version_id = await make_published_course(admin.org_id, instructor_id=admin.user_id)
+    await enrol(admin.org_id, learner.user_id, course_id, version_id)
+    r = await client.post(
+        f"{API}/rubrics",
+        json={
+            "title": "Outage rubric",
+            "criteria": [{**CRITERIA[0], "weight": 40}, {**CRITERIA[1], "weight": 60}],
+        },
+        headers=admin.headers,
+    )
+    assert r.status_code == 201, r.text
+    r = await client.post(
+        f"{API}/assignments",
+        headers=admin.headers,
+        json={
+            "title": "Resolve the outage",
+            "course_id": str(course_id),
+            "rubric_id": r.json()["id"],
+            "instructions": "Investigate, fix and verify.",
+            "grading_mode": "ai_assisted",
+            "required_evidence": [{"id": "analysis", "label": "Written analysis", "type": "text"}],
+        },
+    )
+    assert r.status_code == 201, r.text
+    aid = r.json()["id"]
+    assert r.json()["effective_grading_mode"] == "ai_assisted"
+    assert (await client.post(f"{API}/assignments/{aid}/publish", headers=admin.headers)).status_code == 200
+    await set_org_grading_mode(client, admin, "manual")
+    staff = (await client.get(f"{API}/assignments/{aid}", headers=admin.headers)).json()
+    assert staff["grading_mode"] == "ai_assisted" and staff["effective_grading_mode"] == "manual"
+    mine = (await client.get(f"{API}/assignments/{aid}", headers=learner.headers)).json()
+    assert "effective_grading_mode" not in mine and "expected_output" not in mine
+
+    r = await client.put(
+        f"{API}/assignments/{aid}/submission", json={"text_content": GOOD}, headers=learner.headers
+    )
+    assert r.status_code == 200, r.text
+    r = await client.post(f"{API}/assignments/{aid}/submission/submit", headers=learner.headers)
+    assert r.status_code == 200, r.text
+    sid = r.json()["id"]
+    await drain()
+    async with bypass_session() as s:
+        sub = await s.get(Submission, uuid.UUID(sid))
+        grades = (await s.scalars(select(Grade).where(Grade.target_id == sub.id))).all()
+    assert grades == [] and sub.status == "submitted" and sub.final_score is None
+    queue = (await client.get(f"{API}/grading/queue", headers=admin.headers)).json()["items"]
+    item = next(i for i in queue if i["submission_id"] == sid)
+    assert item["effective_grading_mode"] == "manual" and item["ai_recommendation"] is None
+    detail = (await client.get(f"{API}/grading/submissions/{sid}", headers=admin.headers)).json()
+    assert detail["assignment"]["effective_grading_mode"] == "manual"
+
+
+async def test_assessment_detail_exposes_effective_grading_mode(client):
+    admin = await signup(client)
+    async with bypass_session() as s:
+        a = Assessment(
+            organisation_id=admin.org_id,
+            title="Final",
+            grading_mode="ai_assisted",
+            high_stakes=True,
+            status="draft",
+        )
+        s.add(a)
+        await s.flush()
+        aid = a.id
+    r = await client.get(f"/api/v1/assessments/{aid}", headers=admin.headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["grading_mode"] == "ai_assisted"
+    assert r.json()["effective_grading_mode"] == "ai_recommend_human_final"
+    await set_org_grading_mode(client, admin, "manual")
+    r = await client.get(f"/api/v1/assessments/{aid}", headers=admin.headers)
+    assert r.json()["effective_grading_mode"] == "manual"

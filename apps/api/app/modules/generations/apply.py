@@ -15,6 +15,7 @@ from app.models.assessment import Assessment, AssessmentItem, Question, Question
 from app.models.assignment import Assignment, Rubric
 from app.models.content import Activity, Course, CourseModule, CourseStatus, Lesson
 from app.models.simulation import Simulation
+from app.modules.ai import policy as grading_policy
 from app.modules.assignments.logic import normalise_criteria
 
 DIFFICULTIES = {"beginner", "intermediate", "advanced", "expert"}
@@ -173,6 +174,9 @@ class Applier:
                 pass_percentage=float(quiz.get("pass_percentage", 70)),
                 status="draft",
                 grading_mode="auto",
+                # A final assessment counts toward the certificate: a person makes the final decision on
+                # anything AI-graded in it.
+                high_stakes=kind == "final",
                 created_by=self.user_id,
                 shuffle_questions=kind != "final",
             ),
@@ -211,7 +215,9 @@ class Applier:
                 )
             )
         if open_ended:
-            assessment.grading_mode = "ai_assisted"
+            assessment.grading_mode = (
+                grading_policy.HUMAN_FINAL if assessment.high_stakes else grading_policy.AI_ASSISTED
+            )
         await self.db.flush()
         return assessment
 
@@ -254,7 +260,17 @@ class Applier:
         await self.db.flush()
         return rubric
 
-    async def assignment(self, a: dict[str, Any], *, course_id: uuid.UUID | None) -> Assignment:
+    async def assignment(
+        self,
+        a: dict[str, Any],
+        *,
+        course_id: uuid.UUID | None,
+        grading_mode: str = grading_policy.AI_ASSISTED,
+    ) -> Assignment:
+        """``grading_mode`` is tightened to the organisation's AI grading mode when that is stricter."""
+        mode = grading_policy.stricter(
+            grading_mode, await grading_policy.org_grading_mode(self.db, self.org_id)
+        )
         rubric = await self.rubric(a["rubric"])
         asg = self._add(
             Assignment(
@@ -269,7 +285,7 @@ class Applier:
                 evaluation_criteria=a.get("evaluation_criteria") or None,
                 rubric_id=rubric.id,
                 passing_score=float(a.get("passing_score", 70)),
-                grading_mode="ai_assisted",
+                grading_mode=mode,
                 status="draft",
                 created_by=self.user_id,
                 ai_generated=True,
@@ -481,13 +497,17 @@ class Applier:
             target = modules[-1]
             pos = await self.next_lesson_position(target.id)
             for a in data["assignments"]:
-                asg = await self.assignment(a, course_id=course.id)
+                # The course's practical counts toward the certificate: AI recommends, a person decides.
+                asg = await self.assignment(a, course_id=course.id, grading_mode=grading_policy.HUMAN_FINAL)
+                title = a["title"].strip()
+                if not title.lower().startswith("practical"):
+                    title = f"Practical: {title}"
                 self._add(
                     Lesson(
                         organisation_id=self.org_id,
                         course_id=course.id,
                         module_id=target.id,
-                        title=f"Practical: {a['title']}"[:255],
+                        title=title[:255],
                         lesson_type="assignment",
                         content=self._validated("assignment", {}),
                         duration_minutes=45,
