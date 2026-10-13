@@ -113,6 +113,22 @@ TRUSTED_PROXY_HOPS="${TRUSTED_PROXY_HOPS:-1}"
 API_IMAGE="$REGISTRY/praxis-api:$IMAGE_TAG"
 WEB_IMAGE="$REGISTRY/praxis-web:$IMAGE_TAG"
 
+# Catch placeholder or mistyped DNS settings before anything is created.
+case "$DOMAIN" in
+  *yourdomain.com|*example.com|*example.org|*example.net) die "DOMAIN=$DOMAIN is a placeholder: use a domain you own" ;;
+esac
+if [[ -n "${HOSTED_ZONE_ID:-}" ]]; then
+  HOSTED_ZONE_ID="${HOSTED_ZONE_ID#/hostedzone/}"
+  zone_name="$(aws route53 get-hosted-zone --id "$HOSTED_ZONE_ID" --query HostedZone.Name --output text 2>/dev/null)" || {
+    warn "no Route 53 hosted zone with ID $HOSTED_ZONE_ID in this AWS account. Your hosted zones:"
+    aws route53 list-hosted-zones --query 'HostedZones[].[Id,Name]' --output text 2>/dev/null | sed 's#/hostedzone/##; s/^/      /' >&2 || true
+    die "set HOSTED_ZONE_ID to the zone that contains $DOMAIN, or leave it out to add the DNS records yourself"
+  }
+  zone_name="${zone_name%.}"
+  [[ "$DOMAIN" == "$zone_name" || "$DOMAIN" == *".$zone_name" ]] \
+    || die "$DOMAIN is not inside hosted zone $HOSTED_ZONE_ID ($zone_name)"
+fi
+
 bold "Praxis deployment plan"
 info "Environment   $ENVIRONMENT"
 info "AWS account   $ACCOUNT_ID ($CALLER)"
