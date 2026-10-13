@@ -30,7 +30,7 @@ import {
 import { EmptyState, type EmptyStateProps } from "./empty-state";
 import { Skeleton } from "./feedback";
 import { Pagination } from "./pagination";
-import { SortableHeader, Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "./table";
+import { SortableHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 
 export type { ColumnDef, SortingState, PaginationState };
 
@@ -267,17 +267,7 @@ export function DataTable<T>({
                 ))}
               </TableRow>
             ))
-          ) : rows.length === 0 ? (
-            <TableEmpty colSpan={colCount}>
-              <EmptyState
-                size="sm"
-                illustration="search"
-                title={empty?.title ?? "Nothing here yet"}
-                description={empty?.description ?? "When there is data it will show up here."}
-                action={empty?.action}
-              />
-            </TableEmpty>
-          ) : (
+          ) : rows.length === 0 ? null : (
             rows.map((row) => (
               <TableRow
                 key={row.id}
@@ -298,6 +288,18 @@ export function DataTable<T>({
           )}
         </TableBody>
       </Table>
+      {/* Rendered outside the horizontal scroll container so it stays centred and unclipped on narrow screens. */}
+      {!loading && rows.length === 0 && (
+        <div className="border-t border-slate-100 px-4 py-10">
+          <EmptyState
+            size="sm"
+            illustration="search"
+            title={empty?.title ?? "Nothing here yet"}
+            description={empty?.description ?? "When there is data it will show up here."}
+            action={empty?.action}
+          />
+        </div>
+      )}
       {count > pagination.pageSize && (
         <div className="border-t border-slate-100 p-3 sm:px-4">
           <Pagination

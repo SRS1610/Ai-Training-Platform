@@ -59,11 +59,11 @@ export function MemberStats() {
   });
   const v = (q: { data?: { total: number }; isLoading: boolean }) => (q.isLoading ? "…" : (q.data?.total ?? "—"));
   return (
-    <section aria-label="Member statistics" className="stagger grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+    <section aria-label="Member statistics" className={cn("stagger grid grid-cols-2 gap-3 sm:gap-4", can("users.create") ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
       <KpiTile label="Members" value={v(total)} icon={<UsersRound />} color="sky" hint="Everyone in the organisation" />
       <KpiTile label="Active" value={v(active)} icon={<ShieldCheck />} color="emerald" hint="Can sign in and learn" />
       <KpiTile label="Suspended" value={v(suspended)} icon={<PauseCircle />} color="rose" hint="Access paused" />
-      <KpiTile label="Pending invites" value={can("users.create") ? v(pending) : "—"} icon={<MailPlus />} color="violet" hint="Awaiting acceptance" />
+      {can("users.create") && <KpiTile label="Pending invites" value={v(pending)} icon={<MailPlus />} color="violet" hint="Awaiting acceptance" />}
     </section>
   );
 }
@@ -71,7 +71,7 @@ export function MemberStats() {
 export function MembersTab({ onInvite }: { onInvite: () => void }) {
   const qc = useQueryClient();
   const router = useRouter();
-  const { can, user } = useAuth();
+  const { can, user, permissions } = useAuth();
   const [q, setQ] = useUrlState("q");
   const [role, setRole] = useUrlState("role", ALL);
   const [dept, setDept] = useUrlState("department", ALL);
@@ -87,6 +87,9 @@ export function MembersTab({ onInvite }: { onInvite: () => void }) {
   const depts = useDepartments();
   const teams = useTeams();
   const roleName = (k: string) => roles.data?.find((r) => r.key === k)?.name;
+  // Members holding permissions the viewer lacks can't be suspended/removed by them (the API refuses).
+  const outranks = (r: MemberOut) =>
+    !user?.is_superadmin && (!roles.data || (roles.data ?? []).some((role) => r.roles.includes(role.key) && role.permissions.some((p) => !permissions.has(p))));
 
   const params = {
     q: q || undefined,
@@ -219,6 +222,13 @@ export function MembersTab({ onInvite }: { onInvite: () => void }) {
 
   const canEdit = can("users.edit");
   const selfSelected = selected.some((m) => m.user_id === user?.id);
+  const outrankedSelected = selected.filter(outranks);
+  const statusBlocked = selfSelected || outrankedSelected.length > 0;
+  const blockedHint = selfSelected
+    ? "You can't change your own status"
+    : outrankedSelected.length
+      ? `${outrankedSelected[0]!.full_name}${outrankedSelected.length > 1 ? ` and ${outrankedSelected.length - 1} more` : ""} hold permissions you don't have`
+      : undefined;
 
   return (
     <div className="space-y-4">
@@ -244,16 +254,17 @@ export function MembersTab({ onInvite }: { onInvite: () => void }) {
               </Button>
             )}
             {canEdit && (
-              <Button size="sm" variant="secondary" leftIcon={<PlayCircle />} disabled={selfSelected} onClick={() => setConfirm({ kind: "reactivate", members: selected })}>
+              <Button size="sm" variant="secondary" leftIcon={<PlayCircle />} disabled={statusBlocked} title={blockedHint} onClick={() => setConfirm({ kind: "reactivate", members: selected })}>
                 Reactivate
               </Button>
             )}
             {canEdit && (
-              <Button size="sm" variant="destructive-soft" leftIcon={<PauseCircle />} disabled={selfSelected} onClick={() => setConfirm({ kind: "suspend", members: selected })}>
+              <Button size="sm" variant="destructive-soft" leftIcon={<PauseCircle />} disabled={statusBlocked} title={blockedHint} onClick={() => setConfirm({ kind: "suspend", members: selected })}>
                 Suspend
               </Button>
             )}
           </div>
+          {canEdit && blockedHint && <p className="text-xs font-medium text-amber-800 sm:max-w-[14rem]">{blockedHint} — suspend and reactivate are unavailable for this selection.</p>}
           <Button size="sm" variant="ghost" leftIcon={<X />} onClick={clearSelection}>
             Clear
           </Button>
@@ -317,12 +328,12 @@ export function MembersTab({ onInvite }: { onInvite: () => void }) {
             : []),
           ...(canEdit
             ? [
-                { label: "Suspend", icon: <PauseCircle className="size-4" />, onSelect: (r: MemberOut) => setConfirm({ kind: "suspend", members: [r] }), hidden: (r: MemberOut) => r.status !== "active" || r.user_id === user?.id, separatorBefore: true },
-                { label: "Reactivate", icon: <PlayCircle className="size-4" />, onSelect: (r: MemberOut) => setConfirm({ kind: "reactivate", members: [r] }), hidden: (r: MemberOut) => r.status !== "suspended" },
+                { label: "Suspend", icon: <PauseCircle className="size-4" />, onSelect: (r: MemberOut) => setConfirm({ kind: "suspend", members: [r] }), hidden: (r: MemberOut) => r.status !== "active" || r.user_id === user?.id || outranks(r), separatorBefore: true },
+                { label: "Reactivate", icon: <PlayCircle className="size-4" />, onSelect: (r: MemberOut) => setConfirm({ kind: "reactivate", members: [r] }), hidden: (r: MemberOut) => r.status !== "suspended" || outranks(r) },
               ]
             : []),
           ...(can("users.delete")
-            ? [{ label: "Remove from organisation", icon: <UserMinus className="size-4" />, destructive: true, onSelect: (r: MemberOut) => setConfirm({ kind: "remove", members: [r] }), hidden: (r: MemberOut) => r.user_id === user?.id }]
+            ? [{ label: "Remove from organisation", icon: <UserMinus className="size-4" />, destructive: true, onSelect: (r: MemberOut) => setConfirm({ kind: "remove", members: [r] }), hidden: (r: MemberOut) => r.user_id === user?.id || outranks(r) }]
             : []),
         ]}
         empty={{

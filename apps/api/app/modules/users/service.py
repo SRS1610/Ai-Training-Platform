@@ -102,6 +102,21 @@ def ensure_can_grant(ctx: Ctx, roles: list[Role]) -> None:
         )
 
 
+def ensure_can_manage(ctx: Ctx, m: OrganisationUser) -> None:
+    """Prevent privilege escalation by proxy: you may only suspend, remove or edit a member whose
+    permissions are a subset of your own (e.g. a training manager cannot suspend an org admin)."""
+    if ctx.principal.is_superadmin:
+        return
+    held = {p.code for r in m.roles for p in r.permissions}
+    excess = sorted(held - ctx.permissions)
+    if excess:
+        raise Forbidden(
+            "You cannot manage a member who holds permissions you do not have",
+            code="insufficient_privileges",
+            details={"permissions": excess},
+        )
+
+
 async def count_active_admins(
     db: AsyncSession, org_id: uuid.UUID, exclude_user_id: uuid.UUID | None = None
 ) -> int:
@@ -292,6 +307,8 @@ async def member_detail(ctx: Ctx, user_id: uuid.UUID) -> MemberDetail:
 
 async def update_member(ctx: Ctx, user_id: uuid.UUID, body: MemberUpdate) -> MemberOut:
     m = await get_membership(ctx.db, ctx.org_id, user_id)
+    if ctx.principal.user_id != user_id:
+        ensure_can_manage(ctx, m)
     data = body.model_dump(exclude_unset=True)
     if "department_id" in data:
         await department_in_org(ctx.db, ctx.org_id, data["department_id"])
@@ -329,6 +346,7 @@ async def set_status(ctx: Ctx, user_id: uuid.UUID, suspend: bool) -> MemberOut:
     if ctx.principal.user_id == user_id:
         raise BadRequest("You cannot change your own membership status", code="self_action")
     m = await get_membership(ctx.db, ctx.org_id, user_id)
+    ensure_can_manage(ctx, m)
     if suspend:
         if m.status == MembershipStatus.SUSPENDED:
             return await member_out(ctx.db, m)
@@ -351,6 +369,7 @@ async def remove_member(ctx: Ctx, user_id: uuid.UUID) -> None:
     if ctx.principal.user_id == user_id:
         raise BadRequest("You cannot remove yourself from the organisation", code="self_action")
     m = await get_membership(ctx.db, ctx.org_id, user_id)
+    ensure_can_manage(ctx, m)
     await ensure_not_last_admin(ctx.db, m)
     await detach_membership(ctx.db, m)
     await ctx.audit("member.removed", "user", user_id, email=m.user.email)

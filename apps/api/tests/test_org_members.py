@@ -169,6 +169,48 @@ async def test_suspend_reactivate_and_remove(client, db):
     assert {"member.suspended", "member.reactivated", "member.removed"} <= set(actions)
 
 
+async def test_cannot_manage_member_with_more_permissions(client, db):
+    admin = await signup(client)
+    other_admin = await add_member(admin.org_id, "org_admin")
+    manager = await add_member(admin.org_id, "training_manager")
+    learner = await add_member(admin.org_id, "learner")
+    target = f"{API}/users/{other_admin.user_id}"
+    # users.edit / users.delete alone must not reach a member holding permissions the caller lacks
+    for method, url, kwargs in [
+        ("post", f"{target}/suspend", {}),
+        ("post", f"{target}/reactivate", {}),
+        ("patch", target, {"json": {"job_title": "Hijacked"}}),
+    ]:
+        r = await getattr(client, method)(url, headers=manager.headers, **kwargs)
+        assert r.status_code == 403, (method, url, r.text)
+        assert r.json()["error"]["code"] == "insufficient_privileges"
+    # Grant the manager users.delete via a custom role: removal of an admin is still refused
+    r = await client.post(
+        f"{API}/roles",
+        json={"name": "Remover", "permissions": ["users.view", "users.edit", "users.delete"]},
+        headers=admin.headers,
+    )
+    assert r.status_code == 201
+    remover = await add_member(admin.org_id, "training_manager", "remover")
+    r = await client.delete(target, headers=remover.headers)
+    assert r.status_code == 403 and r.json()["error"]["code"] == "insufficient_privileges"
+    r = await client.get(target, headers=admin.headers)
+    assert r.json()["status"] == "active" and r.json()["job_title"] != "Hijacked"
+    # ...but members whose permissions are a subset of the caller's remain manageable
+    r = await client.post(f"{API}/users/{learner.user_id}/suspend", headers=manager.headers)
+    assert r.status_code == 200 and r.json()["status"] == "suspended"
+    r = await client.post(f"{API}/users/{learner.user_id}/reactivate", headers=manager.headers)
+    assert r.status_code == 200 and r.json()["status"] == "active"
+    r = await client.patch(
+        f"{API}/users/{learner.user_id}", json={"job_title": "Analyst"}, headers=manager.headers
+    )
+    assert r.status_code == 200 and r.json()["job_title"] == "Analyst"
+    assert (await client.delete(f"{API}/users/{learner.user_id}", headers=remover.headers)).status_code == 204
+    # Org admins can still act on other admins
+    r = await client.post(f"{API}/users/{other_admin.user_id}/suspend", headers=admin.headers)
+    assert r.status_code == 200 and r.json()["status"] == "suspended"
+
+
 async def test_create_member_directly_with_temp_password(client):
     admin = await signup(client)
     email = unique_email("direct")

@@ -97,7 +97,9 @@ export function LoginForm() {
 
   if (mfaToken) return <MfaStep mfaToken={mfaToken} onBack={() => setMfaToken(null)} onDone={done} />;
 
-  const notice = params.get("signed_out")
+  const notice = params.get("deleted")
+    ? { tone: "success" as const, text: "Your account has been deleted and you've been signed out. Your personal data has been erased; thanks for learning with Praxis." }
+    : params.get("signed_out")
     ? { tone: "success" as const, text: "You've been signed out. See you soon!" }
     : params.get("reset")
       ? { tone: "success" as const, text: "Password updated. Sign in with your new password." }

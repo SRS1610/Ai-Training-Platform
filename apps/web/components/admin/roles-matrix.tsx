@@ -255,11 +255,11 @@ export function RolesMatrix() {
           <EmptyState size="sm" illustration="shield" title="No custom roles yet" description="Create a custom role to tailor access for your organisation." />
         ) : (
           <div className="relative overflow-x-auto scrollbar-thin">
-            <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
+            <table className="w-full border-separate border-spacing-0 text-sm">
               <caption className="sr-only">Permissions granted to each role</caption>
               <thead>
                 <tr>
-                  <th scope="col" className="sticky left-0 z-10 min-w-[15rem] border-b border-slate-200 bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th scope="col" className="sticky left-0 z-10 w-36 min-w-[9rem] max-w-[9rem] border-b border-slate-200 bg-slate-50 px-3 py-3 shadow-[1px_0_0_theme(colors.slate.200)] sm:w-auto sm:min-w-[15rem] sm:max-w-none sm:px-4 sm:shadow-none text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Permission
                   </th>
                   {shown.map((r) => {
@@ -287,14 +287,14 @@ export function RolesMatrix() {
                 return (
                   <tbody key={cat}>
                     <tr>
-                      <th scope="rowgroup" className={cn("sticky left-0 z-10 border-b border-slate-200 px-4 py-2.5 text-left", c.soft)}>
+                      <th scope="rowgroup" className={cn("sticky left-0 z-10 max-w-[9rem] border-b border-slate-200 px-3 py-2.5 text-left shadow-[1px_0_0_theme(colors.slate.200)] sm:max-w-none sm:px-4 sm:shadow-none", c.soft)}>
                         <span className="flex items-center gap-2.5">
                           <span className={cn("grid size-7 place-items-center rounded-lg bg-gradient-to-br text-white shadow-sm", c.gradient)} aria-hidden>
                             <Icon className="size-3.5" />
                           </span>
                           <span>
                             <span className={cn("block text-sm font-semibold", c.text)}>{meta.label}</span>
-                            {meta.blurb && <span className="block text-2xs font-normal text-slate-500">{meta.blurb}</span>}
+                            {meta.blurb && <span className="hidden text-2xs font-normal text-slate-500 sm:block">{meta.blurb}</span>}
                           </span>
                         </span>
                       </th>
@@ -321,9 +321,10 @@ export function RolesMatrix() {
                     </tr>
                     {perms.map((p) => (
                       <tr key={p.code} className="group">
-                        <th scope="row" className="sticky left-0 z-10 border-b border-slate-100 bg-white px-4 py-2.5 text-left font-normal group-hover:bg-slate-50">
-                          <span className="block font-mono text-xs font-semibold text-slate-800">{p.code}</span>
-                          <span className="block text-xs text-muted-foreground">{p.description}</span>
+                        <th scope="row" title={p.description} className="sticky left-0 z-10 max-w-[9rem] border-b border-slate-100 bg-white px-3 py-2.5 text-left font-normal shadow-[1px_0_0_theme(colors.slate.200)] group-hover:bg-slate-50 sm:max-w-none sm:px-4 sm:shadow-none">
+                          <span className="block break-all font-mono text-xs font-semibold text-slate-800 sm:break-normal">{p.code}</span>
+                          <span className="hidden text-xs text-muted-foreground sm:block">{p.description}</span>
+                          <span className="sr-only sm:hidden">{p.description}</span>
                         </th>
                         {shown.map((r) => {
                           const on = current(r).has(p.code);

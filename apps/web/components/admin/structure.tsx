@@ -147,14 +147,15 @@ export function DepartmentsPanel() {
               }
             />
           ) : (
-            <ul role="tree" aria-label="Departments" className="space-y-1 p-2 sm:p-3">
+            // A plain list with disclosure buttons (not role="tree"): every control is a regular, tabbable button.
+            <ul aria-label="Departments" className="space-y-1 p-2 sm:p-3">
               {visible.map(({ node, depth }) => {
                 const c = colorClasses(colorFor(node.name));
                 const hasKids = (node.children ?? []).length > 0;
                 const open = !collapsed.has(node.id);
                 const active = current?.id === node.id;
                 return (
-                  <li key={node.id} role="treeitem" aria-level={depth + 1} aria-expanded={hasKids ? open : undefined} aria-selected={active}>
+                  <li key={node.id}>
                     <div
                       className={cn(
                         "group flex items-center gap-2 rounded-xl border p-2 pr-3 transition-all",
@@ -166,7 +167,8 @@ export function DepartmentsPanel() {
                         <button
                           type="button"
                           className="grid size-7 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-white hover:text-slate-900 focus-visible:focus-ring"
-                          aria-label={open ? `Collapse ${node.name}` : `Expand ${node.name}`}
+                          aria-label={`${node.name} sub-departments`}
+                          aria-expanded={open}
                           onClick={() =>
                             setCollapsed((s) => {
                               const n = new Set(s);
@@ -183,22 +185,32 @@ export function DepartmentsPanel() {
                           {depth > 0 && <CornerDownRight className="size-3.5" />}
                         </span>
                       )}
-                      <button type="button" onClick={() => setSelected(node.id)} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:focus-ring">
+                      <button
+                        type="button"
+                        onClick={() => setSelected(node.id)}
+                        aria-current={active ? "true" : undefined}
+                        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:focus-ring"
+                      >
                         <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-sm font-bold text-white shadow-sm", c.gradient)} aria-hidden>
                           {node.name.slice(0, 1).toUpperCase()}
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-semibold text-slate-900">{node.name}</span>
+                          {depth > 0 && !filter && <span className="sr-only">, sub-department of {byId.get(node.parent_id ?? "")?.name}</span>}
+                          <span className="sr-only">
+                            , {node.member_count} {node.member_count === 1 ? "member" : "members"}
+                            {node.team_count > 0 && `, ${node.team_count} ${node.team_count === 1 ? "team" : "teams"}`}
+                          </span>
                           {node.description && <span className="block truncate text-xs text-muted-foreground">{node.description}</span>}
                         </span>
                       </button>
-                      <span className="hidden shrink-0 items-center gap-1.5 sm:flex">
-                        <Badge tone="info" size="sm">
+                      <span className="flex shrink-0 items-center gap-1.5" aria-hidden>
+                        <Badge tone="info" size="sm" title={`${node.member_count} ${node.member_count === 1 ? "member" : "members"}`}>
                           <UserRound aria-hidden />
                           {node.member_count}
                         </Badge>
                         {node.team_count > 0 && (
-                          <Badge tone="violet" size="sm">
+                          <Badge tone="violet" size="sm" className="hidden sm:inline-flex" title={`${node.team_count} ${node.team_count === 1 ? "team" : "teams"}`}>
                             <UsersRound aria-hidden />
                             {node.team_count}
                           </Badge>

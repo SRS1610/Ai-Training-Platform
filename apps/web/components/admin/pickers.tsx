@@ -73,11 +73,11 @@ export function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-export function useCourseOptions(search: string, enabled = true) {
+export function useCourseOptions(search: string, enabled = true, status?: "published") {
   const q = useDebounced(search);
   return useQuery({
-    queryKey: ak.courses.options(q),
-    queryFn: ({ signal }) => api.get<Page<CourseOut>>("/courses", { signal, query: { search: q || undefined, page_size: 50 } }),
+    queryKey: [...ak.courses.options(q), status ?? "any"],
+    queryFn: ({ signal }) => api.get<Page<CourseOut>>("/courses", { signal, query: { search: q || undefined, status, page_size: 50 } }),
     enabled,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
@@ -331,7 +331,8 @@ export function CourseSelect({
 }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState("");
-  const res = useCourseOptions(q, open);
+  // Filter server-side so drafts never crowd out published courses within the page.
+  const res = useCourseOptions(q, open, publishedOnly ? "published" : undefined);
   const items = (res.data?.items ?? []).filter((c) => !publishedOnly || c.status === "published");
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -350,7 +351,7 @@ export function CourseSelect({
         <Command shouldFilter={false}>
           <CommandInput value={q} onValueChange={setQ} placeholder="Search courses" className="h-11 text-sm" trailing={res.isFetching ? <Spinner label="Searching" /> : undefined} />
           <CommandList className="max-h-72">
-            <CommandEmpty>{res.isFetching ? "Searching…" : "No courses found"}</CommandEmpty>
+            <CommandEmpty>{res.isFetching ? "Searching…" : publishedOnly ? "No published courses found" : "No courses found"}</CommandEmpty>
             <CommandGroup>
               {items.map((c) => (
                 <CommandItem

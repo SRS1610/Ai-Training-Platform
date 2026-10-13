@@ -27,13 +27,15 @@ import {
   cn,
   toast,
 } from "@praxis/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Page } from "@praxis/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Mail, MailPlus, Users } from "lucide-react";
 import * as React from "react";
 import { api, errorMessage } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { ak } from "../keys";
 import { DepartmentSelect, RolePicker, useDepartments, useRoles } from "../pickers";
-import type { BulkResult, InvitationOut, UsersImportResult } from "../types";
+import type { BulkResult, InvitationOut, MemberOut, UsersImportResult } from "../types";
 import { UpgradeNotice, isPlanLimit } from "../ui";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -100,6 +102,19 @@ interface PreviewRow {
   roles: string[];
   department: string;
   error: string | null;
+  /** Non-blocking note, e.g. a pending invitation that this row will replace. */
+  note?: string | null;
+}
+
+/** Fetch every page of a list endpoint (capped) — used to pre-check CSV rows against existing data. */
+async function fetchAllEmails<T extends { email: string }>(path: string, query: Record<string, string | undefined>, signal: AbortSignal, maxPages = 25) {
+  const out = new Set<string>();
+  for (let page = 1; page <= maxPages; page++) {
+    const r = await api.get<Page<T>>(path, { signal, query: { ...query, page: String(page), page_size: "200" } });
+    r.items.forEach((i) => out.add(i.email.toLowerCase()));
+    if (page * 200 >= r.total) return { emails: out, complete: true };
+  }
+  return { emails: out, complete: false };
 }
 
 function RolesAndDepartment({
@@ -148,6 +163,21 @@ export function InviteDialog({ open, onOpenChange, defaultTab = "single" }: { op
   const [importResult, setImportResult] = React.useState<UsersImportResult | null>(null);
   const rolesQ = useRoles(open);
   const deptQ = useDepartments(open);
+  const { permissions, user } = useAuth();
+  // CSV pre-check data: existing members (server rejects them) and pending invitations (server replaces them).
+  const csvActive = open && tab === "csv" && !!file;
+  const existingMembers = useQuery({
+    queryKey: [...ak.members.all, "csv-precheck"],
+    queryFn: ({ signal }) => fetchAllEmails<MemberOut>("/users", {}, signal),
+    enabled: csvActive,
+    staleTime: 30_000,
+  });
+  const pendingInvites = useQuery({
+    queryKey: [...ak.invitations.all, "csv-precheck"],
+    queryFn: ({ signal }) => fetchAllEmails<InvitationOut>("/invitations", { status: "pending" }, signal),
+    enabled: csvActive,
+    staleTime: 30_000,
+  });
 
   React.useEffect(() => {
     if (open) {
@@ -221,6 +251,10 @@ export function InviteDialog({ open, onOpenChange, defaultTab = "single" }: { op
       }
       setCsvError(null);
       const roleKeys = new Set((rolesQ.data ?? []).map((r) => r.key));
+      const rolePerms = new Map((rolesQ.data ?? []).map((r) => [r.key, r.permissions]));
+      const cantGrant = (keys: string[]) => !user?.is_superadmin && keys.some((k) => (rolePerms.get(k) ?? []).some((p) => !permissions.has(p)));
+      const members = existingMembers.data?.emails;
+      const invited = pendingInvites.data?.emails;
       const deptNames = new Set((deptQ.data ?? []).map((d) => d.name.toLowerCase()));
       const idx = (k: string) => header.indexOf(k);
       const seen = new Set<string>();
@@ -234,16 +268,21 @@ export function InviteDialog({ open, onOpenChange, defaultTab = "single" }: { op
           if (!EMAIL_RE.test(em)) error = "Invalid email address";
           else if (seen.has(em)) error = "Duplicate email in file";
           else if (roleKeys.size && rs.some((k) => !roleKeys.has(k))) error = `Unknown role(s): ${rs.filter((k) => !roleKeys.has(k)).join(", ")}`;
+          else if (rolePerms.size && cantGrant(rs.length ? rs : [defaultRole])) error = "You can't grant these roles";
           else if (dep && deptNames.size && !deptNames.has(dep.toLowerCase())) error = `Unknown department: ${dep}`;
+          else if (members?.has(em)) error = "Already a member of this organisation";
+          const note = !error && invited?.has(em) ? "Replaces their pending invitation" : null;
           seen.add(em);
-          return { row: i + 2, email: em || r[idx("email")] || "", roles: rs, department: dep, error };
+          return { row: i + 2, email: em || r[idx("email")] || "", roles: rs, department: dep, error, note };
         }),
       );
     });
     return () => {
       cancelled = true;
     };
-  }, [file, rolesQ.data, deptQ.data]);
+  }, [file, rolesQ.data, deptQ.data, existingMembers.data, pendingInvites.data, defaultRole, permissions, user?.is_superadmin]);
+  const prechecking = existingMembers.isFetching || pendingInvites.isFetching;
+  const precheckPartial = existingMembers.data?.complete === false || existingMembers.isError;
 
   const previewErrors = preview?.filter((p) => p.error).length ?? 0;
   const activeError = tab === "single" ? single.error : tab === "bulk" ? many.error : upload.error;
@@ -371,14 +410,19 @@ export function InviteDialog({ open, onOpenChange, defaultTab = "single" }: { op
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-center gap-2" aria-live="polite">
                       <Badge tone="success" dot>
-                        {preview.length - previewErrors} ready
+                        {preview.length - previewErrors} look good
                       </Badge>
                       {previewErrors > 0 && (
                         <Badge tone="danger" dot>
                           {previewErrors} with problems (will be skipped)
                         </Badge>
                       )}
+                      {prechecking && <Badge tone="neutral">Checking against existing members…</Badge>}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Pre-checked against your roles, departments{precheckPartial ? "" : ", existing members"} and pending invitations. The server re-checks every row
+                      on import and reports anything it skips.
+                    </p>
                     <div className="max-h-60 overflow-auto rounded-xl border border-slate-200 scrollbar-thin">
                       <table className="w-full text-left text-xs">
                         <thead className="sticky top-0 bg-slate-50 text-slate-600">
@@ -387,7 +431,7 @@ export function InviteDialog({ open, onOpenChange, defaultTab = "single" }: { op
                             <th scope="col" className="px-3 py-2 font-semibold">Email</th>
                             <th scope="col" className="px-3 py-2 font-semibold">Roles</th>
                             <th scope="col" className="px-3 py-2 font-semibold">Department</th>
-                            <th scope="col" className="px-3 py-2 font-semibold">Status</th>
+                            <th scope="col" className="px-3 py-2 font-semibold">Pre-check</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -404,9 +448,12 @@ export function InviteDialog({ open, onOpenChange, defaultTab = "single" }: { op
                                     {p.error}
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
-                                    <CheckCircle2 className="size-3.5" aria-hidden />
-                                    Ready
+                                  <span className="inline-flex flex-col gap-0.5">
+                                    <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
+                                      <CheckCircle2 className="size-3.5" aria-hidden />
+                                      Looks good
+                                    </span>
+                                    {p.note && <span className="text-2xs font-medium text-amber-800">{p.note}</span>}
                                   </span>
                                 )}
                               </td>
@@ -454,7 +501,7 @@ export function InviteDialog({ open, onOpenChange, defaultTab = "single" }: { op
             </Button>
           )}
           {tab === "csv" && !importResult && (
-            <Button variant="gradient" loading={upload.isPending} disabled={!file || !!csvError || !preview || preview.length === previewErrors} onClick={() => upload.mutate()}>
+            <Button variant="gradient" loading={upload.isPending} disabled={!file || !!csvError || !preview || preview.length === previewErrors || prechecking} onClick={() => upload.mutate()}>
               Import {preview ? preview.length - previewErrors : ""} people
             </Button>
           )}

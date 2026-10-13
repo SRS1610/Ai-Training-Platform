@@ -30,6 +30,10 @@ import { CourseSelect, DepartmentMultiPicker, MemberMultiPicker, TeamMultiPicker
 import type { AssignOut } from "./types";
 import { UpgradeNotice, isPlanLimit } from "./ui";
 
+function plural(n: number, one: string, many = `${one}s`) {
+  return n === 1 ? one : many;
+}
+
 export function AssignTrainingDialog({
   open,
   onOpenChange,
@@ -74,11 +78,16 @@ export function AssignTrainingDialog({
     onSuccess: (r) => {
       setResult(r);
       qc.invalidateQueries({ queryKey: ak.enrolments.all });
+      // Member detail pages show an enrolment summary — refresh them too.
+      qc.invalidateQueries({ queryKey: ak.members.all });
       qc.invalidateQueries({ queryKey: ["analytics"] });
-      toast.success(`Training assigned — ${r.created + r.reactivated} enrolment${r.created + r.reactivated === 1 ? "" : "s"}`);
+      const n = r.created + r.reactivated;
+      if (n === 0) toast.info(r.skipped === 1 ? "Already enrolled — nothing to assign" : `All ${r.skipped} people are already enrolled — nothing to assign`);
+      else toast.success(`Training assigned — ${n} ${plural(n, "enrolment")}`);
     },
   });
 
+  const allSkipped = !!result && result.created + result.reactivated === 0;
   const hasTargets = users.length + departments.length + teams.length > 0;
   const today = new Date().toISOString().slice(0, 10);
 
@@ -89,11 +98,13 @@ export function AssignTrainingDialog({
           <span className="mb-1 grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm">
             <BookOpenCheck className="size-5" aria-hidden />
           </span>
-          <DialogTitle>{result ? "Training assigned" : "Assign training"}</DialogTitle>
+          <DialogTitle>{!result ? "Assign training" : allSkipped ? "Everyone is already enrolled" : "Training assigned"}</DialogTitle>
           <DialogDescription>
-            {result
-              ? `${course?.label} has been assigned. Learners are notified and see it on their dashboard.`
-              : "Enrol people, whole departments or teams in a published course, with an optional due date."}
+            {!result
+              ? "Enrol people, whole departments or teams in a published course, with an optional due date."
+              : allSkipped
+                ? `Nobody new was enrolled in ${course?.label} — ${result.skipped === 1 ? "the selected person is" : `all ${result.skipped} selected people are`} already enrolled. No notifications were sent.`
+                : `${course?.label} has been assigned to ${result.created + result.reactivated} ${plural(result.created + result.reactivated, "person", "people")}. They're notified and see it on their dashboard.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -120,7 +131,7 @@ export function AssignTrainingDialog({
             }}
           >
             <FormField label="Course" required hint="Only published courses can be assigned.">
-              {(aria) => <CourseSelect id={aria.id} value={course} onChange={setCourse} />}
+              {(aria) => <CourseSelect id={aria.id} value={course} onChange={setCourse} publishedOnly />}
             </FormField>
 
             <fieldset className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">

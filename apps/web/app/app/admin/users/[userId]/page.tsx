@@ -72,13 +72,17 @@ function MemberPage() {
   const { can, user, permissions } = useAuth();
   const [assign, setAssign] = React.useState(false);
   const [confirm, setConfirm] = React.useState<"suspend" | "reactivate" | "remove" | null>(null);
+  // Once removed, stop the detail query so the navigation away never refetches a 404.
+  const [removed, setRemoved] = React.useState(false);
+  const roles = useRoles();
 
   const q = useQuery({
     queryKey: ak.members.detail(userId),
     queryFn: ({ signal }) => api.get<MemberDetail>(`/users/${userId}`, { signal }),
+    enabled: !removed,
   });
 
-  if (q.isLoading) return <DetailSkeleton />;
+  if (q.isLoading || (!q.data && !q.isError)) return <DetailSkeleton />;
   if (q.isError)
     return (
       <ErrorState
@@ -93,14 +97,19 @@ function MemberPage() {
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ak.members.all });
   };
+  // The API refuses to suspend / remove / edit a member who holds permissions the viewer lacks
+  // (e.g. a training manager acting on an org admin) — mirror that so we never offer a dead button.
+  const targetPerms = new Set((roles.data ?? []).filter((r) => m.roles.includes(r.key)).flatMap((r) => r.permissions));
+  const outranked = !user?.is_superadmin && !self && [...targetPerms].some((p) => !permissions.has(p));
+  const manageable = !!user?.is_superadmin || self || (roles.isSuccess && !outranked);
 
   return (
     <>
       <PageHeader
         title={m.full_name}
         breadcrumbs={[
-          { label: "Admin", href: "/app/admin" },
-          { label: "People", href: "/app/admin/users" },
+          { label: "Manage", href: "/app/admin" },
+          { label: "Users", href: "/app/admin/users" },
           { label: m.full_name },
         ]}
         linkComponent={Link}
@@ -141,17 +150,17 @@ function MemberPage() {
                 Assign training
               </Button>
             )}
-            {can("users.edit") && !self && m.status === "active" && (
+            {can("users.edit") && manageable && !self && m.status === "active" && (
               <Button variant="secondary" leftIcon={<PauseCircle />} onClick={() => setConfirm("suspend")}>
                 Suspend
               </Button>
             )}
-            {can("users.edit") && !self && m.status === "suspended" && (
+            {can("users.edit") && manageable && !self && m.status === "suspended" && (
               <Button variant="secondary" leftIcon={<PlayCircle />} onClick={() => setConfirm("reactivate")}>
                 Reactivate
               </Button>
             )}
-            {can("users.delete") && !self && (
+            {can("users.delete") && manageable && !self && (
               <Button variant="destructive-soft" leftIcon={<UserMinus />} onClick={() => setConfirm("remove")}>
                 Remove
               </Button>
@@ -166,6 +175,12 @@ function MemberPage() {
         </dl>
       </section>
 
+      {outranked && can("users.edit") && (
+        <Alert tone="info" title="View only" icon={<Lock aria-hidden />} className="mb-6">
+          {m.full_name} has permissions you don&apos;t hold, so you can view their profile but not change, suspend or remove them. Ask an organisation admin if something needs updating.
+        </Alert>
+      )}
+
       {m.status === "suspended" && (
         <Alert tone="warning" title="This member is suspended" className="mb-6">
           They can&apos;t sign in to this organisation. Reactivate them to restore access.
@@ -174,8 +189,8 @@ function MemberPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <ProfileCard member={m} onSaved={refresh} />
-          <RolesCard member={m} permissions={permissions} isSuperadmin={!!user?.is_superadmin} onSaved={refresh} />
+          <ProfileCard member={m} onSaved={refresh} locked={!manageable} />
+          <RolesCard member={m} permissions={permissions} isSuperadmin={!!user?.is_superadmin} onSaved={refresh} locked={!manageable} />
         </div>
         <div className="space-y-6">
           <EnrolmentsCard member={m} onAssign={() => setAssign(true)} />
@@ -202,9 +217,11 @@ function MemberPage() {
           try {
             if (confirm === "remove") {
               await api.delete(`/users/${m.user_id}`);
-              toast.success(`${m.full_name} was removed`);
-              refresh();
+              setRemoved(true);
               router.push("/app/admin/users");
+              qc.removeQueries({ queryKey: ak.members.detail(m.user_id) });
+              qc.invalidateQueries({ queryKey: ak.members.all, refetchType: "none" });
+              toast.success(`${m.full_name} was removed`);
             } else {
               await api.post(`/users/${m.user_id}/${confirm}`);
               toast.success(confirm === "suspend" ? "Member suspended" : "Member reactivated");
@@ -219,9 +236,9 @@ function MemberPage() {
   );
 }
 
-function ProfileCard({ member: m, onSaved }: { member: MemberDetail; onSaved: () => void }) {
+function ProfileCard({ member: m, onSaved, locked }: { member: MemberDetail; onSaved: () => void; locked: boolean }) {
   const { can } = useAuth();
-  const editable = can("users.edit");
+  const editable = can("users.edit") && !locked;
   const [job, setJob] = React.useState(m.job_title ?? "");
   const [emp, setEmp] = React.useState(m.employee_id ?? "");
   const [dept, setDept] = React.useState<string | null>(m.department_id ?? null);
@@ -289,7 +306,19 @@ function ProfileCard({ member: m, onSaved }: { member: MemberDetail; onSaved: ()
   );
 }
 
-function RolesCard({ member: m, permissions, isSuperadmin, onSaved }: { member: MemberDetail; permissions: Set<string>; isSuperadmin: boolean; onSaved: () => void }) {
+function RolesCard({
+  member: m,
+  permissions,
+  isSuperadmin,
+  onSaved,
+  locked,
+}: {
+  member: MemberDetail;
+  permissions: Set<string>;
+  isSuperadmin: boolean;
+  onSaved: () => void;
+  locked: boolean;
+}) {
   const { can } = useAuth();
   const roles = useRoles();
   const [value, setValue] = React.useState<string[]>(m.roles);
@@ -302,7 +331,7 @@ function RolesCard({ member: m, permissions, isSuperadmin, onSaved }: { member: 
   const lastAdmin = m.roles.includes("org_admin") && m.status === "active" && (admins.data?.total ?? 2) <= 1;
   const removingAdmin = m.roles.includes("org_admin") && !value.includes("org_admin");
   const dirty = [...value].sort().join() !== [...m.roles].sort().join();
-  const editable = can("roles.manage");
+  const editable = can("roles.manage") && !locked;
 
   const save = useMutation({
     mutationFn: () => api.put<MemberOut>(`/users/${m.user_id}/roles`, { roles: value }),

@@ -31,7 +31,9 @@ function PathEditor() {
   const { pathId } = useParams<{ pathId: string }>();
   const router = useRouter();
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ak.paths.detail(pathId), queryFn: ({ signal }) => api.get<PathOut>(`/learning-paths/${pathId}`, { signal }) });
+  // Once deleted, stop the detail query so leaving the page never refetches a 404.
+  const [deleted, setDeleted] = React.useState(false);
+  const q = useQuery({ queryKey: ak.paths.detail(pathId), queryFn: ({ signal }) => api.get<PathOut>(`/learning-paths/${pathId}`, { signal }), enabled: !deleted });
   const [title, setTitle] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [status, setStatus] = React.useState("draft");
@@ -55,7 +57,7 @@ function PathEditor() {
     },
   });
 
-  if (q.isLoading)
+  if (q.isLoading || (!q.data && !q.isError))
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-80" />
@@ -148,9 +150,11 @@ function PathEditor() {
         onConfirm={async () => {
           try {
             await api.delete(`/learning-paths/${p.id}`);
-            toast.success("Learning path deleted");
-            qc.invalidateQueries({ queryKey: ak.paths.all });
+            setDeleted(true);
             router.push("/app/admin/learning-paths");
+            qc.removeQueries({ queryKey: ak.paths.detail(p.id) });
+            qc.invalidateQueries({ queryKey: ak.paths.all, refetchType: "none" });
+            toast.success("Learning path deleted");
           } catch (e) {
             toastError(e);
           }

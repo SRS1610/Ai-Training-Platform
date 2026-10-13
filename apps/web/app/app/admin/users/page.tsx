@@ -21,7 +21,7 @@ function UsersPage() {
       <PageHeader
         icon={<UsersRound />}
         eyebrow="Manage"
-        title="People"
+        title="Users"
         description="Everyone in your organisation — their roles, departments and access."
         actions={
           <Can permission="users.create">

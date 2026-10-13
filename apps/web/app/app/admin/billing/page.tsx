@@ -104,9 +104,13 @@ function CurrentPlan({ sub, onSeats, onCancel, onResume, onPortal, portalBusy }:
   const style = PLAN_STYLE[sub.plan.code] ?? PLAN_STYLE.business!;
   const Icon = style.icon;
   const price = planPrice(sub.plan, sub.billing_interval === "year" ? "year" : "month");
-  const limit = sub.seat_limit ?? sub.seats_purchased;
+  // Enterprise ("contact sales") plans are invoiced under an agreement: no self-serve seats/cancel, and a
+  // seat count of 1 is only the API's placeholder when no seat number has been recorded for the agreement.
+  const agreement = sub.plan.contact_sales;
+  const seatsUnset = agreement && (sub.seat_limit ?? 0) <= 1;
+  const limit = seatsUnset ? null : (sub.seat_limit ?? sub.seats_purchased);
   const seatPct = limit ? Math.min(100, (sub.seats_used / limit) * 100) : 0;
-  const paid = sub.plan.monthly_price_cents > 0;
+  const paid = sub.plan.monthly_price_cents > 0 && !agreement;
   return (
     <section aria-labelledby="current-plan" className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
       <div className={cn("relative overflow-hidden bg-gradient-to-br p-6 text-white sm:p-8", deepGradient(style.color))}>
@@ -123,7 +127,13 @@ function CurrentPlan({ sub, onSeats, onCancel, onResume, onPortal, portalBusy }:
                 {sub.plan.name}
               </h2>
               <p className="mt-1 text-sm text-white/90">
-                <span className="font-semibold">{price.main}</span> {price.sub}
+                {agreement ? (
+                  <span className="font-semibold">Custom pricing under your Enterprise agreement</span>
+                ) : (
+                  <>
+                    <span className="font-semibold">{price.main}</span> {price.sub}
+                  </>
+                )}
                 {sub.coupon_code && <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">Coupon {sub.coupon_code}</span>}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -155,15 +165,15 @@ function CurrentPlan({ sub, onSeats, onCancel, onResume, onPortal, portalBusy }:
           </p>
           <p className="mt-2 font-display text-3xl font-bold tabular-nums text-slate-900">
             {sub.seats_used}
-            <span className="text-lg font-medium text-slate-500"> / {limit ?? "∞"}</span>
+            {limit ? <span className="text-lg font-medium text-slate-500"> / {limit}</span> : <span className="text-lg font-medium text-slate-500"> {sub.seats_used === 1 ? "member" : "members"}</span>}
           </p>
           {limit ? (
             <Progress value={seatPct} size="md" className="mt-2" color={seatPct >= 100 ? "rose" : seatPct >= 80 ? "amber" : "sky"} aria-label="Seats used" />
           ) : (
-            <p className="mt-1 text-xs text-muted-foreground">No seat limit on this plan</p>
+            <p className="mt-1 text-xs text-muted-foreground">{agreement ? "Seats are set by your Enterprise agreement" : "No seat limit on this plan"}</p>
           )}
           <p className="mt-1.5 text-xs text-muted-foreground">
-            {sub.seats_purchased ? `${sub.seats_purchased} purchased · ` : ""}Active members plus pending invitations
+            {sub.seats_purchased && !seatsUnset ? `${sub.seats_purchased} purchased · ` : ""}Active members plus pending invitations
           </p>
         </div>
         <div>
@@ -180,7 +190,9 @@ function CurrentPlan({ sub, onSeats, onCancel, onResume, onPortal, portalBusy }:
               </p>
             </>
           ) : (
-            <p className="mt-2 text-sm text-slate-600">{paid ? "No active billing period yet." : "Free plans aren't billed."}</p>
+            <p className="mt-2 text-sm text-slate-600">
+              {agreement ? "Invoiced under your Enterprise agreement — contact your account manager for billing questions." : paid ? "No active billing period yet." : "Free plans aren't billed."}
+            </p>
           )}
         </div>
         <div className="flex flex-col gap-2 lg:items-end">
@@ -225,11 +237,20 @@ function AIUsageCard() {
         <div>
           <div className="flex items-baseline justify-between gap-3">
             <p className="font-display text-3xl font-bold tabular-nums text-slate-900">{fmtUsd(u.spend_usd)}</p>
-            <p className="text-sm text-slate-600">of {u.budget_usd === null ? "no budget" : fmtUsd(u.budget_usd)}</p>
+            <p className="text-sm text-slate-600">{u.budget_usd === null ? "spent · no monthly budget" : `of ${fmtUsd(u.budget_usd)}`}</p>
           </div>
-          <Progress value={pct} size="md" className="mt-2" color={pct >= 90 ? "rose" : pct >= 75 ? "orange" : pct >= 50 ? "amber" : "emerald"} aria-label="AI budget used" />
+          {u.budget_usd !== null && (
+            <Progress value={pct} size="md" className="mt-2" color={pct >= 90 ? "rose" : pct >= 75 ? "orange" : pct >= 50 ? "amber" : "emerald"} aria-label="AI budget used" />
+          )}
           <p className="mt-1.5 text-xs text-muted-foreground">
-            {u.budget_source === "plan" ? "Included in your plan" : u.budget_source === "custom" || u.budget_source === "ai_configuration" ? "Budget set in AI settings" : humanize(u.budget_source)} · {fmtNumber(u.requests)} requests
+            {u.budget_usd === null
+              ? "Set a monthly budget in AI settings to track spend against it"
+              : u.budget_source === "plan"
+                ? "Included in your plan"
+                : u.budget_source === "custom" || u.budget_source === "ai_configuration"
+                  ? "Budget set in AI settings"
+                  : humanize(u.budget_source)}{" "}
+            · {fmtNumber(u.requests)} {u.requests === 1 ? "request" : "requests"}
           </p>
         </div>
         {u.by_day.some((d) => d.cost_usd > 0) && (
@@ -271,6 +292,8 @@ function AIUsageCard() {
 function Plans({ sub, plans, onChoose, busy }: { sub: SubscriptionOut; plans: PlanOut[]; onChoose: (p: PlanOut, interval: "month" | "year") => void; busy: string | null }) {
   const [interval, setInterval] = React.useState<"month" | "year">(sub.billing_interval === "year" ? "year" : "month");
   const features = Object.keys(plans[0]?.features ?? {});
+  const rank = (code: string) => plans.findIndex((x) => x.code === code);
+  const agreement = sub.plan.contact_sales;
   return (
     <section aria-labelledby="plans-title" className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -278,7 +301,9 @@ function Plans({ sub, plans, onChoose, busy }: { sub: SubscriptionOut; plans: Pl
           <h2 id="plans-title" className="font-display text-xl font-semibold text-slate-900">
             Compare plans
           </h2>
-          <p className="text-sm text-muted-foreground">Upgrade any time — paid plans start with a free trial where available.</p>
+          <p className="text-sm text-muted-foreground">
+            {agreement ? "You're on a custom Enterprise agreement — your account manager handles any plan changes." : "Upgrade any time — paid plans start with a free trial where available."}
+          </p>
         </div>
         <div className="inline-flex items-center rounded-xl bg-slate-100 p-1" role="group" aria-label="Billing interval">
           {(["month", "year"] as const).map((i) => (
@@ -322,7 +347,7 @@ function Plans({ sub, plans, onChoose, busy }: { sub: SubscriptionOut; plans: Pl
                   <span className="font-display text-3xl font-bold tabular-nums text-slate-900">{price.main}</span>
                   <span className="ml-1 text-xs text-slate-500">{price.sub}</span>
                 </p>
-                {p.trial_days > 0 && !current && <p className="mt-1 text-xs font-semibold text-emerald-700">{p.trial_days}-day free trial</p>}
+                {p.trial_days > 0 && !current && !agreement && <p className="mt-1 text-xs font-semibold text-emerald-700">{p.trial_days}-day free trial</p>}
                 <ul className="mt-4 space-y-1.5 text-sm">
                   {Object.entries(p.limits).map(([k, v]) => (
                     <li key={k} className="flex items-start gap-2 text-slate-700">
@@ -345,13 +370,13 @@ function Plans({ sub, plans, onChoose, busy }: { sub: SubscriptionOut; plans: Pl
                     <Button block variant="secondary" disabled>
                       Your plan
                     </Button>
-                  ) : p.contact_sales ? (
+                  ) : agreement ? null : p.contact_sales ? (
                     <Button block variant="outline" asChild>
                       <a href="mailto:sales@praxis.app?subject=Praxis%20Enterprise">Contact sales</a>
                     </Button>
                   ) : p.self_serve ? (
                     <Button block variant={popular ? "gradient" : "primary"} rightIcon={<ArrowRight />} loading={busy === p.code} disabled={!sub.billing_configured || !!busy} onClick={() => onChoose(p, interval)}>
-                      {p.monthly_price_cents > sub.plan.monthly_price_cents ? "Upgrade" : "Switch"}
+                      {rank(p.code) > rank(sub.plan.code) ? "Upgrade" : "Downgrade"}
                     </Button>
                   ) : (
                     <Button block variant="ghost" disabled>

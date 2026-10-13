@@ -43,6 +43,15 @@ const FEATURE_LABEL: Record<string, string> = {
 
 type Override = "plan" | "on" | "off";
 
+/** Human labels for organisation settings keys (fallback: humanize). */
+const SETTING_LABELS: Record<string, string> = {
+  require_mfa: "Require two-step verification",
+  gamification_enabled: "Gamification",
+  retention_days: "Data retention",
+  default_locale: "Default locale",
+  enforce_sso: "Enforce SSO",
+};
+
 function OrgDetail() {
   const { orgId } = useParams<{ orgId: string }>();
   const qc = useQueryClient();
@@ -107,7 +116,7 @@ function OrgDetail() {
     <>
       <PageHeader
         title={o.name}
-        breadcrumbs={[{ label: "Platform", href: "/app/platform?tab=organisations" }, { label: o.name }]}
+        breadcrumbs={[{ label: "Platform admin", href: "/app/platform" }, { label: "Organisations", href: "/app/platform?tab=organisations" }, { label: o.name }]}
         linkComponent={Link}
         className="mb-4 [&_h1]:sr-only"
       />
@@ -278,8 +287,8 @@ function OrgDetail() {
                 .filter(([k, v]) => !["feature_overrides", "seats"].includes(k) && v !== null && ["string", "number", "boolean"].includes(typeof v))
                 .slice(0, 8)
                 .map(([k, v]) => (
-                  <Meta key={k} label={humanize(k)}>
-                    {typeof v === "boolean" ? (v ? "Yes" : "No") : String(v)}
+                  <Meta key={k} label={SETTING_LABELS[k] ?? humanize(k)}>
+                    {typeof v === "boolean" ? (v ? "Yes" : "No") : k === "retention_days" ? `${fmtNumber(Number(v))} days` : String(v)}
                   </Meta>
                 ))}
             </dl>

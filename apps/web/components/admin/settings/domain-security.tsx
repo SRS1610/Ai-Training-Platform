@@ -49,6 +49,9 @@ import { useOrg } from "./org";
 export function DomainSettings() {
   const qc = useQueryClient();
   const status = useQuery({ queryKey: ak.org.domain, queryFn: ({ signal }) => api.get<DomainStatus>("/organisations/current/domain", { signal }) });
+  const org = useOrg();
+  // Setting a domain needs the `custom_branding` plan feature — show the upsell up front, not after a 402.
+  const entitled = org.data?.features?.custom_branding !== false;
   const [domain, setDomain] = React.useState("");
   const [remove, setRemove] = React.useState(false);
   const setStatus = (d: DomainStatus) => {
@@ -73,7 +76,7 @@ export function DomainSettings() {
     onError: (e) => toastError(e),
   });
 
-  if (status.isLoading) return <Skeleton className="h-72 rounded-2xl" />;
+  if (status.isLoading || org.isLoading) return <Skeleton className="h-72 rounded-2xl" />;
   if (status.isError) return isPlanLimit(status.error) ? <UpgradeNotice error={status.error} title="Custom domains are a Business feature" /> : <ErrorState error={status.error} onRetry={() => status.refetch()} />;
   const d = status.data!;
   const validDomain = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9-]{1,63})+$/i.test(domain.trim());
@@ -94,7 +97,13 @@ export function DomainSettings() {
           )
         }
       >
-        {d.status === "none" || !d.domain ? (
+        {(d.status === "none" || !d.domain) && !entitled ? (
+          <UpgradeNotice
+            compact
+            title="Custom domains are a Business feature"
+            description="Upgrade to Business or Enterprise to serve Praxis from your own domain (e.g. learn.yourcompany.com) with your branding."
+          />
+        ) : d.status === "none" || !d.domain ? (
           <form
             className="space-y-4"
             onSubmit={(e) => {

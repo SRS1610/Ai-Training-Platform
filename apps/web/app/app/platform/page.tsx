@@ -15,7 +15,7 @@ function PlatformPage() {
       <PageHeader
         icon={<Building2 />}
         eyebrow="Super admin"
-        title="Platform console"
+        title="Platform admin"
         description="Every tenant, user, subscription and service — in one place."
       />
       <Tabs value={tab} onValueChange={setTab}>

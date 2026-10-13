@@ -13,7 +13,9 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  type Announcements,
   type DragEndEvent,
+  type ScreenReaderInstructions,
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -381,6 +383,11 @@ function SortableItem({
   );
 }
 
+const screenReaderInstructions: ScreenReaderInstructions = {
+  draggable:
+    "To reorder this course, press Space or Enter to pick it up. Use the Up and Down arrow keys to move it, Space or Enter to drop it in its new position, or Escape to cancel.",
+};
+
 export function PathItemsEditor({ path, onSaved }: { path: PathOut; onSaved: () => void }) {
   const [items, setItems] = React.useState<DraftItem[]>(() => toDraft(path));
   const [adding, setAdding] = React.useState<Option | null>(null);
@@ -403,12 +410,24 @@ export function PathItemsEditor({ path, onSaved }: { path: PathOut; onSaved: () 
 
   const onDragEnd = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
+    // dnd-kit's own live region announces the drop (see `announcements`), so no extra message here.
     setItems((list) => {
       const from = list.findIndex((i) => i.key === e.active.id);
       const to = list.findIndex((i) => i.key === e.over!.id);
-      setAnnounce(`${list[from]?.course_title} moved to position ${to + 1}`);
       return arrayMove(list, from, to);
     });
+  };
+
+  // Screen-reader announcements in course titles and positions (dnd-kit defaults read the raw item ids).
+  const titleOf = (id: string | number) => items.find((i) => i.key === id)?.course_title ?? "Course";
+  const posOf = (id: string | number) => items.findIndex((i) => i.key === id) + 1;
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => `Picked up ${titleOf(active.id)}, position ${posOf(active.id)} of ${items.length}.`,
+    onDragOver: ({ active, over }) =>
+      over ? `${titleOf(active.id)} is over position ${posOf(over.id)} of ${items.length}.` : `${titleOf(active.id)} is no longer over a position.`,
+    onDragEnd: ({ active, over }) =>
+      over ? `${titleOf(active.id)} dropped at position ${posOf(over.id)} of ${items.length}. Save the sequence to keep this order.` : `${titleOf(active.id)} dropped. Order unchanged.`,
+    onDragCancel: ({ active }) => `Reordering cancelled. ${titleOf(active.id)} returned to position ${posOf(active.id)}.`,
   };
 
   const move = (idx: number, dir: -1 | 1) => {
@@ -440,7 +459,7 @@ export function PathItemsEditor({ path, onSaved }: { path: PathOut; onSaved: () 
         {items.length === 0 ? (
           <EmptyState size="sm" illustration="learning" title="No courses in this path yet" description="Add courses below — published courses are enrolled when learners join." />
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} accessibility={{ announcements, screenReaderInstructions }}>
             <SortableContext items={items.map((i) => i.key)} strategy={verticalListSortingStrategy}>
               <ol className="space-y-3">
                 {items.map((it, idx) => (
@@ -520,7 +539,9 @@ export function PathEnrolDialog({ path, open, onOpenChange }: { path: PathOut; o
       setResult(r);
       qc.invalidateQueries({ queryKey: ak.paths.all });
       qc.invalidateQueries({ queryKey: ak.enrolments.all });
-      toast.success(`${r.users} learner${r.users === 1 ? "" : "s"} enrolled in ${path.title}`);
+      qc.invalidateQueries({ queryKey: ak.members.all });
+      if (r.created + r.reactivated === 0) toast.info(r.users === 1 ? "Already enrolled — nothing to do" : `All ${r.users} learners are already enrolled`);
+      else toast.success(`${r.users} ${r.users === 1 ? "learner" : "learners"} enrolled in ${path.title}`);
     },
   });
   const has = users.length + departments.length + teams.length > 0;
@@ -532,9 +553,13 @@ export function PathEnrolDialog({ path, open, onOpenChange }: { path: PathOut; o
           <span className="mb-1 grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white">
             <UsersRound className="size-5" aria-hidden />
           </span>
-          <DialogTitle>{result ? "Enrolment complete" : `Enrol in ${path.title}`}</DialogTitle>
+          <DialogTitle>{!result ? `Enrol in ${path.title}` : result.created + result.reactivated === 0 ? "Everyone is already enrolled" : "Enrolment complete"}</DialogTitle>
           <DialogDescription>
-            {result ? `${result.users} learner${result.users === 1 ? "" : "s"} were processed across ${path.items.length} course${path.items.length === 1 ? "" : "s"}.` : "Learners are enrolled in every published course in the path."}
+            {!result
+              ? "Learners are enrolled in every published course in the path."
+              : result.created + result.reactivated === 0
+                ? `No new enrolments — ${result.users === 1 ? "the selected learner is" : `all ${result.users} selected learners are`} already enrolled in the path's published courses.`
+                : `${result.users} ${result.users === 1 ? "learner was" : "learners were"} processed across ${path.items.length} ${path.items.length === 1 ? "course" : "courses"}.`}
           </DialogDescription>
         </DialogHeader>
         {result ? (
