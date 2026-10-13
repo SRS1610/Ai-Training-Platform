@@ -10,7 +10,7 @@ import { ErrorState } from "@/components/common/error-state";
 import { AssignmentBrief } from "@/components/grading/assignment-brief";
 import { GradeForm } from "@/components/grading/grade-form";
 import { GradeHistory, IntegrityPanel } from "@/components/grading/history-integrity";
-import { SlaChip } from "@/components/grading/queue";
+import { WaitChip } from "@/components/grading/queue";
 import { SubmissionViewer } from "@/components/grading/submission-viewer";
 import { GRADING_MODE_LABEL, SUBMISSION_STATUS, gk, type GradingDetail, type QueueItem, type StructuredField } from "@/components/grading/types";
 import { api } from "@/lib/api";
@@ -99,7 +99,7 @@ export default function GradingWorkspacePage() {
                   <ShieldAlert aria-hidden /> {openSignals} signal{openSignals > 1 ? "s" : ""} to review
                 </Badge>
               )}
-              <SlaChip submittedAt={sub.submitted_at} />
+              <WaitChip status={sub.status} submittedAt={sub.submitted_at} />
               <span className="inline-flex items-center gap-1 text-xs text-slate-500">
                 <Clock className="size-3.5" aria-hidden /> Submitted {formatDateTime(sub.submitted_at)} · attempt {sub.submit_count}
                 {a.max_submissions ? ` of ${a.max_submissions}` : ""}

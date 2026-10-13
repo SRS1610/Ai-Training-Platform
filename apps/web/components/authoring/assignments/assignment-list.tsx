@@ -38,6 +38,7 @@ import { GRADING_MODES } from "../meta";
 import { AIBadge, AStatus, SubNav } from "../shared";
 import type { Assignment, Page, Rubric } from "../types";
 import { useCourseOptions } from "../use-options";
+import { rovingRadio } from "../roving";
 
 export const ASSIGN_NAV = [
   { href: "/app/instructor/assignments", label: "Assignments", icon: ClipboardCheck, color: "amber" as const },
@@ -108,7 +109,7 @@ function CreateAssignmentDialog({ open, onOpenChange }: { open: boolean; onOpenC
           </FormField>
           <fieldset>
             <legend className="mb-2 text-sm font-medium text-slate-800">Grading</legend>
-            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Grading mode">
+            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" {...rovingRadio} aria-label="Grading mode">
               {GRADING_MODES.map((g) => {
                 const on = mode === g.value;
                 const c = colorClasses(g.color);
@@ -356,7 +357,7 @@ export function AssignmentList() {
           ]}
           toolbar={
             <FilterBar search={q} onSearchChange={(v) => set({ q: v || null, page: null })} searchPlaceholder="Search assignments…">
-              <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Status">
+              <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" {...rovingRadio} aria-label="Status">
                 {STATUSES.map((s) => (
                   <button
                     key={s}

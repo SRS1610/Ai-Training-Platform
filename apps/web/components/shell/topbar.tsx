@@ -19,6 +19,7 @@ function crumbsFor(pathname: string) {
   else crumbs.push({ label: "Learn" });
   if (item) crumbs.push({ label: item.label, href: item.href });
   else if (pathname.startsWith("/app/profile/security")) crumbs.push({ label: "Security" });
+  else if (pathname.startsWith("/app/profile/privacy")) crumbs.push({ label: "Privacy & data" });
   else if (pathname.startsWith("/app/profile")) crumbs.push({ label: "Profile" });
   return crumbs;
 }

@@ -2,7 +2,7 @@
 
 import { Alert, Badge, Button, Card, FormField, Input, Textarea, cn, humanize, toast } from "@praxis/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bot, CheckCircle2, Download, Lightbulb, Quote, Save, ThumbsUp, XCircle } from "lucide-react";
+import { Bot, CheckCircle2, CircleDot, Download, Lightbulb, Quote, Save, ThumbsUp, XCircle } from "lucide-react";
 import * as React from "react";
 import { ApiError, api, errorMessage } from "@/lib/api";
 import { confidenceMeta } from "./ai-recommendation";
@@ -60,6 +60,19 @@ export function ResponseView({ q }: { q: ResultQuestion }) {
   return <pre className="overflow-auto rounded-xl bg-slate-50 p-3 font-mono text-xs text-slate-700">{JSON.stringify(r, null, 2)}</pre>;
 }
 
+/** Tone by score/max: full marks success, partial credit warning, zero danger. */
+function ScoreBadge({ score, max }: { score: number; max: number }) {
+  const ratio = max > 0 ? score / max : 0;
+  const [tone, Icon, word] =
+    ratio >= 1 - 1e-9 ? (["success", CheckCircle2, "full marks"] as const) : ratio > 0 ? (["warning", CircleDot, "partial credit"] as const) : (["danger", XCircle, "no marks"] as const);
+  return (
+    <Badge tone={tone} size="sm">
+      <Icon aria-hidden /> {score}/{max}
+      <span className="sr-only">, {word}</span>
+    </Badge>
+  );
+}
+
 export function QuestionGradeCard({ attemptId, q, index, onSaved }: { attemptId: string; q: ResultQuestion; index: number; onSaved: (pending: number) => void }) {
   const qc = useQueryClient();
   const ai = (q.ai_feedback ?? null) as AnswerAIFeedback | null;
@@ -77,7 +90,7 @@ export function QuestionGradeCard({ attemptId, q, index, onSaved }: { attemptId:
       api.put<{ pending: number; score: number; max_score: number }>(`/attempts/${attemptId}/answers/${q.id}/grade`, {
         score: num,
         feedback: feedback.trim() || null,
-        override_reason: reason.trim() || null,
+        override_reason: differs ? reason.trim() || null : null,
       }),
     onSuccess: (r) => {
       toast.success(`Question ${index + 1} marked ${r.score}/${r.max_score}`);
@@ -104,14 +117,8 @@ export function QuestionGradeCard({ attemptId, q, index, onSaved }: { attemptId:
             <Badge tone="violet" size="sm">
               Needs your mark
             </Badge>
-          ) : q.is_correct ? (
-            <Badge tone="success" size="sm">
-              <CheckCircle2 aria-hidden /> {q.score}/{q.max_score}
-            </Badge>
           ) : (
-            <Badge tone="danger" size="sm">
-              <XCircle aria-hidden /> {q.score ?? 0}/{q.max_score}
-            </Badge>
+            <ScoreBadge score={q.score ?? 0} max={q.max_score} />
           )}
         </span>
       </div>

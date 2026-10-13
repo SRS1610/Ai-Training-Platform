@@ -335,6 +335,7 @@ class AttemptResult(BaseModel):
     feedback_available: bool
     questions: list[ResultQuestion]
     integrity: dict[str, Any] | None = None
+    learner_name: str | None = None  # staff only
 
 
 class ManualGradeIn(BaseModel):

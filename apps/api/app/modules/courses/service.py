@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import Ctx
 from app.core.errors import BadRequest, Conflict, NotFound
 from app.core.pagination import PageParams
-from app.models.assessment import Assessment
+from app.models.assessment import Assessment, AssessmentItem
 from app.models.assignment import Assignment
 from app.models.content import (
     Activity,
@@ -1177,7 +1177,27 @@ async def reorder_structure(ctx: Ctx, course_id: uuid.UUID, body: s.ReorderIn) -
 # ----------------------------------------------------------------------------- publish & versions
 
 
-def _publish_problems(tree: Tree) -> list[dict[str, Any]]:
+async def _assessment_item_counts(db: AsyncSession, tree: Tree) -> dict[str, int]:
+    """Number of items (fixed questions + random pools) per linked assessment id."""
+    ids = [uuid.UUID(v["id"]) for (f, _), v in tree.linked.items() if f == "assessment_id"]
+    if not ids:
+        return {}
+    counts = {str(i): 0 for i in ids}
+    rows = await db.execute(
+        select(AssessmentItem.assessment_id, func.count())
+        .where(AssessmentItem.assessment_id.in_(ids))
+        .group_by(AssessmentItem.assessment_id)
+    )
+    for aid, n in rows.all():
+        counts[str(aid)] = int(n)
+    return counts
+
+
+def _publish_problems(tree: Tree, item_counts: dict[str, int] | None = None) -> list[dict[str, Any]]:
+    """Everything that would stop a learner from completing the course as published.
+
+    ``item_counts`` (assessment id -> number of items) enables the empty-assessment check.
+    """
     problems: list[dict[str, Any]] = []
     if not tree.modules:
         problems.append({"code": "no_modules", "message": "Add at least one module"})
@@ -1193,9 +1213,32 @@ def _publish_problems(tree: Tree) -> list[dict[str, Any]]:
         f = LINKED_TYPES.get(lsn.lesson_type)
         if f:
             linked = tree.linked.get((f, getattr(lsn, f))) if getattr(lsn, f) else None
+            kind = f.removesuffix("_id")
             if not linked or linked["deleted"]:
+                problems.append({"code": "missing_link", "message": f"Linked {kind} is missing", **ref})
+            elif linked["status"] != "published":
+                # Learners get `not_published` when they open it, so block the course publish instead.
                 problems.append(
-                    {"code": "missing_link", "message": f"Linked {f.removesuffix('_id')} is missing", **ref}
+                    {
+                        "code": "link_not_published",
+                        "message": f"Linked {kind} '{linked['title']}' is {linked['status']}"
+                        " - publish it first",
+                        "linked_type": kind,
+                        "linked_id": linked["id"],
+                        "linked_status": linked["status"],
+                        **ref,
+                    }
+                )
+            elif kind == "assessment" and item_counts is not None and item_counts.get(linked["id"], 0) == 0:
+                problems.append(
+                    {
+                        "code": "link_not_published",
+                        "message": f"Linked assessment '{linked['title']}' has no questions",
+                        "linked_type": kind,
+                        "linked_id": linked["id"],
+                        "linked_status": "empty",
+                        **ref,
+                    }
                 )
         if lsn.lesson_type == LessonType.MIXED and not tree.activities.get(lsn.id):
             problems.append(
@@ -1223,7 +1266,7 @@ async def publish_course(
     """Validate, freeze the tree into a new immutable CourseVersion and make it current."""
     course = await get_course(ctx, course_id, for_update=True)
     tree = await load_tree(ctx.db, ctx.org_id, course)
-    problems = _publish_problems(tree)
+    problems = _publish_problems(tree, await _assessment_item_counts(ctx.db, tree))
     if problems:
         raise BadRequest(
             "The course is not ready to publish",

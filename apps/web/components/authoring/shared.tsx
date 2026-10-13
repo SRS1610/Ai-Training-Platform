@@ -47,6 +47,7 @@ import type { SaveStatus } from "./hooks";
 import { ak } from "./keys";
 import { QUESTION_DIFFICULTY, toneFor, type TypeMeta } from "./meta";
 import type { Skill } from "./types";
+import { rovingRadio } from "./roving";
 
 /* ------------------------------------------------------------------ type chip */
 
@@ -133,12 +134,15 @@ export function SaveIndicator({
   savedAt,
   onRetry,
   className,
+  held = 0,
 }: {
   status: SaveStatus;
   error?: string | null;
   savedAt?: Date | null;
   onRetry?: () => void;
   className?: string;
+  /** Number of validation issues holding back edits that can't be saved until they're fixed. */
+  held?: number;
 }) {
   const [, tick] = React.useState(0);
   React.useEffect(() => {
@@ -153,13 +157,21 @@ export function SaveIndicator({
           <span className="text-slate-600">Saving…</span>
         </>
       )}
-      {status === "dirty" && (
+      {held > 0 && status !== "saving" && status !== "error" && (
+        <>
+          <AlertCircle className="size-4 shrink-0 text-amber-600" aria-hidden />
+          <span className="font-semibold text-amber-800">
+            Not saved — fix {held} issue{held === 1 ? "" : "s"}
+          </span>
+        </>
+      )}
+      {!held && status === "dirty" && (
         <>
           <span className="size-2 rounded-full bg-amber-400 motion-safe:animate-pulse" aria-hidden />
           <span className="text-slate-600">Unsaved changes</span>
         </>
       )}
-      {status === "saved" && (
+      {!held && status === "saved" && (
         <>
           <CloudCheck className="size-4 text-emerald-600" aria-hidden />
           <span className="text-emerald-700">Saved{savedAt ? ` · ${formatRelative(savedAt)}` : ""}</span>
@@ -178,7 +190,7 @@ export function SaveIndicator({
           )}
         </>
       )}
-      {status === "idle" && (
+      {!held && status === "idle" && (
         <>
           <CloudCheck className="size-4 text-slate-400" aria-hidden />
           <span className="text-slate-500">All changes saved</span>
@@ -235,7 +247,7 @@ export function StringListEditor({
                 {numbered ? i + 1 : <Check className="size-3.5" />}
               </span>
               <input
-                className="min-w-0 flex-1 bg-transparent px-1 py-1 text-sm text-slate-800 outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-brand-500/30"
+                className="w-0 min-w-0 flex-1 bg-transparent px-1 py-1 text-sm text-slate-800 outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-brand-500/30"
                 value={item}
                 aria-label={`${label} ${i + 1}`}
                 onChange={(e) => {
@@ -484,7 +496,7 @@ export function DifficultyDots({ value, className }: { value: number; className?
 
 export function DifficultyPicker({ value, onChange, id }: { value: number; onChange: (v: number) => void; id?: string }) {
   return (
-    <div id={id} role="radiogroup" aria-label="Difficulty" className="flex flex-wrap gap-1.5">
+    <div id={id} role="radiogroup" {...rovingRadio} aria-label="Difficulty" className="flex flex-wrap gap-1.5">
       {QUESTION_DIFFICULTY.map((d, i) => {
         const on = value === i + 1;
         const c = colorClasses(d.color);

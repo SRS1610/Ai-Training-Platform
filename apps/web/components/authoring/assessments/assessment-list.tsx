@@ -28,6 +28,7 @@ import { Archive, FileQuestion, Pencil, Plus, Rocket, ShieldAlert, Timer, Trash2
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { Can } from "@/lib/auth";
 import { ErrorState } from "@/components/common/error-state";
 import { api, errorMessage } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
@@ -38,6 +39,7 @@ import { AStatus, SubNav } from "../shared";
 import { ASSESS_NAV } from "../questions/banks-list";
 import type { Assessment, AssessmentDetail, Page } from "../types";
 import { useCourseOptions } from "../use-options";
+import { rovingRadio } from "../roving";
 
 export function KindChip({ kind }: { kind: string }) {
   const k = kindMeta(kind);
@@ -100,7 +102,7 @@ function CreateAssessmentDialog({ open, onOpenChange }: { open: boolean; onOpenC
           </FormField>
           <fieldset>
             <legend className="mb-2 text-sm font-medium text-slate-800">Kind</legend>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Kind">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" {...rovingRadio} aria-label="Kind">
               {ASSESSMENT_KINDS.map((k) => {
                 const on = kind === k.value;
                 const c = colorClasses(k.color);
@@ -220,9 +222,11 @@ export function AssessmentList() {
         description="Quizzes, finals and practice tests built from fixed questions or random pools."
         icon={<FileQuestion />}
         actions={
-          <Button variant="gradient" leftIcon={<Plus />} onClick={() => setCreateOpen(true)}>
-            New assessment
-          </Button>
+          <Can permission="assessments.manage">
+            <Button variant="gradient" leftIcon={<Plus />} onClick={() => setCreateOpen(true)}>
+              New assessment
+            </Button>
+          </Can>
         }
       />
       <SubNav items={ASSESS_NAV} />
@@ -254,7 +258,7 @@ export function AssessmentList() {
               }}
               searchPlaceholder="Search assessments…"
             >
-              <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Status">
+              <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" {...rovingRadio} aria-label="Status">
                 {["all", "draft", "published", "archived"].map((s) => (
                   <button
                     key={s}

@@ -65,6 +65,7 @@ import {
   entityId,
   graphToState,
   hasOverlaps,
+  isUnarranged,
   mapIssues,
   newNodeData,
   phaseOrder,
@@ -224,6 +225,19 @@ function AddNodeDialog({
   );
 }
 
+/** Tracks the `xl` breakpoint (inspector is a docked panel at ≥1280px, a sheet below). */
+function useIsXl() {
+  const [xl, setXl] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1280px)");
+    const on = () => setXl(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return xl;
+}
+
 function BuilderInner({ id }: { id: string }) {
   const qc = useQueryClient();
   const pathname = usePathname();
@@ -261,6 +275,7 @@ function BuilderInner({ id }: { id: string }) {
   const [publishOpen, setPublishOpen] = React.useState(false);
   const [discardOpen, setDiscardOpen] = React.useState(false);
   const [mobileInspector, setMobileInspector] = React.useState(false);
+  const isXl = useIsXl();
   const [saving, setSaving] = React.useState(false);
   const [validating, setValidating] = React.useState(false);
   const [savedAt, setSavedAt] = React.useState<Date | null>(null);
@@ -269,12 +284,16 @@ function BuilderInner({ id }: { id: string }) {
   const [, forceHistory] = React.useState(0);
 
   const dirty = graphDirty || defDirty || simDirty;
+  React.useEffect(() => {
+    if (isXl) setMobileInspector(false);
+  }, [isXl]);
   const guard = useUnsavedGuard(dirty);
 
   const loadGraph = React.useCallback((g: BuilderGraph, arrange = false) => {
     const st = graphToState(g);
-    // Graphs that were never arranged (e.g. AI-built or seeded) come back with stacked default positions.
-    const placed = arrange && hasOverlaps(st.nodes) ? autoLayout(st.nodes, st.links, st.initial) : st.nodes;
+    // Graphs that were never arranged (AI-built or seeded) come back at the engine's stacked default
+    // positions and get a one-off auto-layout; an instructor's saved layout is always kept.
+    const placed = arrange && isUnarranged(st.nodes) && hasOverlaps(st.nodes) ? autoLayout(st.nodes, st.links, st.initial) : st.nodes;
     setNodes((prev) => {
       const sel = new Set(prev.filter((n) => n.selected).map((n) => n.id));
       return placed.map((n) => (sel.has(n.id) ? { ...n, selected: true } : n));
@@ -645,7 +664,8 @@ function BuilderInner({ id }: { id: string }) {
       setTab("flow");
       setTimeout(() => {
         selectNode(i.nodeId!);
-        setMobileInspector(true);
+        // The docked inspector shows the node on desktop; only small screens need the sheet.
+        if (!window.matchMedia("(min-width: 1280px)").matches) setMobileInspector(true);
       }, 60);
     } else setTab(i.tab);
   };
@@ -853,6 +873,7 @@ function BuilderInner({ id }: { id: string }) {
               <InspectorEmpty counts={counts} onAdd={(t) => setAdding({ type: t, at: { x: 0, y: 360 } })} />
             )}
           </aside>
+          {!isXl && (
           <Sheet open={mobileInspector && !!selectedNode} onOpenChange={setMobileInspector}>
             <SheetContent side="right" className="w-[96%] max-w-md p-0 xl:hidden">
               <SheetTitle className="sr-only">Inspector</SheetTitle>
@@ -879,6 +900,7 @@ function BuilderInner({ id }: { id: string }) {
               )}
             </SheetContent>
           </Sheet>
+          )}
         </div>
       )}
       {tab === "scenario" && <ScenarioTab def={def} onChange={onDef} ctx={ctx} issues={tabIssues("scenario")} sim={simForm} onSim={onSim} />}

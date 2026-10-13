@@ -2,7 +2,7 @@
 
 import { Button, Input, Popover, PopoverContent, PopoverTrigger, Spinner, cn, colorClasses, toast } from "@praxis/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Check, Link2, Plus, Search } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Check, Link2, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { api, errorMessage } from "@/lib/api";
@@ -62,6 +62,7 @@ export function LinkPicker({
   courseId,
   onChange,
   defaultNewTitle,
+  error,
 }: {
   kind: LinkKind;
   value: string | null;
@@ -69,6 +70,8 @@ export function LinkPicker({
   courseId?: string;
   onChange: (item: { id: string; title: string; status?: string }) => void;
   defaultNewTitle?: string;
+  /** Validation message from the parent form (e.g. nothing chosen yet). */
+  error?: string | null;
 }) {
   const cfg = CONFIG[kind];
   const meta = lessonMeta(kind);
@@ -96,11 +99,18 @@ export function LinkPicker({
     onError: (e) => toast.error(errorMessage(e)),
   });
 
+  const submitNew = () => {
+    if (newTitle.trim() && !create.isPending) create.mutate(newTitle.trim());
+  };
   const current = linked && linked.id === value ? linked : options.data?.find((o) => o.id === value);
   const href = value ? cfg.editHref(value) : null;
+  const notLive = !!value && !!current?.status && current.status !== "published";
 
   return (
-    <div className={cn("rounded-2xl border bg-gradient-to-br p-4", c.border, c.tint)}>
+    <div
+      className={cn("rounded-2xl border bg-gradient-to-br p-4", error ? "border-rose-300 ring-2 ring-rose-100" : c.border, c.tint)}
+      aria-invalid={error ? true : undefined}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <TypeChip meta={meta} size="lg" />
         <div className="min-w-0 flex-1">
@@ -161,23 +171,44 @@ export function LinkPicker({
                 )}
               </div>
               {can(cfg.perm) && (
-                <form
-                  className="mt-2 flex gap-2 border-t border-slate-100 pt-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (newTitle.trim()) create.mutate(newTitle.trim());
-                  }}
-                >
-                  <Input inputSize="sm" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={`New ${cfg.noun} title`} aria-label={`New ${cfg.noun} title`} />
-                  <Button type="submit" size="sm" leftIcon={<Plus />} loading={create.isPending} disabled={!newTitle.trim()}>
+                // Not a <form>: the popover is portaled but React events still bubble to the dialog's form.
+                <div className="mt-2 flex gap-2 border-t border-slate-100 pt-2">
+                  <Input
+                    inputSize="sm"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      submitNew();
+                    }}
+                    placeholder={`New ${cfg.noun} title`}
+                    aria-label={`New ${cfg.noun} title`}
+                  />
+                  <Button type="button" size="sm" leftIcon={<Plus />} loading={create.isPending} disabled={!newTitle.trim()} onClick={submitNew}>
                     Create
                   </Button>
-                </form>
+                </div>
               )}
             </PopoverContent>
           </Popover>
         </div>
       </div>
+      {notLive && (
+        <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-inset ring-amber-200" role="status">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+          <span>
+            <strong className="font-semibold capitalize">{current?.status}</strong> — publish it before learners can take it. The course can&apos;t be published until it is.
+          </span>
+        </p>
+      )}
+      {error && (
+        <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-rose-700" role="alert">
+          <AlertTriangle className="size-4 shrink-0" aria-hidden />
+          {error}
+        </p>
+      )}
     </div>
   );
 }

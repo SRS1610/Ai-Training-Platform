@@ -26,6 +26,7 @@ import { AStatus, TypeChip } from "../shared";
 import type { GenerationSummary, Page } from "../types";
 import { CreateGenerationForm } from "./create-form";
 import { GenerationReview } from "./review";
+import { rovingRadio } from "../roving";
 
 const KIND_META: Record<string, { label: string; icon: typeof BookOpen; color: "fuchsia" | "sky" | "amber" | "emerald" | "violet" | "orange" | "teal" | "indigo" | "rose" }> = {
   course: { label: "Course", icon: BookOpen, color: "fuchsia" },
@@ -104,7 +105,7 @@ function HistoryList({ onOpen }: { onOpen: (id: string) => void }) {
         <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <SimpleSelect aria-label="Kind" value={kind} onValueChange={(v) => { setKind(v); setPagination((p) => ({ ...p, pageIndex: 0 })); }} options={[{ value: "all", label: "All kinds" }, ...Object.entries(KIND_META).map(([k, m]) => ({ value: k, label: m.label }))]} className="h-9 sm:w-44" />
           <SimpleSelect aria-label="Status" value={status} onValueChange={(v) => { setStatus(v); setPagination((p) => ({ ...p, pageIndex: 0 })); }} options={[{ value: "all", label: "Any status" }, ...Object.entries(GENERATION_STATUS_LABEL).map(([k, l]) => ({ value: k, label: l }))]} className="h-9 sm:w-48" />
-          <div className="col-span-2 flex w-fit items-center gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Scope">
+          <div className="col-span-2 flex w-fit items-center gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" {...rovingRadio} aria-label="Scope">
             {[
               [false, "Everyone"],
               [true, "Mine"],

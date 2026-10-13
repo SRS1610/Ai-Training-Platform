@@ -6,7 +6,8 @@ import type { components } from "@praxis/types/openapi";
 
 type S = components["schemas"];
 
-export type QueueItem = S["QueueItem"];
+// Fields added to the API after the OpenAPI types were generated (optional so either schema version works).
+export type QueueItem = S["QueueItem"] & { final_score?: number | null; passed?: boolean | null; graded_at?: string | null };
 export type ReviewQueueItem = S["ReviewQueueItem"];
 export type GradingDetail = S["GradingDetail"];
 export type GradeOut = S["GradeOut"];
@@ -15,7 +16,7 @@ export type SubmissionOut = S["SubmissionOut"];
 export type AssignmentOut = S["AssignmentOut"];
 export type SubmissionVersion = S["app__modules__assignments__schemas__VersionOut"];
 export type FileRef = S["FileRef"];
-export type AttemptResult = S["AttemptResult"];
+export type AttemptResult = S["AttemptResult"] & { learner_name?: string | null };
 export type ResultQuestion = S["ResultQuestion"];
 export type AttemptSummary = S["AttemptSummary"];
 

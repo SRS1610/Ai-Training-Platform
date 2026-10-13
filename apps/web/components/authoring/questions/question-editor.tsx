@@ -30,6 +30,7 @@ import { DifficultyPicker, NumberInput, SkillPicker, TagInput, TypeChip } from "
 import type { Page, Question, QuestionInput, QuestionType, Rubric } from "../types";
 import { QuestionPreview } from "./question-preview";
 import { QuestionTypeEditor, defaultsFor, questionProblems, type QState } from "./question-types";
+import { rovingRadio } from "../roving";
 
 const RUBRIC_TYPES = new Set(["long_answer", "file_upload", "scenario", "practical_task", "code"]);
 
@@ -177,7 +178,7 @@ export function QuestionEditorDialog({
 
             <fieldset>
               <legend className="mb-2 text-sm font-medium text-slate-800">Question type</legend>
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-7" role="radiogroup" aria-label="Question type">
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-7" role="radiogroup" {...rovingRadio} aria-label="Question type">
                 {(Object.keys(QUESTION_TYPES) as QuestionTypeKey[]).map((t) => {
                   const m = QUESTION_TYPES[t];
                   const on = form.question_type === t;

@@ -34,6 +34,7 @@ import { BookOpen, Download, FileQuestion, Library, MoreHorizontal, Pencil, Plus
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { Can } from "@/lib/auth";
 import { ErrorState } from "@/components/common/error-state";
 import { api, errorMessage } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
@@ -56,6 +57,7 @@ export function BankDialog({ open, onOpenChange, bank }: { open: boolean; onOpen
   const [description, setDescription] = React.useState("");
   const [courseId, setCourseId] = React.useState("none");
   const [error, setError] = React.useState<string | null>(null);
+  const [opening, startOpening] = React.useTransition();
   React.useEffect(() => {
     if (open) {
       setTitle(bank?.title ?? "");
@@ -70,10 +72,11 @@ export function BankDialog({ open, onOpenChange, bank }: { open: boolean; onOpen
       return bank ? api.patch<Bank>(`/question-banks/${bank.id}`, body) : api.post<Bank>("/question-banks", body);
     },
     onSuccess: (b) => {
-      toast.success(bank ? "Bank updated" : `Bank “${b.title}” created`);
+      toast.success(bank ? "Bank updated" : `Bank “${b.title}” created — add your first questions`);
       qc.invalidateQueries({ queryKey: ak.banks.all });
-      onOpenChange(false);
-      if (!bank) router.push(`/app/instructor/question-banks/${b.id}`);
+      if (bank) return onOpenChange(false);
+      // Go straight to the new bank; the dialog stays (busy) until the page swaps in.
+      startOpening(() => router.push(`/app/instructor/question-banks/${b.id}`));
     },
     onError: (e) => setError(problemsMessage(e)),
   });
@@ -106,7 +109,7 @@ export function BankDialog({ open, onOpenChange, bank }: { open: boolean; onOpen
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={save.isPending}>
+            <Button type="submit" loading={save.isPending || opening}>
               {bank ? "Save" : "Create bank"}
             </Button>
           </DialogFooter>
@@ -150,9 +153,11 @@ export function BanksList() {
         description="Reusable questions across all 14 types — drawn into quizzes, finals and practice tests."
         icon={<Library />}
         actions={
-          <Button variant="gradient" leftIcon={<Plus />} onClick={() => setDialog({ bank: null })}>
-            New bank
-          </Button>
+          <Can permission="assessments.manage">
+            <Button variant="gradient" leftIcon={<Plus />} onClick={() => setDialog({ bank: null })}>
+              New bank
+            </Button>
+          </Can>
         }
       />
       <SubNav items={ASSESS_NAV} />

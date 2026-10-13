@@ -29,6 +29,7 @@ import { MediaField } from "../media-field";
 import { DIFFICULTIES } from "../meta";
 import { NumberInput, SaveIndicator, SectionCard, SkillPicker, StringListEditor, TagInput, ToggleRow } from "../shared";
 import type { Course, CourseInput, Structure } from "../types";
+import { rovingRadio } from "../roving";
 
 type Form = {
   title: string;
@@ -177,7 +178,7 @@ export function CourseSettings({ course }: { course: Course }) {
             </FormField>
             <fieldset className="space-y-1.5">
               <legend className="text-sm font-medium text-slate-800">Difficulty</legend>
-              <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Difficulty">
+              <div className="flex flex-wrap gap-1.5" role="radiogroup" {...rovingRadio} aria-label="Difficulty">
                 {DIFFICULTIES.map((d) => {
                   const on = form.difficulty === d.value;
                   const c = colorClasses(d.color);

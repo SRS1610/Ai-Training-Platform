@@ -27,6 +27,7 @@ import type { Lesson, StructureModule } from "../types";
 import { useBuilder } from "./builder-context";
 import { contentProblems, defaultContent } from "./content-editors";
 import { LinkPicker, type LinkKind } from "./link-picker";
+import { rovingRadio } from "../roving";
 
 const DEFAULT_MINUTES: Partial<Record<LessonTypeKey, number>> = {
   video: 8,
@@ -65,6 +66,12 @@ export function AddLessonDialog({
   const [content, setContent] = React.useState<Record<string, unknown>>(defaultContent("text") ?? {});
   const [link, setLink] = React.useState<{ id: string; title: string; status?: string } | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  /** Field-level errors, shown only after a submit attempt. */
+  const [fieldErrors, setFieldErrors] = React.useState<{ title?: string; media?: string; link?: string }>({});
+  const titleRef = React.useRef<HTMLInputElement>(null);
+  const mediaRef = React.useRef<HTMLDivElement>(null);
+  const linkRef = React.useRef<HTMLDivElement>(null);
+  const alertRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (open) {
@@ -73,6 +80,7 @@ export function AddLessonDialog({
       setContent(defaultContent("text") ?? {});
       setLink(null);
       setError(null);
+      setFieldErrors({});
     }
   }, [open]);
 
@@ -81,11 +89,31 @@ export function AddLessonDialog({
     setContent(defaultContent(t) ?? {});
     setLink(null);
     setError(null);
+    setFieldErrors({});
   };
 
   const linkField = LINKED_LESSON_TYPES[type];
   const media = MEDIA[type];
-  const problems = [...contentProblems(type, content), ...(linkField && !link ? ["Choose or create the linked item"] : [])];
+  const problems = contentProblems(type, content);
+
+  /** Show every field error, then bring the first invalid field into view and focus it. */
+  const validate = (): boolean => {
+    const next = {
+      title: title.trim() ? undefined : "Give the lesson a title",
+      media: media && problems.length ? problems[0] : undefined,
+      link: linkField && !link ? `Choose an existing ${type === "quiz" ? "assessment" : type} or create a new draft` : undefined,
+    };
+    const other = !media && problems.length ? problems[0]! : null;
+    setFieldErrors(next);
+    setError(other);
+    const first = next.title ? titleRef.current : next.media ? mediaRef.current : next.link ? linkRef.current : other ? alertRef.current : null;
+    if (!first) return true;
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    first.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    const focusable = first.matches("input,button,textarea") ? first : first.querySelector<HTMLElement>("input,button,textarea");
+    (focusable ?? first).focus({ preventScroll: true });
+    return false;
+  };
 
   const create = useMutation({
     mutationFn: () =>
@@ -103,7 +131,10 @@ export function AddLessonDialog({
       onCreated(l);
       onOpenChange(false);
     },
-    onError: (e) => setError(problemsMessage(e)),
+    onError: (e) => {
+      setError(problemsMessage(e));
+      requestAnimationFrame(() => alertRef.current?.scrollIntoView({ block: "center" }));
+    },
   });
 
   return (
@@ -117,20 +148,28 @@ export function AddLessonDialog({
           className="space-y-5"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!title.trim()) return setError("Give the lesson a title");
-            if (problems.length) return setError(problems[0]!);
-            create.mutate();
+            if (validate()) create.mutate();
           }}
         >
-          <FormField label="Lesson title" required>
-            <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Triage your first alert" maxLength={255} />
+          <FormField label="Lesson title" required error={fieldErrors.title}>
+            <Input
+              ref={titleRef}
+              autoFocus
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (fieldErrors.title) setFieldErrors((f) => ({ ...f, title: undefined }));
+              }}
+              placeholder="e.g. Triage your first alert"
+              maxLength={255}
+            />
           </FormField>
           <fieldset className="space-y-4">
             <legend className="mb-2 text-sm font-medium text-slate-800">Lesson type</legend>
             {LESSON_TYPE_GROUPS.map((g) => (
               <div key={g.label}>
                 <p className="mb-2 text-2xs font-bold uppercase tracking-wider text-slate-500">{g.label}</p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4" role="radiogroup" aria-label={g.label}>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4" role="radiogroup" {...rovingRadio} aria-label={g.label}>
                   {g.types.map((t) => {
                     const m = LESSON_TYPES[t];
                     const on = t === type;
@@ -160,17 +199,42 @@ export function AddLessonDialog({
             ))}
           </fieldset>
           {media && (
-            <MediaField
-              label={media.label}
-              required
-              url={String(content[media.key] ?? "")}
-              fileId={(content.file_id as string) ?? null}
-              accept={media.accept}
-              onChange={(v) => setContent({ [media.key]: v.url, ...(v.file_id ? { file_id: v.file_id } : {}) })}
-            />
+            <div ref={mediaRef} className="scroll-mt-4">
+              <MediaField
+                label={media.label}
+                required
+                url={String(content[media.key] ?? "")}
+                fileId={(content.file_id as string) ?? null}
+                accept={media.accept}
+                error={fieldErrors.media}
+                onChange={(v) => {
+                  setContent({ [media.key]: v.url, ...(v.file_id ? { file_id: v.file_id } : {}) });
+                  if (fieldErrors.media) setFieldErrors((f) => ({ ...f, media: undefined }));
+                }}
+              />
+            </div>
           )}
-          {linkField && <LinkPicker kind={type as LinkKind} value={link?.id ?? null} courseId={courseId} defaultNewTitle={title} onChange={setLink} />}
-          {error && <Alert tone="danger">{error}</Alert>}
+          {linkField && (
+            <div ref={linkRef} className="scroll-mt-4">
+              <LinkPicker
+                kind={type as LinkKind}
+                value={link?.id ?? null}
+                courseId={courseId}
+                defaultNewTitle={title}
+                error={fieldErrors.link}
+                onChange={(item) => {
+                  setLink(item);
+                  setFieldErrors((f) => ({ ...f, link: undefined }));
+                  setError(null);
+                }}
+              />
+            </div>
+          )}
+          {error && (
+            <div ref={alertRef} tabIndex={-1} className="outline-none">
+              <Alert tone="danger">{error}</Alert>
+            </div>
+          )}
           <DialogFooter className={STICKY_DIALOG_FOOTER}>
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
               Cancel

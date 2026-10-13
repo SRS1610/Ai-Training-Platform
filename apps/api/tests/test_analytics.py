@@ -137,11 +137,25 @@ async def test_course_simulation_dimensions_engine_format_and_pass_rate(client, 
     async with tenant_session(admin.org_id) as s:
         sim, scen = await seed_simulation(s, admin.org_id, sc.course.id, title="Zz engine-format sim")
         await seed_sim_session(
-            s, admin.org_id, l1.user_id, sim, scen, score=80, band="Proficient", passed=True,
+            s,
+            admin.org_id,
+            l1.user_id,
+            sim,
+            scen,
+            score=80,
+            band="Proficient",
+            passed=True,
             dimensions=engine(70, 90),
         )
         await seed_sim_session(
-            s, admin.org_id, l2.user_id, sim, scen, score=50, band="Developing", passed=False,
+            s,
+            admin.org_id,
+            l2.user_id,
+            sim,
+            scen,
+            score=50,
+            band="Developing",
+            passed=False,
             dimensions=engine(30, 50),
         )
         # An abandoned session (passed=False, no score) is not part of either pass-rate denominator.

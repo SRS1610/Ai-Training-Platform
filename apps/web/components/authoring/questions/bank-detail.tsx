@@ -15,15 +15,17 @@ import {
   colorClasses,
   toast,
   type ColumnDef,
+  type PaginationState,
 } from "@praxis/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Copy, Download, FileUp, Library, Pencil, Plus, Sparkles, Target, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
 import { api, errorMessage } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
-import { downloadJson, problemsFrom, problemsMessage } from "../hooks";
+import { downloadJson, problemsFrom, problemsMessage, useDebounced, useSearchParamState } from "../hooks";
 import { ak } from "../keys";
 import { QUESTION_DIFFICULTY, QUESTION_TYPES, questionMeta, type QuestionTypeKey } from "../meta";
 import { AIBadge, AStatus, DifficultyDots, GradientHeader, SubNav, TypeChip } from "../shared";
@@ -59,14 +61,32 @@ function toInput(q: Question): QuestionInput {
   };
 }
 
+/** Column meta: hide on phones (the info is stacked into the question cell). */
+const DESKTOP_ONLY = { headerClassName: "max-sm:hidden", cellClassName: "max-sm:hidden" };
+
 export function BankDetail({ bankId }: { bankId: string }) {
   const qc = useQueryClient();
   const fileRef = React.useRef<HTMLInputElement>(null);
-  const [search, setSearch] = React.useState("");
-  const [type, setType] = React.useState("all");
-  const [difficulty, setDifficulty] = React.useState("all");
-  const [status, setStatus] = React.useState("all");
-  const [pagination, setPagination] = React.useState({ pageIndex: 0, pageSize: 20 });
+  // Filters + page live in the URL so they survive reloads, back/forward and sharing.
+  const router = useRouter();
+  const pathname = usePathname();
+  const sp = useSearchParams();
+  const [get, set] = useSearchParamState(sp, router.replace, pathname);
+  const type = get("type") ?? "all";
+  const difficulty = get("difficulty") ?? "all";
+  const status = get("status") ?? "all";
+  const pageIndex = Math.max(0, Number(get("page") ?? 1) - 1 || 0);
+  const pagination = { pageIndex, pageSize: 20 };
+  const setPagination = (u: PaginationState | ((p: PaginationState) => PaginationState)) => {
+    const next = typeof u === "function" ? u(pagination) : u;
+    set({ page: next.pageIndex > 0 ? String(next.pageIndex + 1) : null });
+  };
+  const setFilter = (key: string, v: string) => set({ [key]: v === "all" ? null : v, page: null });
+  const [search, setSearch] = React.useState(() => get("q") ?? "");
+  const debouncedSearch = useDebounced(search, 300);
+  React.useEffect(() => {
+    if ((get("q") ?? "") !== debouncedSearch) set({ q: debouncedSearch || null, page: null });
+  }, [debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
   const [editor, setEditor] = React.useState<{ question: Question | null } | null>(null);
   const [toDelete, setToDelete] = React.useState<Question | null>(null);
   const [editBank, setEditBank] = React.useState(false);
@@ -74,7 +94,7 @@ export function BankDetail({ bankId }: { bankId: string }) {
   const courses = useCourseOptions();
 
   const bank = useQuery({ queryKey: ak.banks.detail(bankId), queryFn: ({ signal }) => api.get<Bank>(`/question-banks/${bankId}`, { signal }) });
-  const params = { bank_id: bankId, q: search, type, difficulty, status, page: pagination.pageIndex + 1, size: pagination.pageSize };
+  const params = { bank_id: bankId, q: debouncedSearch, type, difficulty, status, page: pagination.pageIndex + 1, size: pagination.pageSize };
   const questions = useQuery({
     queryKey: ak.questions.list(params),
     queryFn: ({ signal }) =>
@@ -82,7 +102,7 @@ export function BankDetail({ bankId }: { bankId: string }) {
         signal,
         query: {
           bank_id: bankId,
-          q: search || undefined,
+          q: debouncedSearch || undefined,
           question_type: type === "all" ? undefined : type,
           difficulty: difficulty === "all" ? undefined : difficulty,
           status: status === "all" ? undefined : status,
@@ -162,8 +182,16 @@ export function BankDetail({ bankId }: { bankId: string }) {
         id: "prompt",
         header: "Question",
         cell: ({ row }) => (
-          <div className="min-w-[240px] max-w-xl">
+          <div className="max-w-xl max-sm:w-[calc(100vw-13rem)] sm:min-w-[240px]">
             <p className="line-clamp-2 text-sm font-medium text-slate-900">{plain(row.original.prompt) || "—"}</p>
+            {/* Below sm the detail columns are hidden: status, difficulty and points stack here. */}
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 sm:hidden">
+              <AStatus status={row.original.status} size="sm" />
+              <DifficultyDots value={row.original.difficulty} />
+              <span className="text-2xs font-medium tabular-nums text-slate-600">
+                {row.original.points} pt{row.original.points === 1 ? "" : "s"}
+              </span>
+            </div>
             <div className="mt-1 flex flex-wrap items-center gap-1">
               {row.original.ai_generated && <AIBadge />}
               {row.original.tags.slice(0, 3).map((t) => (
@@ -176,10 +204,11 @@ export function BankDetail({ bankId }: { bankId: string }) {
           </div>
         ),
       },
-      { id: "difficulty", header: "Difficulty", cell: ({ row }) => <DifficultyDots value={row.original.difficulty} /> },
+      { id: "difficulty", header: "Difficulty", meta: DESKTOP_ONLY, cell: ({ row }) => <DifficultyDots value={row.original.difficulty} /> },
       {
         id: "points",
         header: "Points",
+        meta: DESKTOP_ONLY,
         cell: ({ row }) => (
           <span className="whitespace-nowrap tabular-nums text-slate-700">
             {row.original.points}
@@ -190,6 +219,7 @@ export function BankDetail({ bankId }: { bankId: string }) {
       {
         id: "skills",
         header: "Skills",
+        meta: DESKTOP_ONLY,
         cell: ({ row }) =>
           row.original.skill_ids.length ? (
             <Badge tone="success" size="sm">
@@ -199,8 +229,8 @@ export function BankDetail({ bankId }: { bankId: string }) {
             <span className="text-muted-foreground">—</span>
           ),
       },
-      { id: "status", header: "Status", cell: ({ row }) => <AStatus status={row.original.status} size="sm" /> },
-      { id: "updated", header: "Updated", cell: ({ row }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatRelative(row.original.updated_at)}</span> },
+      { id: "status", header: "Status", meta: DESKTOP_ONLY, cell: ({ row }) => <AStatus status={row.original.status} size="sm" /> },
+      { id: "updated", header: "Updated", meta: DESKTOP_ONLY, cell: ({ row }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatRelative(row.original.updated_at)}</span> },
     ],
     [],
   );
@@ -301,6 +331,7 @@ export function BankDetail({ bankId }: { bankId: string }) {
             {importErrors.slice(0, 20).map((e, i) => (
               <li key={i}>{e}</li>
             ))}
+            {importErrors.length > 20 && <li>…and {importErrors.length - 20} more</li>}
           </ul>
         </Alert>
       )}
@@ -326,39 +357,27 @@ export function BankDetail({ bankId }: { bankId: string }) {
           toolbar={
             <FilterBar
               search={search}
-              onSearchChange={(v) => {
-                setSearch(v);
-                setPagination((p) => ({ ...p, pageIndex: 0 }));
-              }}
+              onSearchChange={setSearch}
               searchPlaceholder="Search prompts…"
             >
               <SimpleSelect
                 aria-label="Question type"
                 value={type}
-                onValueChange={(v) => {
-                  setType(v);
-                  setPagination((p) => ({ ...p, pageIndex: 0 }));
-                }}
+                onValueChange={(v) => setFilter("type", v)}
                 options={[{ value: "all", label: "All types" }, ...(Object.keys(QUESTION_TYPES) as QuestionTypeKey[]).map((t) => ({ value: t, label: QUESTION_TYPES[t].label }))]}
                 className="h-9 w-44"
               />
               <SimpleSelect
                 aria-label="Difficulty"
                 value={difficulty}
-                onValueChange={(v) => {
-                  setDifficulty(v);
-                  setPagination((p) => ({ ...p, pageIndex: 0 }));
-                }}
+                onValueChange={(v) => setFilter("difficulty", v)}
                 options={[{ value: "all", label: "Any difficulty" }, ...QUESTION_DIFFICULTY.map((d, i) => ({ value: String(i + 1), label: `${i + 1} · ${d.label}` }))]}
                 className="h-9 w-40"
               />
               <SimpleSelect
                 aria-label="Status"
                 value={status}
-                onValueChange={(v) => {
-                  setStatus(v);
-                  setPagination((p) => ({ ...p, pageIndex: 0 }));
-                }}
+                onValueChange={(v) => setFilter("status", v)}
                 options={[
                   { value: "all", label: "Any status" },
                   { value: "active", label: "Active" },

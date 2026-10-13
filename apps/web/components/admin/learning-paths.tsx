@@ -421,10 +421,21 @@ export function PathItemsEditor({ path, onSaved }: { path: PathOut; onSaved: () 
   // Screen-reader announcements in course titles and positions (dnd-kit defaults read the raw item ids).
   const titleOf = (id: string | number) => items.find((i) => i.key === id)?.course_title ?? "Course";
   const posOf = (id: string | number) => items.findIndex((i) => i.key === id) + 1;
+  // dnd-kit fires onDragOver (over = itself) right after onDragStart; keep the "picked up" message for that one.
+  const justPicked = React.useRef(false);
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${titleOf(active.id)}, position ${posOf(active.id)} of ${items.length}.`,
-    onDragOver: ({ active, over }) =>
-      over ? `${titleOf(active.id)} is over position ${posOf(over.id)} of ${items.length}.` : `${titleOf(active.id)} is no longer over a position.`,
+    onDragStart: ({ active }) => {
+      justPicked.current = true;
+      return `Picked up ${titleOf(active.id)}, position ${posOf(active.id)} of ${items.length}.`;
+    },
+    onDragOver: ({ active, over }) => {
+      if (justPicked.current && over?.id === active.id) {
+        justPicked.current = false;
+        return `Picked up ${titleOf(active.id)}, position ${posOf(active.id)} of ${items.length}.`;
+      }
+      justPicked.current = false;
+      return over ? `${titleOf(active.id)} is over position ${posOf(over.id)} of ${items.length}.` : `${titleOf(active.id)} is no longer over a position.`;
+    },
     onDragEnd: ({ active, over }) =>
       over ? `${titleOf(active.id)} dropped at position ${posOf(over.id)} of ${items.length}. Save the sequence to keep this order.` : `${titleOf(active.id)} dropped. Order unchanged.`,
     onDragCancel: ({ active }) => `Reordering cancelled. ${titleOf(active.id)} returned to position ${posOf(active.id)}.`,

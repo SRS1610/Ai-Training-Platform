@@ -535,8 +535,10 @@ function PoolDialog({
   const typesInBank = [...new Set(all.map((q) => q.question_type))];
   const tagsInBank = [...new Set(all.flatMap((q) => q.tags))].sort();
   const n = draw ?? 0;
-  const ok = !!bankId && n >= 1 && n <= 500;
   const short = pool.data && matching.length < n;
+  // Only block when the whole bank was loaded (page_size 200), so the eligible count is exact.
+  const tooFew = !!short && pool.data!.total <= all.length;
+  const ok = !!bankId && n >= 1 && n <= 500 && !!pool.data && !tooFew;
   const toggleNum = (key: "difficulty", v: number) => {
     const cur = filters[key] ?? [];
     setFilters({ ...filters, [key]: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v].sort() });
@@ -561,7 +563,11 @@ function PoolDialog({
             <FormField label="Question bank" required>
               {(aria) => <SimpleSelect {...aria} value={bankId} onValueChange={setBankId} options={banks.map((b) => ({ value: b.id, label: `${b.title} (${b.question_count})` }))} placeholder="Choose a bank" />}
             </FormField>
-            <FormField label="Draw" required error={draw !== null && (draw < 1 || draw > 500) ? "1–500" : null}>
+            <FormField
+              label="Draw"
+              required
+              error={draw !== null && (draw < 1 || draw > 500) ? "1–500" : tooFew ? `Only ${matching.length} eligible` : null}
+            >
               {(aria) => <NumberInput {...aria} value={draw} min={1} max={500} onChange={setDraw} suffix="questions" />}
             </FormField>
           </div>

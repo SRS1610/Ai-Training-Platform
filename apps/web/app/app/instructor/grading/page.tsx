@@ -9,7 +9,6 @@ import {
   SimpleSelect,
   Skeleton,
   Tabs,
-  TabsList,
   TabsTrigger,
   cn,
 } from "@praxis/ui";
@@ -19,6 +18,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ErrorState } from "@/components/common/error-state";
 import { SwitchChip } from "@/components/grading/list-input";
+import { ScrollTabsList } from "@/components/grading/scroll-tabs";
 import { QueueEmpty, QueueList, QueuePagination, QuizQueueList } from "@/components/grading/queue";
 import { QUEUE_TABS, gk, type QueueItem, type QueueTabId, type ReviewQueueItem } from "@/components/grading/types";
 import { useUrlState } from "@/components/grading/use-url-state";
@@ -131,7 +131,7 @@ function GradingQueue() {
       <Card className="overflow-hidden">
         <div className="space-y-4 border-b border-slate-100 p-4 sm:p-5">
           <Tabs value={tab} onValueChange={(v) => set({ tab: v === "needs_review" ? undefined : v, page: undefined })}>
-            <TabsList aria-label="Queue">
+            <ScrollTabsList aria-label="Queue" active={tab}>
               {QUEUE_TABS.map((t) => (
                 <TabsTrigger key={t.id} value={t.id}>
                   {t.label}
@@ -147,7 +147,7 @@ function GradingQueue() {
                   )}
                 </TabsTrigger>
               ))}
-            </TabsList>
+            </ScrollTabsList>
           </Tabs>
           <FilterBar
             chips={[

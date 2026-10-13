@@ -75,6 +75,7 @@ import type { Assignment, AssignmentResource, EvidenceItem, EvidenceType, Rubric
 import { useCourseOptions } from "../use-options";
 import { ASSIGN_NAV, GradingChip } from "./assignment-list";
 import { RubricPicker } from "./rubric-picker";
+import { rovingRadio } from "../roving";
 
 /* ------------------------------------------------------------------ constants */
 
@@ -649,7 +650,7 @@ function Editor({ assignment }: { assignment: Assignment }) {
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <SaveIndicator status={save.status} error={save.error} savedAt={save.savedAt} onRetry={() => void save.flush()} className="w-full sm:w-auto" />
-            <div className="flex items-center rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="View">
+            <div className="flex items-center rounded-xl bg-slate-100 p-1" role="radiogroup" {...rovingRadio} aria-label="View">
               {(
                 [
                   ["edit", Pencil, "Edit"],
@@ -808,7 +809,7 @@ function Editor({ assignment }: { assignment: Assignment }) {
               <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <Wand2 className="size-4 text-fuchsia-600" aria-hidden /> Grading
               </p>
-              <div className="space-y-1.5" role="radiogroup" aria-label="Grading mode">
+              <div className="space-y-1.5" role="radiogroup" {...rovingRadio} aria-label="Grading mode">
                 {GRADING_MODES.map((g) => {
                   const on = form.grading_mode === g.value;
                   const c = colorClasses(g.color);

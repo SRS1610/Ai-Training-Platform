@@ -250,6 +250,34 @@ export function autoLayout(nodes: SimNode[], links: BranchLink[], initial: strin
 
 /** True when any two nodes' boxes intersect — e.g. a graph generated server-side with default positions
  * that were never arranged in the builder. Used to auto-arrange on first open. */
+/**
+ * True when (nearly) every node still sits where the engine's `to_graph` puts it by default (phases on a
+ * 360px column grid at y=0, actions in 120px rows below, branches offset from their action, events in a row
+ * at y=-220) — i.e. the graph was AI-built/seeded and never arranged by an instructor. Saved layouts are
+ * kept as-is, even with some overlap; "Auto-layout" stays an explicit button.
+ */
+export function isUnarranged(nodes: SimNode[]): boolean {
+  if (!nodes.length) return false;
+  const COL = 360;
+  const ROW = 120;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  let defaults = 0;
+  for (const n of nodes) {
+    const { x, y } = n.position;
+    let ok = false;
+    if (n.type === "phase") ok = y === 0 && x % COL === 0;
+    else if (n.type === "action") ok = x % COL === 0 && y >= 160 && (y - 160) % ROW === 0;
+    else if (n.type === "event") ok = y === -220 && x % 260 === 0;
+    else if (n.type === "branch") {
+      const m = /^branch:(.+):(\d+)$/.exec(n.id);
+      const parent = m ? byId.get(`action:${m[1]}`) : undefined;
+      ok = !!parent && x === parent.position.x + 180 && y === parent.position.y + 40 * (Number(m![2]) + 1);
+    }
+    if (ok) defaults++;
+  }
+  return defaults / nodes.length >= 0.8;
+}
+
 export function hasOverlaps(nodes: SimNode[]): boolean {
   const boxes = nodes.map((n) => {
     const s = NODE_SIZE[(n.type ?? "action") as SimNodeType] ?? NODE_SIZE.action;

@@ -118,12 +118,12 @@ export function EvidenceFiles({ files, className }: { files: FileRef[]; classNam
   if (!files.length) return <p className="text-sm text-muted-foreground">No files attached to this version.</p>;
   return (
     <>
-      <ul className={cn("grid gap-2 sm:grid-cols-2", className)}>
+      <ul className={cn("grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-[repeat(2,minmax(0,1fr))]", className)}>
         {files.map((f) => {
           const Icon = iconFor(f.content_type);
           const blocked = f.scan_status === "infected";
           return (
-            <li key={f.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <li key={f.id} className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
               <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-sky-50 to-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
                 <Icon className="size-5" aria-hidden />
               </span>

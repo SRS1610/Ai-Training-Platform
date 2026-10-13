@@ -9,7 +9,7 @@ from typing import Any
 from httpx import AsyncClient
 
 from app.core.db import get_sessionmaker
-from app.models.assessment import Assessment, AssessmentAttempt
+from app.models.assessment import Assessment, AssessmentAttempt, AssessmentItem, QuestionBank
 from app.models.assignment import Assignment
 from app.models.simulation import Simulation
 from tests.factories import Account, add_member, set_plan, signup
@@ -100,7 +100,10 @@ async def insert(*rows: Any) -> list[Any]:
 
 
 async def make_assessment(org_id: uuid.UUID, title: str = "Quiz 1") -> Assessment:
+    """A published assessment with one random-pool item (courses refuse to publish empty ones)."""
+    (bank,) = await insert(QuestionBank(organisation_id=org_id, title=f"{title} bank"))
     (a,) = await insert(Assessment(organisation_id=org_id, title=title, status="published"))
+    await insert(AssessmentItem(organisation_id=org_id, assessment_id=a.id, bank_id=bank.id))
     return a
 
 

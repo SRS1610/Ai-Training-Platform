@@ -12,8 +12,18 @@ import { SectionCard, TypeChip } from "../shared";
 import type { AssessmentStats as Stats, QuestionStat } from "../types";
 import { plainText } from "./items-editor";
 
+/** All-or-nothing types: "correct rate" is meaningful. Everything else can earn partial credit. */
+const BINARY_TYPES = new Set(["multiple_choice", "true_false", "short_answer", "numeric"]);
+const isBinary = (q: QuestionStat) => BINARY_TYPES.has(q.question_type);
+
+/** 0..1 rate that drives the difficulty band: correct rate for binary items, mean score for the rest. */
+function bandRate(q: QuestionStat): number | null {
+  if (isBinary(q)) return q.correct_rate;
+  return q.mean_score_pct === null ? null : q.mean_score_pct / 100;
+}
+
 function rateTone(r: number | null): { bar: string; text: string; label: string } {
-  if (r === null) return { bar: "bg-slate-300", text: "text-slate-500", label: "Not auto-scored" };
+  if (r === null) return { bar: "bg-slate-300", text: "text-slate-500", label: "Not scored yet" };
   if (r >= 0.8) return { bar: "bg-emerald-500", text: "text-emerald-700", label: "Easy" };
   if (r >= 0.5) return { bar: "bg-sky-500", text: "text-sky-700", label: "Healthy" };
   if (r >= 0.3) return { bar: "bg-amber-500", text: "text-amber-800", label: "Hard" };
@@ -54,8 +64,12 @@ function Distribution({ dist }: { dist: Record<string, number> }) {
 
 function Row({ q }: { q: QuestionStat }) {
   const m = questionMeta(q.question_type);
-  const rt = rateTone(q.correct_rate);
-  const dt = discTone(q.discrimination);
+  const binary = isBinary(q);
+  const rate = bandRate(q);
+  const rt = rateTone(rate);
+  // Discrimination is computed from right/wrong, so it only means something for all-or-nothing items.
+  const disc = binary ? q.discrimination : null;
+  const dt = discTone(disc);
   return (
     <TableRow>
       <TableCell>
@@ -72,18 +86,25 @@ function Row({ q }: { q: QuestionStat }) {
       <TableCell>
         <div className="w-36">
           <div className="flex items-baseline justify-between text-xs">
-            <span className={cn("font-semibold tabular-nums", rt.text)}>{q.correct_rate === null ? "—" : `${Math.round(q.correct_rate * 100)}%`}</span>
+            <span className={cn("font-semibold tabular-nums", binary ? rt.text : "text-slate-400")}>
+              {binary && q.correct_rate !== null ? `${Math.round(q.correct_rate * 100)}%` : "—"}
+            </span>
             <span className="text-2xs text-muted-foreground">{rt.label}</span>
           </div>
           <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
-            <div className={cn("h-full rounded-full", rt.bar)} style={{ width: `${(q.correct_rate ?? 0) * 100}%` }} />
+            <div className={cn("h-full rounded-full", rt.bar)} style={{ width: `${(rate ?? 0) * 100}%` }} />
           </div>
+          {!binary && rate !== null && (
+            <p className="mt-0.5 whitespace-nowrap text-2xs text-muted-foreground" title="Partial-credit item: banded by mean score">
+              Banded by mean score
+            </p>
+          )}
         </div>
       </TableCell>
       <TableCell className="tabular-nums text-slate-700">{q.mean_score_pct === null ? "—" : `${Math.round(q.mean_score_pct)}%`}</TableCell>
       <TableCell>
         <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold ring-1 ring-inset tabular-nums", dt.cls)}>
-          {q.discrimination === null ? "Needs more data" : `${q.discrimination.toFixed(2)} · ${dt.label}`}
+          {disc === null ? (binary ? "Needs more data" : "n/a · partial credit") : `${disc.toFixed(2)} · ${dt.label}`}
         </span>
       </TableCell>
       <TableCell>
@@ -113,8 +134,17 @@ export function AssessmentStatsPanel({ assessmentId }: { assessmentId: string })
     );
   if (q.isError || !q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const s = q.data;
-  const shown = showAll ? s.questions : s.questions.slice(0, 12);
-  const flagged = s.questions.filter((x) => (x.correct_rate !== null && x.correct_rate < 0.3) || (x.discrimination !== null && x.discrimination < 0.1));
+  const ordered = [...s.questions].sort((a, b) => {
+    const ra = bandRate(a);
+    const rb = bandRate(b);
+    if (ra === null || rb === null) return ra === null ? (rb === null ? 0 : 1) : -1;
+    return ra - rb;
+  });
+  const shown = showAll ? ordered : ordered.slice(0, 12);
+  const flagged = s.questions.filter((x) => {
+    const r = bandRate(x);
+    return (r !== null && r < 0.3) || (isBinary(x) && x.discrimination !== null && x.discrimination < 0.1);
+  });
 
   return (
     <div className="space-y-6">
@@ -130,7 +160,7 @@ export function AssessmentStatsPanel({ assessmentId }: { assessmentId: string })
       ) : (
         <SectionCard
           title="Item analysis"
-          description="Hardest questions first. Discrimination compares the top and bottom 27% of scorers."
+          description="Hardest questions first. Partial-credit items are banded by mean score; discrimination compares the top and bottom 27% of scorers."
           icon={BarChart3}
           color="violet"
           action={

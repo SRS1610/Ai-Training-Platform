@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { Markdown } from "@/components/common/markdown";
+import { rovingRadio } from "./roving";
 
 type Mode = "write" | "preview" | "split";
 
@@ -165,7 +166,7 @@ export function MarkdownEditor({
             );
           })}
         </div>
-        <div className="flex items-center gap-0.5 rounded-lg bg-slate-200/60 p-0.5" role="radiogroup" aria-label="Editor view">
+        <div className="flex items-center gap-0.5 rounded-lg bg-slate-200/60 p-0.5" role="radiogroup" {...rovingRadio} aria-label="Editor view">
           {(
             [
               ["write", Pencil, "Write"],

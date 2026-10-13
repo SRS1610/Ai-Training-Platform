@@ -23,7 +23,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
 import { api, errorMessage } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { Can, useAuth } from "@/lib/auth";
 import { formatRelative } from "@/lib/format";
 import { useSearchParamState } from "../hooks";
 import { ak } from "../keys";
@@ -46,6 +46,9 @@ function hostOf(url: string): string {
 const ACTIVE = new Set(["pending", "processing"]);
 
 /** /app/instructor/knowledge — the documents that ground the AI tutor. `?document=<id>` opens the detail drawer. */
+/** Column meta: hide the column on phones (its key info is stacked into the first cell). */
+const DESKTOP_ONLY = { headerClassName: "max-sm:hidden", cellClassName: "max-sm:hidden" };
+
 export function KnowledgePage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -122,9 +125,9 @@ export function KnowledgePage() {
         cell: ({ row }) => {
           const d = row.original;
           return (
-            <div className="flex min-w-[240px] items-center gap-3">
+            <div className="flex items-center gap-3 max-sm:w-[calc(100vw-8.5rem)] sm:min-w-[240px]">
               <SourceIcon type={d.source_type} size="sm" />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -146,15 +149,30 @@ export function KnowledgePage() {
                   </span>
                   <span className="tabular-nums">{formatChars(d.char_count)}</span>
                 </p>
+                {/* Below sm the other columns are hidden: status + approval stack under the title. */}
+                <div className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
+                  <DocStatus status={d.status} error={d.error} />
+                  {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
+                  <span className="inline-flex items-center gap-1.5 text-2xs font-medium text-slate-600" onClick={(e) => e.stopPropagation()}>
+                    <Switch
+                      checked={d.approved}
+                      disabled={!can("knowledge.manage")}
+                      onCheckedChange={(on) => approve.mutate({ d, on })}
+                      aria-label={`${d.approved ? "Unapprove" : "Approve"} ${d.title}`}
+                    />
+                    Approved
+                  </span>
+                </div>
               </div>
             </div>
           );
         },
       },
-      { id: "status", header: "Status", cell: ({ row }) => <DocStatus status={row.original.status} error={row.original.error} /> },
+      { id: "status", header: "Status", meta: DESKTOP_ONLY, cell: ({ row }) => <DocStatus status={row.original.status} error={row.original.error} /> },
       {
         id: "approved",
         header: "Approved",
+        meta: DESKTOP_ONLY,
         cell: ({ row }) => (
           // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
           <span onClick={(e) => e.stopPropagation()}>
@@ -170,6 +188,7 @@ export function KnowledgePage() {
       {
         id: "scope",
         header: "Scope",
+        meta: DESKTOP_ONLY,
         cell: ({ row }) =>
           row.original.course_id ? (
             <span className="inline-flex max-w-[180px] items-center rounded-full bg-indigo-50 px-2 py-0.5 text-2xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200">
@@ -179,7 +198,7 @@ export function KnowledgePage() {
             <span className="whitespace-nowrap rounded-full bg-teal-50 px-2 py-0.5 text-2xs font-semibold text-teal-700 ring-1 ring-inset ring-teal-200">Organisation-wide</span>
           ),
       },
-      { id: "updated", header: "Updated", cell: ({ row }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatRelative(row.original.updated_at)}</span> },
+      { id: "updated", header: "Updated", meta: DESKTOP_ONLY, cell: ({ row }) => <span className="whitespace-nowrap text-xs text-muted-foreground">{formatRelative(row.original.updated_at)}</span> },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [courses.data, set],
@@ -195,6 +214,7 @@ export function KnowledgePage() {
         description="Policies, runbooks and manuals that ground the AI tutor — every answer cites its source."
         icon={<FolderKanban />}
         actions={
+          <Can permission="knowledge.manage">
           <div className="flex items-center gap-2">
             <Button variant="gradient" leftIcon={<FileUp />} onClick={() => setAdd("upload")}>
               Upload documents
@@ -215,6 +235,7 @@ export function KnowledgePage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+          </Can>
         }
       />
 

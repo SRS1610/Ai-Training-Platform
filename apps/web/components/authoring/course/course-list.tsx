@@ -56,6 +56,7 @@ import { DIFFICULTIES, difficultyMeta } from "../meta";
 import { AIBadge, AStatus } from "../shared";
 import type { Course, Page } from "../types";
 import { CreateCourseDialog } from "./create-course-dialog";
+import { rovingRadio } from "../roving";
 
 const STATUSES = [
   { value: "", label: "All" },
@@ -330,7 +331,7 @@ export function CourseList() {
           onSearchChange={(q) => set({ q, page: null })}
           searchPlaceholder="Search courses…"
           actions={
-            <div className="hidden items-center gap-1 rounded-xl bg-slate-100 p-1 sm:flex" role="radiogroup" aria-label="Layout">
+            <div className="hidden items-center gap-1 rounded-xl bg-slate-100 p-1 sm:flex" role="radiogroup" {...rovingRadio} aria-label="Layout">
               {(
                 [
                   ["grid", LayoutGrid, "Cards"],
@@ -352,7 +353,7 @@ export function CourseList() {
             </div>
           }
         >
-          <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Scope">
+          <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" {...rovingRadio} aria-label="Scope">
             {[
               ["all", "All courses"],
               ["mine", "My courses"],
@@ -377,7 +378,7 @@ export function CourseList() {
             className="h-9 w-36 sm:w-40"
           />
         </FilterBar>
-        <div className="no-scrollbar flex gap-1.5 overflow-x-auto" role="radiogroup" aria-label="Status">
+        <div className="no-scrollbar flex gap-1.5 overflow-x-auto" role="radiogroup" {...rovingRadio} aria-label="Status">
           {STATUSES.map((s) => {
             const on = status === s.value;
             return (

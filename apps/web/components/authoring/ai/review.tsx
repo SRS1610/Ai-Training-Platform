@@ -42,6 +42,7 @@ import {
   GitBranch,
   GraduationCap,
   Layers,
+  Library,
   ListTree,
   type LucideIcon,
   MonitorPlay,
@@ -85,6 +86,7 @@ import type {
 import { useCourseOptions } from "../use-options";
 import { GenerationProgress, OfflineNotice, useGeneration } from "./generation-progress";
 import { AssignmentView, CaseStudyView, FlashcardsView, OutputView, QuestionView, RevisionNotesView, RubricView, ScenarioView } from "./output-views";
+import { rovingRadio } from "../roving";
 
 type Doc = Record<string, unknown>;
 
@@ -145,7 +147,7 @@ function QuizEditor({ quiz, onChange }: { quiz: GenQuiz; onChange: (q: GenQuiz) 
                 </fieldset>
               )}
               {q.type === "true_false" && (
-                <div className="flex gap-2" role="radiogroup" aria-label="Correct answer">
+                <div className="flex gap-2" role="radiogroup" {...rovingRadio} aria-label="Correct answer">
                   {[true, false].map((v) => (
                     <button key={String(v)} type="button" role="radio" aria-checked={q.answer_key.value === v} onClick={() => setQ(i, { answer_key: { value: v } })} className={cn("rounded-xl px-4 py-2 text-sm font-semibold ring-1 ring-inset focus-visible:focus-ring", q.answer_key.value === v ? "bg-emerald-50 text-emerald-800 ring-emerald-300" : "bg-white text-slate-600 ring-slate-200")}>
                       {v ? "True" : "False"}
@@ -367,7 +369,7 @@ function CoursePane({ doc, node, onChange, onSelect }: { doc: GenCourse; node: N
           </FormField>
           <fieldset>
             <legend className="mb-1.5 text-sm font-medium text-slate-800">Difficulty</legend>
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Difficulty">
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" {...rovingRadio} aria-label="Difficulty">
               {DIFFICULTIES.map((d) => {
                 const on = doc.difficulty === d.value;
                 const c = colorClasses(d.color);
@@ -552,11 +554,14 @@ const CREATED_META: Record<string, { label: string; icon: LucideIcon; color: Cat
   lessons: { label: "Lessons", icon: BookOpen, color: "emerald" },
   assessments: { label: "Assessments", icon: FileQuestion, color: "violet" },
   questions: { label: "Questions", icon: CheckCircle2, color: "teal" },
+  question_banks: { label: "Question banks", icon: Library, color: "sky" },
   assignments: { label: "Assignments", icon: ClipboardCheck, color: "amber" },
   rubrics: { label: "Rubrics", icon: Scale, color: "rose" },
   activities: { label: "Blocks", icon: Layers, color: "fuchsia" },
   simulations: { label: "Simulations", icon: MonitorPlay, color: "orange" },
 };
+
+const humanize = (k: string) => k.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
 function AppliedPanel({ result }: { result: ApplyOut }) {
   const reduce = useReducedMotion();
@@ -577,9 +582,9 @@ function AppliedPanel({ result }: { result: ApplyOut }) {
         </Button>
       </div>
       {entries.length > 0 && (
-        <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-7">
+        <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))]">
           {entries.map(([k, v]) => {
-            const m = CREATED_META[k] ?? { label: k, icon: Layers, color: "indigo" as const };
+            const m = CREATED_META[k] ?? { label: humanize(k), icon: Layers, color: "indigo" as const };
             const c = colorClasses(m.color);
             return (
               <div key={k} className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-100">
@@ -695,6 +700,14 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
   const family = useFamily(gen);
   const [doc, setDoc] = React.useState<Doc | null>(() => (gen.edited_output ?? gen.output) as Doc | null);
   const [node, setNode] = React.useState<NodeId>("course");
+  const editorRef = React.useRef<HTMLDivElement>(null);
+  /** Select a node; below lg the editor sits under the picker, so bring it into view. */
+  const jumpTo = React.useCallback((id: NodeId) => {
+    setNode(id);
+    if (typeof window === "undefined" || !window.matchMedia("(max-width: 1023px)").matches) return;
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => editorRef.current?.scrollIntoView({ block: "start", behavior: smooth ? "smooth" : "auto" }));
+  }, []);
   const [dialog, setDialog] = React.useState<null | "approve" | "reject" | "regenerate">(null);
   const [applied, setApplied] = React.useState<ApplyOut | null>(null);
   const [applyTarget, setApplyTarget] = React.useState(false);
@@ -770,6 +783,7 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
 
   const isCourse = gen.kind === "course" && doc;
   const tree = isCourse ? courseTree(doc as unknown as GenCourse) : [];
+  const flatTree = tree.flatMap((n) => [{ id: n.id, label: n.label, depth: 0 }, ...(n.children ?? []).map((ch) => ({ id: ch.id, label: ch.label, depth: 1 }))]);
   const appliedLink =
     gen.applied_entity_id && gen.applied_entity_type
       ? gen.applied_entity_type === "course"
@@ -889,7 +903,23 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
 
       {doc && isCourse ? (
         <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <Card className="p-2 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:scrollbar-thin">
+          {/* Below lg the full tree would push the editor ~2000px down: use a compact jump-to picker instead. */}
+          <Card className="p-3 lg:hidden">
+            <label htmlFor="gen-jump" className="mb-1.5 flex items-center justify-between text-2xs font-bold uppercase tracking-wider text-slate-500">
+              <span>Jump to</span>
+              <span className="font-medium normal-case tracking-normal text-muted-foreground">
+                {flatTree.findIndex((n) => n.id === node) + 1} of {flatTree.length}
+              </span>
+            </label>
+            <SimpleSelect
+              id="gen-jump"
+              value={node}
+              onValueChange={jumpTo}
+              aria-label="Jump to part of the proposed course"
+              options={flatTree.map((n) => ({ value: n.id, label: `${n.depth ? "\u00a0\u00a0\u00a0· " : ""}${n.label}` }))}
+            />
+          </Card>
+          <Card className="hidden p-2 lg:sticky lg:top-20 lg:block lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:scrollbar-thin">
             <p className="px-2 pb-2 pt-1 text-2xs font-bold uppercase tracking-wider text-slate-500">Proposed structure</p>
             <ul className="space-y-0.5" aria-label="Proposed course structure">
               {tree.map((n) => (
@@ -897,12 +927,12 @@ function Workspace({ gen, onOpen }: { gen: Generation; onOpen: (id: string) => v
               ))}
             </ul>
           </Card>
-          <Card className="p-5 sm:p-6">
+          <Card ref={editorRef} className="scroll-mt-20 p-5 sm:p-6">
             {!editable && gen.status !== "failed" && (
               <p className="mb-4 rounded-xl bg-slate-50 px-3 py-2 text-xs text-muted-foreground">Read-only — only completed or approved generations can be edited.</p>
             )}
             <fieldset disabled={!editable} className="min-w-0">
-              <CoursePane doc={doc as unknown as GenCourse} node={node} onChange={(c) => change(c as unknown as Doc)} onSelect={setNode} />
+              <CoursePane doc={doc as unknown as GenCourse} node={node} onChange={(c) => change(c as unknown as Doc)} onSelect={jumpTo} />
             </fieldset>
           </Card>
         </div>

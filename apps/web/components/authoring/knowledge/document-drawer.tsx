@@ -58,13 +58,16 @@ export function DocumentDrawer({ id, onOpenChange }: { id: string | null; onOpen
   const courses = useCourseOptions(!!id);
   const [page, setPage] = React.useState(1);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
+  /** Id just deleted: its queries stay disabled while the URL param is being cleared. */
+  const [deleted, setDeleted] = React.useState<string | null>(null);
+  const live = !!id && id !== deleted;
   const [title, setTitle] = React.useState("");
   const [category, setCategory] = React.useState("");
   React.useEffect(() => setPage(1), [id]);
 
   const doc = useQuery({
     queryKey: ak.knowledge.detail(id ?? ""),
-    enabled: !!id,
+    enabled: live,
     queryFn: ({ signal }) => api.get<KnowledgeDocument>(`/knowledge/documents/${id}`, { signal }),
     refetchInterval: (q) => (q.state.data && ["pending", "processing"].includes(q.state.data.status) ? 2000 : false),
   });
@@ -78,7 +81,7 @@ export function DocumentDrawer({ id, onOpenChange }: { id: string | null; onOpen
 
   const chunks = useQuery({
     queryKey: ak.knowledge.chunks(id ?? "", page),
-    enabled: !!id && d?.status === "ready",
+    enabled: live && d?.status === "ready",
     queryFn: ({ signal }) => api.get<Page<KnowledgeChunk>>(`/knowledge/documents/${id}/chunks`, { signal, query: { page, page_size: CHUNK_PAGE } }),
     placeholderData: (p) => p,
   });
@@ -111,7 +114,7 @@ export function DocumentDrawer({ id, onOpenChange }: { id: string | null; onOpen
   const embedding = chunks.data?.items[0]?.embedding_model;
 
   return (
-    <Sheet open={!!id} onOpenChange={onOpenChange}>
+    <Sheet open={live} onOpenChange={onOpenChange}>
       <SheetContent className="w-full max-w-none gap-0 overflow-y-auto p-0 sm:max-w-2xl">
         {!d ? (
           <div className="space-y-4 p-6" aria-busy>
@@ -288,8 +291,16 @@ export function DocumentDrawer({ id, onOpenChange }: { id: string | null; onOpen
             try {
               await api.delete(`/knowledge/documents/${id}`);
               toast.success("Document deleted");
-              qc.invalidateQueries({ queryKey: ak.knowledge.all });
+              // Close (clears ?document=) and drop this doc's queries first, so nothing refetches a 404.
+              setDeleted(id);
+              setConfirmDelete(false);
               onOpenChange(false);
+              qc.removeQueries({ queryKey: ak.knowledge.detail(id!) });
+              qc.removeQueries({ queryKey: ["knowledge", "chunks", id] });
+              qc.invalidateQueries({
+                queryKey: ak.knowledge.all,
+                predicate: (q) => !(q.queryKey.includes(id) && (q.queryKey[1] === "detail" || q.queryKey[1] === "chunks")),
+              });
             } catch (e) {
               toast.error(errorMessage(e));
             }

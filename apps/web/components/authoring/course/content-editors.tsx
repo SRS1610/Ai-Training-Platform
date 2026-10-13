@@ -23,6 +23,7 @@ import { MarkdownEditor } from "../markdown-editor";
 import { MediaField } from "../media-field";
 import { CALLOUT_VARIANTS, CODE_LANGUAGES } from "../meta";
 import { StringListEditor } from "../shared";
+import { rovingRadio } from "../roving";
 
 type C = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" ? v : "");
@@ -291,7 +292,7 @@ function ScenarioEditor({ content, onChange }: { content: C; onChange: (c: C) =>
                 <div className="grid min-w-0 flex-1 gap-2">
                   <Input inputSize="sm" value={ch.text} placeholder="Choice the learner can make" aria-label={`Branch ${i + 1} choice`} onChange={(e) => update(i, { text: e.target.value })} />
                   <Textarea rows={2} className="min-h-[60px]" value={str(ch.feedback)} placeholder="Feedback shown after choosing this branch" aria-label={`Branch ${i + 1} feedback`} onChange={(e) => update(i, { feedback: e.target.value })} />
-                  <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label={`Branch ${i + 1} outcome`}>
+                  <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" {...rovingRadio} aria-label={`Branch ${i + 1} outcome`}>
                     {OUTCOMES.map((x) => {
                       const on = (ch.outcome ?? "acceptable") === x.value;
                       const xc = colorClasses(x.color);
@@ -517,7 +518,7 @@ export function ContentEditor({ type, content, onChange, title }: { type: string
     case "callout":
       return (
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Callout style">
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" {...rovingRadio} aria-label="Callout style">
             {CALLOUT_VARIANTS.map((v) => {
               const on = (str(content.variant) || "tip") === v.value;
               const cc = colorClasses(v.color);

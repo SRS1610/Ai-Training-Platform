@@ -17,12 +17,14 @@ import {
 } from "@praxis/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "framer-motion";
-import { AlertTriangle, ArrowRight, CheckCircle2, Layers, ListTree, PartyPopper, Rocket, Timer } from "lucide-react";
+import { AlertTriangle, ArrowRight, ArrowUpRight, CheckCircle2, Layers, ListTree, PartyPopper, Rocket, Timer } from "lucide-react";
+import Link from "next/link";
 import * as React from "react";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { formatMinutes } from "@/lib/format";
 import { ak } from "../keys";
 import type { PublishProblem, Structure, VersionDiff, VersionSummary } from "../types";
+import { editHrefFor } from "./link-picker";
 import { DiffSummary } from "./versions";
 
 export function PublishDialog({
@@ -147,12 +149,19 @@ export function PublishDialog({
               <Alert tone="danger" title={`${problems.length} thing${problems.length === 1 ? "" : "s"} to fix before publishing`}>
                 <ul className="mt-2 space-y-1.5">
                   {problems.map((p, i) => (
-                    <li key={i} className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 text-slate-800">
+                    <li key={i} className="flex flex-wrap items-start gap-2 rounded-xl bg-white/70 px-3 py-2 text-slate-800">
                       <AlertTriangle className="mt-0.5 size-4 shrink-0 text-rose-600" aria-hidden />
-                      <span className="min-w-0 flex-1">
+                      <span className="min-w-0 flex-1 basis-48">
                         {p.lesson_title && <strong className="block">{p.lesson_title}</strong>}
                         <span className="text-sm">{p.message}</span>
                       </span>
+                      {p.linked_type && p.linked_id && editHrefFor(p.linked_type === "assessment" ? "quiz" : p.linked_type, p.linked_id) && (
+                        <Button asChild size="xs" variant="soft" rightIcon={<ArrowUpRight />}>
+                          <Link href={editHrefFor(p.linked_type === "assessment" ? "quiz" : p.linked_type, p.linked_id)!}>
+                            {p.linked_status === "empty" ? "Add questions" : `Open ${p.linked_type}`}
+                          </Link>
+                        </Button>
+                      )}
                       {p.lesson_id && (
                         <Button
                           size="xs"

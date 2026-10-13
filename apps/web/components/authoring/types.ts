@@ -225,6 +225,11 @@ export interface PublishProblem {
   message: string;
   lesson_id?: string;
   lesson_title?: string;
+  /** `link_not_published`: the linked item that blocks publishing. */
+  linked_type?: "assessment" | "assignment" | "simulation" | string;
+  linked_id?: string;
+  /** Its status, or "empty" for an assessment with no questions. */
+  linked_status?: string;
 }
 
 export interface FileOut {

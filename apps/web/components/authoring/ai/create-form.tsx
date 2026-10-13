@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { api } from "@/lib/api";
+import { Can } from "@/lib/auth";
 import { useDebounced } from "../hooks";
 import { ak } from "../keys";
 import { DIFFICULTIES, GENERATABLE_QUESTION_TYPES, questionMeta } from "../meta";
@@ -29,6 +30,7 @@ import type { Generation, GenerationKind, Structure } from "../types";
 import { useCourseOptions } from "../use-options";
 import { GenerationError } from "./generation-progress";
 import { EXAMPLE_PROMPTS, parseRequest } from "./parse";
+import { rovingRadio } from "../roving";
 
 const KINDS: { value: GenerationKind; label: string; description: string; icon: LucideIcon; color: CategoryColor }[] = [
   { value: "course", label: "Full course", description: "Modules, lessons, quizzes, assignment, final exam, flashcards & notes", icon: BookOpen, color: "fuchsia" },
@@ -228,7 +230,7 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
 
       <fieldset>
         <legend className="mb-3 font-display text-lg font-semibold text-slate-900">What should we generate?</legend>
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4" role="radiogroup" aria-label="Generation type">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4" role="radiogroup" {...rovingRadio} aria-label="Generation type">
           {KINDS.map((k) => {
             const on = kind === k.value;
             const c = colorClasses(k.color);
@@ -317,7 +319,7 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
           </FormField>
           <fieldset className="space-y-1.5 md:col-span-2 xl:col-span-1">
             <legend className="text-sm font-medium text-slate-800">Difficulty</legend>
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Difficulty">
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" {...rovingRadio} aria-label="Difficulty">
               {DIFFICULTIES.map((d) => {
                 const on = f.difficulty === d.value;
                 const c = colorClasses(d.color);
@@ -379,9 +381,11 @@ export function CreateGenerationForm({ onCreated }: { onCreated: (g: Generation)
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden />
           Nothing is published automatically. You&apos;ll review, edit and approve before a draft is created.
         </p>
-        <Button type="submit" variant="gradient" size="lg" leftIcon={<Wand2 />} loading={start.isPending} disabled={!canSubmit}>
-          Generate {KINDS.find((k) => k.value === kind)?.label.toLowerCase()}
-        </Button>
+        <Can anyOf={["courses.create", "courses.edit"]}>
+          <Button type="submit" variant="gradient" size="lg" leftIcon={<Wand2 />} loading={start.isPending} disabled={!canSubmit}>
+            Generate {KINDS.find((k) => k.value === kind)?.label.toLowerCase()}
+          </Button>
+        </Can>
       </div>
     </form>
   );

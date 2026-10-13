@@ -1,11 +1,11 @@
 "use client";
 
 import { Avatar, Badge, Button, EmptyState, Pagination, Skeleton, StatusPill, cn } from "@praxis/ui";
-import { AlertOctagon, ArrowRight, Bot, CheckCircle2, ChevronRight, Clock, FileQuestion, Flag, MessageSquareWarning, ShieldAlert } from "lucide-react";
+import { AlertOctagon, ArrowRight, Bot, CheckCircle2, ChevronRight, Clock, FileQuestion, Flag, Gavel, MessageSquareWarning, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { formatRelative } from "@/lib/format";
-import { GRADING_MODE_LABEL, SUBMISSION_STATUS, slaTone, type QueueItem, type ReviewQueueItem } from "./types";
+import { GRADING_MODE_LABEL, SUBMISSION_STATUS, fmtPct, slaTone, type QueueItem, type ReviewQueueItem } from "./types";
 
 const SLA_CLASSES = {
   success: "bg-emerald-50 text-emerald-700 ring-emerald-200",
@@ -29,9 +29,33 @@ export function SlaChip({ submittedAt, className }: { submittedAt: string | null
   );
 }
 
-/** Small circular score chip, coloured pass/fail. */
-export function ScoreChip({ score, passed, label = "AI", confidence }: { score: number; passed?: boolean | null; label?: string; confidence?: number | null }) {
-  const good = passed ?? score >= 70;
+/** SLA age for waiting work; closed (graded/returned) items show "Closed" since the SLA colour would mislead. */
+export function WaitChip({ status, submittedAt }: { status: string; submittedAt: string | null | undefined }) {
+  if (status === "graded" || status === "returned")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
+        <CheckCircle2 className="size-3" aria-hidden /> Closed
+      </span>
+    );
+  return <SlaChip submittedAt={submittedAt} />;
+}
+
+/** Small score chip, coloured pass/fail — an AI recommendation (robot) or a final grade (gavel). */
+export function ScoreChip({
+  score,
+  passed,
+  kind = "ai",
+  confidence,
+  passMark = 70,
+}: {
+  score: number;
+  passed?: boolean | null;
+  kind?: "ai" | "final";
+  confidence?: number | null;
+  passMark?: number;
+}) {
+  const good = passed ?? score >= passMark;
+  const Icon = kind === "final" ? Gavel : Bot;
   return (
     <span className="inline-flex items-center gap-2">
       <span
@@ -40,9 +64,10 @@ export function ScoreChip({ score, passed, label = "AI", confidence }: { score: 
           good ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-rose-50 text-rose-700 ring-rose-200",
         )}
       >
-        <Bot className="size-3.5" aria-hidden />
-        <span className="sr-only">{label} recommended score</span>
-        {Math.round(score)}%
+        <Icon className="size-3.5" aria-hidden />
+        <span className="sr-only">{kind === "final" ? "Final grade" : "AI recommended score"}</span>
+        {fmtPct(score)}
+        <span className="sr-only">{good ? ", passed" : ", not passed"}</span>
       </span>
       {confidence !== null && confidence !== undefined && (
         <span className="text-2xs font-medium text-slate-500" title="Model confidence">
@@ -51,6 +76,26 @@ export function ScoreChip({ score, passed, label = "AI", confidence }: { score: 
       )}
     </span>
   );
+}
+
+/** Graded/returned rows lead with the final grade; the AI recommendation is secondary. */
+function RowScore({ it }: { it: QueueItem }) {
+  const ai = it.ai_recommendation;
+  const closed = it.status === "graded" || it.status === "returned";
+  if (closed && it.final_score !== null && it.final_score !== undefined) {
+    return (
+      <span className="flex flex-col items-end gap-0.5 lg:items-start">
+        <ScoreChip kind="final" score={it.final_score} passed={it.passed} />
+        {ai && (
+          <span className="inline-flex items-center gap-1 text-2xs font-medium text-slate-500">
+            <Bot className="size-3" aria-hidden /> AI {fmtPct(ai.score)}
+          </span>
+        )}
+      </span>
+    );
+  }
+  if (ai) return <ScoreChip score={ai.score} passed={ai.passed} confidence={ai.confidence} />;
+  return <span className="text-xs text-slate-500">{closed ? "Returned" : "No AI score"}</span>;
 }
 
 function RowShell({ href, children, highlight }: { href: string; children: React.ReactNode; highlight?: boolean }) {
@@ -111,21 +156,10 @@ export function QueueList({ items, loading }: { items: QueueItem[]; loading?: bo
               <StatusPill status={it.status} label={st.label} tone={st.tone} size="sm" />
             </div>
             <div className="col-start-2 row-start-3 justify-self-end lg:col-start-auto lg:row-start-auto lg:justify-self-start">
-              {it.ai_recommendation ? (
-                <ScoreChip score={it.ai_recommendation.score} passed={it.ai_recommendation.passed} confidence={it.ai_recommendation.confidence} />
-              ) : (
-                <span className="text-xs text-slate-500">No AI score</span>
-              )}
+              <RowScore it={it} />
             </div>
             <div className="col-start-2 row-start-1 justify-self-end lg:col-start-auto lg:row-start-auto lg:justify-self-start">
-              {it.status === "graded" || it.status === "returned" ? (
-                // Closed items are no longer waiting, so the SLA colour would be misleading.
-                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
-                  <CheckCircle2 className="size-3" aria-hidden /> Closed
-                </span>
-              ) : (
-                <SlaChip submittedAt={it.submitted_at} />
-              )}
+              <WaitChip status={it.status} submittedAt={it.submitted_at} />
             </div>
             <ChevronRight className="hidden size-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-600 lg:block" aria-hidden />
           </RowShell>

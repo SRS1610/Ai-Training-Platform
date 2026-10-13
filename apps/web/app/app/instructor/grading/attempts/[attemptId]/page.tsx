@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Badge, Breadcrumbs, Button, Card, ConfirmDialog, Progress, ProgressRing, Skeleton, Tabs, TabsList, TabsTrigger, toast } from "@praxis/ui";
+import { Alert, Avatar, Badge, Breadcrumbs, Button, Card, ConfirmDialog, Progress, ProgressRing, Skeleton, Tabs, TabsList, TabsTrigger, toast } from "@praxis/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle2, FileQuestion, Flag, ShieldAlert } from "lucide-react";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import { useParams, useRouter } from "next/navigation";
 import * as React from "react";
 import { ErrorState } from "@/components/common/error-state";
 import { QuestionGradeCard } from "@/components/grading/quiz-review";
-import { gk, type AttemptResult, type AttemptSummary } from "@/components/grading/types";
+import { fmtPct, gk, type AttemptResult, type AttemptSummary } from "@/components/grading/types";
 import { ApiError, api, errorMessage } from "@/lib/api";
 import { formatDateTime, formatRelative } from "@/lib/format";
 
@@ -19,6 +19,8 @@ export default function AttemptReviewPage() {
   const [filter, setFilter] = React.useState<"pending" | "all">("pending");
   const [confirm, setConfirm] = React.useState(false);
   const [pendingLive, setPendingLive] = React.useState<number | null>(null);
+  // Marks changed after the attempt was finalised → the released result is stale until re-finalised.
+  const [editedAfterFinal, setEditedAfterFinal] = React.useState(false);
 
   const q = useQuery({
     queryKey: gk.attempt(attemptId),
@@ -29,7 +31,7 @@ export default function AttemptReviewPage() {
   const finalize = useMutation({
     mutationFn: () => api.post<AttemptSummary>(`/attempts/${attemptId}/finalize`),
     onSuccess: (r) => {
-      toast.success(`Attempt finalised: ${r.percentage ?? 0}% · ${r.passed ? "passed" : "not passed"}`);
+      toast.success(`Attempt finalised: ${fmtPct(r.percentage ?? 0)} · ${r.passed ? "passed" : "not passed"}`);
       qc.invalidateQueries({ queryKey: gk.all });
       router.push("/app/instructor/grading?tab=quiz");
     },
@@ -62,6 +64,8 @@ export default function AttemptReviewPage() {
   const total = r.questions.length;
   const shown = filter === "pending" ? r.questions.filter((x) => x.pending_review) : r.questions;
   const integrity = r.integrity && Object.keys(r.integrity).length ? r.integrity : null;
+  const finalised = r.status === "graded";
+  const canFinalise = pending === 0 && (!finalised || editedAfterFinal);
 
   return (
     <div className="space-y-6">
@@ -75,6 +79,15 @@ export default function AttemptReviewPage() {
             <p className="text-xs font-semibold uppercase tracking-wider text-sky-700">Manual marking</p>
             <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{r.title || "Assessment attempt"}</h1>
             <p className="mt-1 text-sm text-slate-600">
+              {r.learner_name && (
+                <>
+                  <span className="inline-flex items-center gap-1.5 align-middle font-semibold text-slate-800">
+                    <Avatar name={r.learner_name} size="xs" />
+                    {r.learner_name}
+                  </span>
+                  {" · "}
+                </>
+              )}
               Attempt {r.attempt_number} · submitted {formatRelative(r.submitted_at)} ({formatDateTime(r.submitted_at)}) · pass mark {r.pass_percentage}%
               {r.late && (
                 <Badge tone="danger" size="sm" className="ml-2">
@@ -85,18 +98,30 @@ export default function AttemptReviewPage() {
           </div>
           <div className="flex items-center gap-4">
             <ProgressRing value={total ? ((total - pending) / total) * 100 : 100} size={64} color="sky" aria-label="Marking progress" label={<span className="text-sm font-bold tabular-nums">{total - pending}/{total}</span>} />
-            <Button variant="gradient" leftIcon={<CheckCircle2 />} disabled={pending > 0} loading={finalize.isPending} onClick={() => setConfirm(true)}>
-              Finalise attempt
+            <Button variant="gradient" leftIcon={<CheckCircle2 />} disabled={!canFinalise} loading={finalize.isPending} onClick={() => setConfirm(true)}>
+              {finalised ? (editedAfterFinal ? "Re-finalise attempt" : "Finalised") : "Finalise attempt"}
             </Button>
           </div>
         </div>
         <div className="mt-4" aria-live="polite">
           <Progress value={total ? ((total - pending) / total) * 100 : 100} color="sky" size="sm" aria-label="Answers marked" />
           <p className="mt-1.5 text-xs text-slate-600">
-            {pending > 0 ? `${pending} answer${pending === 1 ? "" : "s"} still need${pending === 1 ? "s" : ""} a mark.` : "Every answer is marked — finalise to release the result."}
+            {pending > 0
+              ? `${pending} answer${pending === 1 ? "" : "s"} still need${pending === 1 ? "s" : ""} a mark.`
+              : finalised
+                ? editedAfterFinal
+                  ? "You changed a mark after finalising — re-finalise to update the learner's result."
+                  : "This attempt is finalised and the result has been released."
+                : "Every answer is marked — finalise to release the result."}
           </p>
         </div>
       </section>
+
+      {finalised && (
+        <Alert tone={r.passed ? "success" : "warning"} icon={<CheckCircle2 aria-hidden />} title={`Finalised: ${fmtPct(r.percentage)} · ${r.passed ? "passed" : "not passed"}`}>
+          Scored {r.score ?? 0} of {r.max_score ?? 0} points against a pass mark of {fmtPct(r.pass_percentage)}. You can still adjust a mark; the result only changes when you re-finalise.
+        </Alert>
+      )}
 
       {integrity && (
         <Alert tone="info" icon={<ShieldAlert aria-hidden />} title="Proctoring events (supplementary signal — never an accusation)">
@@ -122,7 +147,16 @@ export default function AttemptReviewPage() {
       ) : (
         <div className="space-y-4">
           {shown.map((x) => (
-            <QuestionGradeCard key={x.id} attemptId={attemptId} q={x} index={r.questions.indexOf(x)} onSaved={setPendingLive} />
+            <QuestionGradeCard
+              key={x.id}
+              attemptId={attemptId}
+              q={x}
+              index={r.questions.indexOf(x)}
+              onSaved={(n) => {
+                setPendingLive(n);
+                if (finalised) setEditedAfterFinal(true);
+              }}
+            />
           ))}
         </div>
       )}
@@ -130,7 +164,7 @@ export default function AttemptReviewPage() {
       <ConfirmDialog
         open={confirm}
         onOpenChange={setConfirm}
-        title="Finalise this attempt?"
+        title={finalised ? "Re-finalise this attempt?" : "Finalise this attempt?"}
         description="The attempt is scored from your marks, the learner is notified and the result is released (subject to the assessment's feedback settings)."
         confirmLabel="Finalise"
         onConfirm={async () => {

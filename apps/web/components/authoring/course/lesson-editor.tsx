@@ -45,6 +45,7 @@ import { useBuilder } from "./builder-context";
 import { ContentEditor, contentProblems, defaultContent } from "./content-editors";
 import { LessonRender } from "./lesson-render";
 import { LinkPicker, type LinkKind } from "./link-picker";
+import { rovingRadio } from "../roving";
 
 type Draft = {
   title: string;
@@ -147,6 +148,14 @@ export function LessonEditor({
   const meta = lessonMeta(draft.lesson_type);
   const mod = modules.find((m) => m.id === lesson.module_id);
   const linkField = LINKED_LESSON_TYPES[draft.lesson_type];
+  // Type/content/link edits are held back (not sent) while they're invalid — say so instead of "Saved".
+  const held =
+    problems.length > 0 &&
+    (draft.lesson_type !== lesson.lesson_type ||
+      JSON.stringify(draft.content) !== JSON.stringify(lesson.content ?? {}) ||
+      draft.assessment_id !== lesson.assessment_id ||
+      draft.assignment_id !== lesson.assignment_id ||
+      draft.simulation_id !== lesson.simulation_id);
 
   const save = useAutosave(async (d: Draft) => {
     const body: LessonPatch = {
@@ -174,6 +183,18 @@ export function LessonEditor({
       throw e;
     }
   });
+
+  // Warn before leaving the page while edits are held back, pending, in flight or failed.
+  const unsafe = held || save.status === "dirty" || save.status === "saving" || save.status === "error";
+  React.useEffect(() => {
+    if (!unsafe) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [unsafe]);
 
   const update = (patch: Partial<Draft>) => {
     const next = { ...draft, ...patch };
@@ -241,8 +262,8 @@ export function LessonEditor({
             {mod && <span className="truncate text-xs text-muted-foreground">in {mod.title}</span>}
             {lesson.ai_generated && <AIBadge />}
             <div className="ml-auto flex items-center gap-2">
-              <SaveIndicator status={save.status} error={save.error} savedAt={save.savedAt} onRetry={() => void save.flush()} className="hidden sm:flex" />
-              <div className="flex items-center rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Lesson view">
+              <SaveIndicator status={save.status} held={held ? problems.length : 0} error={save.error} savedAt={save.savedAt} onRetry={() => void save.flush()} className="hidden sm:flex" />
+              <div className="flex items-center rounded-xl bg-slate-100 p-1" role="radiogroup" {...rovingRadio} aria-label="Lesson view">
                 {(
                   [
                     ["edit", Pencil, "Edit"],
@@ -372,7 +393,7 @@ export function LessonEditor({
               </div>
             </>
           )}
-          <SaveIndicator status={save.status} error={save.error} savedAt={save.savedAt} onRetry={() => void save.flush()} className="sm:hidden" />
+          <SaveIndicator status={save.status} held={held ? problems.length : 0} error={save.error} savedAt={save.savedAt} onRetry={() => void save.flush()} className="sm:hidden" />
         </div>
       </Card>
 

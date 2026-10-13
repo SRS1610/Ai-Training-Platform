@@ -23,6 +23,7 @@ import { MarkdownEditor } from "../markdown-editor";
 import { CODE_LANGUAGES } from "../meta";
 import { NumberInput, StringListEditor, TagInput } from "../shared";
 import type { Page, QuestionType, SimulationLite } from "../types";
+import { rovingRadio } from "../roving";
 
 type O = Record<string, unknown>;
 const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
@@ -704,7 +705,7 @@ export function QuestionTypeEditor({ type, s, onChange }: { type: QuestionType; 
       return (
         <fieldset>
           <legend className="mb-2 text-sm font-medium text-slate-800">The statement is…</legend>
-          <div className="grid max-w-md grid-cols-2 gap-3" role="radiogroup" aria-label="Correct answer">
+          <div className="grid max-w-md grid-cols-2 gap-3" role="radiogroup" {...rovingRadio} aria-label="Correct answer">
             {[true, false].map((v) => {
               const on = s.answer_key.value === v;
               const c = colorClasses(v ? "emerald" : "rose");

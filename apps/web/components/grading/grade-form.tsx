@@ -20,7 +20,7 @@ import {
   toast,
 } from "@praxis/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bot, CheckCircle2, ChevronDown, Gavel, MessageSquarePlus, Scale, Undo2 } from "lucide-react";
+import { Bot, CheckCircle2, ChevronDown, Gavel, History, MessageSquarePlus, Scale, Undo2 } from "lucide-react";
 import * as React from "react";
 import { ApiError, api, errorMessage } from "@/lib/api";
 import { AIRecommendationCard } from "./ai-recommendation";
@@ -192,6 +192,30 @@ function CriterionRow({
   );
 }
 
+/** A human grade of an earlier version (before a resubmission): read-only context, never pre-filled. */
+function PreviousGradeCard({ grade }: { grade: GradeOut }) {
+  const pct = gradePct(grade);
+  return (
+    <Card className="border-slate-200 bg-slate-50/60 p-4">
+      <div className="flex items-start gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-slate-600 ring-1 ring-slate-200">
+          <History className="size-4" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+            Previous grade (v{grade.submission_version ?? "?"})
+            <Badge tone={grade.passed ? "success" : "danger"} size="sm">
+              {fmtPct(pct)} · {grade.passed ? "passed" : "not passed"}
+            </Badge>
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">Read-only — the current version is graded on its own merits.</p>
+          {grade.summary && <p className="mt-2 line-clamp-3 text-sm text-slate-700">{grade.summary}</p>}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export function GradeForm({ detail, onGraded }: { detail: GradingDetail; onGraded?: () => void }) {
   const qc = useQueryClient();
   const sub = detail.submission;
@@ -341,7 +365,13 @@ export function GradeForm({ detail, onGraded }: { detail: GradingDetail; onGrade
 
   return (
     <div className="space-y-4">
-      {ai && <AIRecommendationCard grade={ai} passingScore={passing} onAccept={gradable ? acceptAi : undefined} accepted={accepted} />}
+      {ai && !aiSameVersion && (
+        <Alert tone="info" title={`AI recommendation is for version ${ai.submission_version}`}>
+          The learner has resubmitted (now v{sub.current_version}), so it isn&apos;t compared with your grade.
+        </Alert>
+      )}
+      {ai && <AIRecommendationCard grade={ai} passingScore={passing} onAccept={gradable && aiSameVersion ? acceptAi : undefined} accepted={accepted} />}
+      {olderHuman && <PreviousGradeCard grade={olderHuman} />}
 
       <Card className="overflow-hidden">
         <div className="flex items-center gap-4 border-b border-slate-100 bg-gradient-to-br from-brand-50/70 via-white to-white p-5">

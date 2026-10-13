@@ -1095,10 +1095,12 @@ async def attempt_result(ctx: Ctx, attempt_id: uuid.UUID) -> dict[str, Any]:
                 entry["ai_feedback"] = row.ai_feedback
         questions.append(entry)
     snap = att.settings_snapshot or {}
+    learner = await ctx.db.get(User, att.user_id) if staff else None
     return {
         "id": att.id,
         "assessment_id": att.assessment_id,
         "user_id": att.user_id,
+        "learner_name": learner.full_name if learner else None,
         "title": snap.get("title", ""),
         "attempt_number": att.attempt_number,
         "status": att.status,

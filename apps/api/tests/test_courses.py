@@ -302,6 +302,65 @@ async def test_publish_fails_when_linked_item_deleted(client, db):
     assert r.json()["error"]["details"]["problems"][0]["code"] == "missing_link"
 
 
+async def test_publish_blocks_unpublished_or_empty_links(client):
+    from app.core.db import get_sessionmaker
+    from app.models.assessment import Assessment, AssessmentItem, QuestionBank
+    from app.models.assignment import Assignment
+    from app.models.simulation import Simulation
+    from tests.learning_utils import insert
+
+    admin = await org_with_admin(client)
+    course = await create_course(client, admin)
+    m = await add_module(client, admin, course["id"])
+    (draft_quiz, empty_quiz, draft_task, draft_sim) = await insert(
+        Assessment(organisation_id=admin.org_id, title="Draft quiz", status="draft"),
+        Assessment(organisation_id=admin.org_id, title="Empty quiz", status="published"),
+        Assignment(organisation_id=admin.org_id, title="Draft task", status="draft"),
+        Simulation(organisation_id=admin.org_id, title="Draft sim", status="draft"),
+    )
+    l1 = await add_lesson(
+        client, admin, course["id"], m["id"], "Q1", lesson_type="quiz", assessment_id=str(draft_quiz.id)
+    )
+    l2 = await add_lesson(
+        client, admin, course["id"], m["id"], "Q2", lesson_type="quiz", assessment_id=str(empty_quiz.id)
+    )
+    l3 = await add_lesson(
+        client, admin, course["id"], m["id"], "T", lesson_type="assignment", assignment_id=str(draft_task.id)
+    )
+    l4 = await add_lesson(
+        client, admin, course["id"], m["id"], "S", lesson_type="simulation", simulation_id=str(draft_sim.id)
+    )
+    r = await client.post(f"{API}/courses/{course['id']}/publish", json={}, headers=admin.headers)
+    assert r.status_code == 400 and r.json()["error"]["code"] == "publish_validation_failed"
+    problems = {p["lesson_id"]: p for p in r.json()["error"]["details"]["problems"]}
+    assert all(p["code"] == "link_not_published" for p in problems.values())
+    assert problems[l1["id"]]["linked_status"] == "draft" and problems[l1["id"]]["lesson_title"] == "Q1"
+    assert problems[l1["id"]]["linked_type"] == "assessment"
+    assert problems[l1["id"]]["linked_id"] == str(draft_quiz.id)
+    assert problems[l2["id"]]["linked_status"] == "empty" and "no questions" in problems[l2["id"]]["message"]
+    assert problems[l3["id"]]["linked_type"] == "assignment"
+    assert problems[l4["id"]]["linked_type"] == "simulation"
+
+    # Fix everything: publish the drafts and give the empty quiz a random pool.
+    (bank,) = await insert(QuestionBank(organisation_id=admin.org_id, title="Bank"))
+    await insert(AssessmentItem(organisation_id=admin.org_id, assessment_id=empty_quiz.id, bank_id=bank.id))
+    async with get_sessionmaker()() as sess:
+        sess.info["rls_bypass"] = True
+        for model, row_id in (
+            (Assessment, draft_quiz.id),
+            (Assignment, draft_task.id),
+            (Simulation, draft_sim.id),
+        ):
+            (await sess.get(model, row_id)).status = "published"
+        await sess.commit()
+    # The draft quiz is now published but still has no questions.
+    r = await client.post(f"{API}/courses/{course['id']}/publish", json={}, headers=admin.headers)
+    assert [p["lesson_id"] for p in r.json()["error"]["details"]["problems"]] == [l1["id"]]
+    await insert(AssessmentItem(organisation_id=admin.org_id, assessment_id=draft_quiz.id, bank_id=bank.id))
+    v = await publish(client, admin, course["id"])
+    assert v["course"]["status"] == "published"
+
+
 async def test_learner_visibility_and_catalog(client):
     admin = await org_with_admin(client)
     learner = await learner_in(admin.org_id)

@@ -20,7 +20,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 import { LogoMark } from "@/components/common/logo";
-import { api, ApiError, errorMessage } from "@/lib/api";
+import { api, ApiError, ORG_HEADER, errorMessage } from "@/lib/api";
 import { useAuth, useMeQuery } from "@/lib/auth";
 import { getActiveOrgId, setActiveOrgId } from "@/lib/org";
 import { qk } from "@/lib/query-keys";
@@ -56,14 +56,21 @@ function BlockedWorkspace({ code }: { code: BlockCode }) {
   const qc = useQueryClient();
   const [switching, setSwitching] = React.useState<string | null>(null);
   const [leaving, setLeaving] = React.useState(false);
+  // Every active membership, probed individually so we know which workspaces are actually reachable
+  // (the list endpoint doesn't carry organisation status). Users rarely have more than a handful.
   const orgs = useQuery({
-    queryKey: ["me", "organisations"],
-    queryFn: ({ signal }) => api.get<OrgSummary[]>("/me/organisations", { signal, noOrg: true }),
+    queryKey: ["me", "organisations", "reachable"],
+    queryFn: async ({ signal }) => {
+      const list = await api.get<OrgSummary[]>("/me/organisations", { signal, noOrg: true });
+      const probes = await Promise.allSettled(
+        list.map((o) => api.get("/me", { signal, noOrg: true, redirectOn401: false, headers: { [ORG_HEADER]: o.id } })),
+      );
+      return list.map((o, i) => ({ ...o, reachable: probes[i]!.status === "fulfilled" }));
+    },
   });
   const activeId = getActiveOrgId();
-  const blocked = orgs.data?.find((o) => o.id === activeId);
-  // Without a known active org the server fell back to the default one; we can't tell which, so list all.
-  const others = (orgs.data ?? []).filter((o) => o.id !== activeId);
+  const blocked = orgs.data?.find((o) => o.id === activeId) ?? orgs.data?.find((o) => !o.reachable);
+  const others = (orgs.data ?? []).filter((o) => o.id !== blocked?.id && o.reachable);
   const suspended = code === "organisation_suspended";
   const orgName = blocked?.name ?? "your organisation";
 

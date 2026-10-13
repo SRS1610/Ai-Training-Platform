@@ -442,7 +442,8 @@ async def test_manual_review_flow_and_integrity(client):
     lq = next(q for q in res["questions"] if q["id"] == long_q)
     assert lq["feedback"] == "Good structure" and lq["score"] == 4.0
     staff = (await client.get(f"{API}/attempts/{att['id']}/result", headers=assessor.headers)).json()
-    assert staff["integrity"]["counts"]["focus_lost"] == 1
+    assert staff["integrity"]["counts"]["focus_lost"] == 1 and staff["learner_name"] == "Lena Learner"
+    assert res["learner_name"] is None  # staff-only field
 
 
 async def test_ai_grading_mode_enqueues_and_finalize_contract(client, monkeypatch):

@@ -22,6 +22,7 @@ import { Copy, Layers, MoreHorizontal, Pencil, Plus, Scale, Sparkles, Trash2 } f
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { Can } from "@/lib/auth";
 import { ErrorState } from "@/components/common/error-state";
 import { api, errorMessage } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
@@ -147,9 +148,11 @@ export function RubricList() {
         description="Reusable, weighted grading criteria for assignments and open questions."
         icon={<Scale />}
         actions={
-          <Button asChild variant="gradient" leftIcon={<Plus />}>
-            <Link href="/app/instructor/rubrics/new">New rubric</Link>
-          </Button>
+          <Can permission="assignments.manage">
+            <Button asChild variant="gradient" leftIcon={<Plus />}>
+              <Link href="/app/instructor/rubrics/new">New rubric</Link>
+            </Button>
+          </Can>
         }
       />
       <SubNav items={ASSIGN_NAV} />

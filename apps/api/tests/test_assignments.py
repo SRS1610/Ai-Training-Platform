@@ -393,7 +393,9 @@ async def test_ai_grade_override_requires_reason_and_contract(client, monkeypatc
     assert sub_row.graded_by == instructor.user_id and sub_row.graded_at is not None
 
     # The Graded tab shows the final grade (not just the AI recommendation).
-    q = (await client.get(f"{API}/grading/queue", params={"status": "graded"}, headers=instructor.headers)).json()
+    q = (
+        await client.get(f"{API}/grading/queue", params={"status": "graded"}, headers=instructor.headers)
+    ).json()
     item = next(i for i in q["items"] if i["submission_id"] == sub["id"])
     assert item["final_score"] == 92.0 and item["passed"] is True and item["graded_at"] is not None
     assert item["ai_recommendation"]["score"] == 80.0

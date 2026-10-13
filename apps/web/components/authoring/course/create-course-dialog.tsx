@@ -26,6 +26,7 @@ import { ak } from "../keys";
 import { DIFFICULTIES } from "../meta";
 import { NumberInput, SkillPicker, STICKY_DIALOG_FOOTER, StringListEditor } from "../shared";
 import type { Course } from "../types";
+import { rovingRadio } from "../roving";
 
 export function CreateCourseDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const qc = useQueryClient();
@@ -132,7 +133,7 @@ export function CreateCourseDialog({ open, onOpenChange }: { open: boolean; onOp
           </div>
           <fieldset>
             <legend className="mb-1.5 text-sm font-medium text-slate-800">Difficulty</legend>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Difficulty">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" {...rovingRadio} aria-label="Difficulty">
               {DIFFICULTIES.map((d) => {
                 const on = difficulty === d.value;
                 const c = colorClasses(d.color);

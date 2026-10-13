@@ -11,6 +11,7 @@ import { ASSESSMENT_KINDS, GRADING_MODES } from "../meta";
 import { NumberInput, SaveIndicator, SectionCard, ToggleRow } from "../shared";
 import type { AssessmentDetail } from "../types";
 import { useCourseOptions } from "../use-options";
+import { rovingRadio } from "../roving";
 
 type Form = {
   title: string;
@@ -68,7 +69,7 @@ function RadioCards<T extends string>({
   columns?: string;
 }) {
   return (
-    <div className={cn("grid gap-2", columns)} role="radiogroup" aria-label={label}>
+    <div className={cn("grid gap-2", columns)} role="radiogroup" {...rovingRadio} aria-label={label}>
       {options.map((o) => {
         const on = value === o.value;
         const c = colorClasses(o.color);

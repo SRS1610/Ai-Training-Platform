@@ -90,12 +90,26 @@ export function problemsFrom(err: unknown): string[] {
       .map((x) => {
         const o = x as { msg?: string; loc?: unknown[] };
         if (!o?.msg) return null;
-        const loc = Array.isArray(o.loc) ? o.loc.filter((p) => p !== "body").join(".") : "";
+        const parts = Array.isArray(o.loc) ? o.loc.filter((p) => p !== "body") : [];
+        // ["questions", 3, "prompt"] → "Question 4 · prompt"
+        const qi = parts[0] === "questions" && typeof parts[1] === "number" ? parts[1] : null;
+        const loc = qi !== null ? [`Question ${qi + 1}`, ...parts.slice(2)].join(" · ") : parts.join(".");
         return `${loc ? `${loc}: ` : ""}${o.msg.replace(/^Value error, /, "")}`;
       })
       .filter((x): x is string => !!x);
   }
   const out: string[] = [];
+  // Question import (`invalid_import`): {questions: [{index, errors: [...]}]} → "Question N: …"
+  const qs = (d as Record<string, unknown>).questions;
+  if (Array.isArray(qs)) {
+    for (const q of qs) {
+      const o = (q ?? {}) as { index?: unknown; errors?: unknown };
+      const n = typeof o.index === "number" ? `Question ${o.index + 1}` : "Question";
+      const errs = Array.isArray(o.errors) ? o.errors.map((x) => (typeof x === "string" ? x : JSON.stringify(x))) : [];
+      if (errs.length) for (const e of errs) out.push(`${n}: ${e}`);
+      else out.push(`${n}: ${JSON.stringify(q)}`);
+    }
+  }
   for (const key of ["errors", "problems", "items"]) {
     const v = (d as Record<string, unknown>)[key];
     if (Array.isArray(v)) {
