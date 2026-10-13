@@ -11,9 +11,20 @@ const STAGES: { label: string; icon: LucideIcon; color: CategoryColor; hint: str
   { label: "Improve", icon: RefreshCcw, color: "rose", hint: "Personal plan" },
 ];
 
+const R = 39;
+
+/**
+ * Node positions around the ring, rounded once to fixed precision. Raw `Math.cos`/`Math.sin` output is not
+ * guaranteed to be bit-identical across JS engines, and full-precision floats in `style` attributes are a classic
+ * source of server/client hydration mismatches, so the attribute strings are made deterministic here.
+ */
+const POSITIONS = STAGES.map((_, i) => {
+  const a = ((-90 + i * 60) * Math.PI) / 180;
+  return { left: `${(50 + R * Math.cos(a)).toFixed(2)}%`, top: `${(50 + R * Math.sin(a)).toFixed(2)}%` };
+});
+
 /** The Learn → Practice → Simulate → Perform → Assess → Improve loop, as an illustration. */
 export function LoopVisual() {
-  const R = 39;
   return (
     <div className="relative mx-auto aspect-square w-full max-w-[520px]" role="img" aria-label="The Praxis loop: Learn, Practice, Simulate, Perform, Get assessed, Improve — then repeat.">
       {/* Rings */}
@@ -52,18 +63,17 @@ export function LoopVisual() {
 
       {/* Stage nodes */}
       {STAGES.map((s, i) => {
-        const a = ((-90 + i * 60) * Math.PI) / 180;
-        const left = 50 + R * Math.cos(a);
-        const top = 50 + R * Math.sin(a);
+        const { left, top } = POSITIONS[i]!;
         const c = colorClasses(s.color);
         const Icon = s.icon;
         return (
-          <div
-            key={s.label}
-            className="absolute -translate-x-1/2 -translate-y-1/2 motion-safe:animate-fade-up"
-            style={{ left: `${left}%`, top: `${top}%`, animationDelay: `${i * 90}ms` }}
-          >
-            <div className="flex items-center gap-2 rounded-2xl border border-white bg-white/95 py-1.5 pl-1.5 pr-3 shadow-lift backdrop-blur sm:gap-2.5 sm:py-2 sm:pl-2 sm:pr-4">
+          // The centring transform lives on the wrapper: the fade-up keyframes animate `transform` on the inner node and
+          // would otherwise replace -translate-x/y-1/2, anchoring each node by its top-left corner instead of its centre.
+          <div key={s.label} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left, top }}>
+            <div
+              className="flex items-center gap-2 rounded-2xl border border-white bg-white/95 py-1.5 pl-1.5 pr-3 shadow-lift backdrop-blur motion-safe:animate-fade-up sm:gap-2.5 sm:py-2 sm:pl-2 sm:pr-4"
+              style={{ animationDelay: `${i * 90}ms` }}
+            >
               <span className={`grid size-8 place-items-center rounded-xl bg-gradient-to-br text-white sm:size-10 ${c.gradient}`}>
                 <Icon className="size-4 sm:size-5" aria-hidden />
               </span>

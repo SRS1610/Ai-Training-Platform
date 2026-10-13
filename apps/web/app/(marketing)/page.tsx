@@ -472,7 +472,8 @@ export default function LandingPage() {
       <footer className="border-t border-slate-100 bg-slate-50/60">
         <div className="container flex flex-col items-center justify-between gap-4 py-8 text-sm text-slate-600 sm:flex-row">
           <Logo />
-          <p>© {new Date().getFullYear()} Praxis. Learn → Practise → Simulate → Perform → Assess → Improve.</p>
+          <p>
+            © <span suppressHydrationWarning>{new Date().getUTCFullYear()}</span> Praxis. Learn → Practise → Simulate → Perform → Assess → Improve.</p>
           <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-4 gap-y-2">
             <Link href="/login" className="hover:text-slate-900">
               Sign in

@@ -19,6 +19,7 @@ import {
   SkillsPanel,
   WelcomePanel,
 } from "@/components/dashboard/sections";
+import { OrgSetupChecklist, useShowOrgSetup } from "@/components/dashboard/org-setup";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { qk } from "@/lib/query-keys";
@@ -62,6 +63,7 @@ function DashboardSkeleton() {
 
 function Dashboard() {
   const { user } = useAuth();
+  const showOrgSetup = useShowOrgSetup();
   const welcome = useSearchParams().get("welcome") === "1";
   const q = useQuery({
     queryKey: qk.dashboard.learner,
@@ -84,11 +86,13 @@ function Dashboard() {
         </Alert>
       )}
       <DashboardHero name={user?.full_name} data={data} weeklyGoal={weeklyGoal} welcome={welcome || isNew} />
+      {showOrgSetup && <OrgSetupChecklist />}
       <KpiRow data={data} />
 
       {isNew ? (
         <>
-          <WelcomePanel emailVerified={!!user?.email_verified} mfaEnabled={!!user?.mfa_enabled} />
+          {/* Org admins get the organisation checklist above instead of a second, learner-only one. */}
+          {!showOrgSetup && <WelcomePanel emailVerified={!!user?.email_verified} mfaEnabled={!!user?.mfa_enabled} />}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <Recommendations items={data.recommendations} />
             <div className="min-w-0 xl:col-span-2">

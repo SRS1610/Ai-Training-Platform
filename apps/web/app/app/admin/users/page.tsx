@@ -2,6 +2,7 @@
 
 import { Button, PageHeader, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@praxis/ui";
 import { MailPlus, UserPlus, UsersRound } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { CreateUserDialog } from "@/components/admin/users/create-user-dialog";
 import { InvitationsTab } from "@/components/admin/users/invitations-tab";
@@ -13,7 +14,9 @@ import { Can, useAuth } from "@/lib/auth";
 function UsersPage() {
   const { can } = useAuth();
   const [tab, setTab] = useUrlState("tab", "members");
-  const [invite, setInvite] = useState(false);
+  const params = useSearchParams();
+  // `?invite=1` (e.g. from the organisation setup checklist) opens the invite dialog straight away.
+  const [invite, setInvite] = useState(() => params.get("invite") === "1");
   const [create, setCreate] = useState(false);
 
   return (

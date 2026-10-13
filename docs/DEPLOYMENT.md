@@ -23,7 +23,7 @@ The `migrate` service runs `alembic upgrade head` and seeds the demo data (`pyth
 
 ### Option B: Native processes
 
-Prerequisites: Python 3.12+, Node 22 + pnpm 9, PostgreSQL 16 with the `pgvector` extension, and Redis 7.
+Prerequisites: Python 3.12+, Node 20.11+ (22 recommended) with pnpm 10 (`corepack enable`), PostgreSQL 16 with the `pgvector` extension, and Redis 7.
 
 ```bash
 ./scripts/dev-db-setup.sh                       # role "praxis" (non-superuser → RLS enforced) + databases
