@@ -516,7 +516,12 @@ export function Workspace({ session, pending, act, chat, registerStepHandler, fr
         {/* ------------------------------------------------ columns */}
         <div className="relative flex min-h-0 flex-1 gap-0 lg:gap-2 lg:p-2">
           {/* Step notices: top-centre, just under the header — clear of the composer and the tab bar. */}
-          <div className="pointer-events-none absolute inset-x-0 top-2 z-30 flex flex-col items-center gap-2 px-3 lg:top-4" aria-live="polite">
+          {/* On desktop the stack is centred over the tool panel (between the mission and chat columns). */}
+          <div
+            className="pointer-events-none absolute inset-x-0 top-14 z-30 flex flex-col items-center gap-2 px-3 lg:left-[var(--notice-l)] lg:right-[var(--notice-r)] lg:top-16"
+            style={{ ["--notice-l" as string]: wide ? "308px" : "8px", ["--notice-r" as string]: chatModel ? `${chatW + 16}px` : "8px" }}
+            aria-live="polite"
+          >
             {notices.map((n) => (
               <StepNotice key={n.id} notice={n} onDismiss={() => dismissNotice(n.id)} />
             ))}
@@ -683,11 +688,14 @@ const NOTICE_TONE: Record<NoticeTone, { card: string; icon: string }> = {
 function StepNotice({ notice, onDismiss }: { notice: Notice; onDismiss: () => void }) {
   const [paused, setPaused] = React.useState(false);
   const ms = Math.min(14_000, (notice.tone === "danger" ? 9000 : 6500) + (notice.items.length - 1) * 1500);
+  // The host re-renders on every step; keep the timer independent of the callback's identity.
+  const dismissRef = React.useRef(onDismiss);
+  dismissRef.current = onDismiss;
   React.useEffect(() => {
     if (paused) return;
-    const t = setTimeout(onDismiss, ms);
+    const t = setTimeout(() => dismissRef.current(), ms);
     return () => clearTimeout(t);
-  }, [paused, ms, onDismiss]);
+  }, [paused, ms]);
   const t = NOTICE_TONE[notice.tone];
   const [lead, ...rest] = notice.items;
   if (!lead) return null;
