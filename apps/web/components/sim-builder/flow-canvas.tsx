@@ -92,7 +92,8 @@ export function FlowCanvas(props: FlowCanvasProps) {
           ...e,
           selected: e.id === selectedEdgeId,
           animated: !!e.data?.auto,
-          zIndex: kind === "contains" ? 0 : 1,
+          // Edges stay beneath nodes so strokes never cross node titles; selected edges are lifted.
+          zIndex: e.id === selectedEdgeId ? 1 : 0,
           markerEnd: kind === "contains" ? undefined : { type: MarkerType.ArrowClosed, color: style.color, width: 16, height: 16 },
           ariaLabel: `${style.label} from ${e.source} to ${e.target}`,
         };
@@ -154,7 +155,7 @@ export function FlowCanvas(props: FlowCanvasProps) {
               const zoom = w < 640 ? 0.8 : 0.9;
               // Leave room for the toolbar (top) and anything stacked above the phase row (events).
               const above = Math.max(0, start.position.y - Math.min(...ns.map((n) => n.position.y)));
-              const top = Math.min(84 + above * zoom, (box?.height ?? 600) * 0.3);
+              const top = Math.min(84 + above * zoom, (box?.height ?? 600) * 0.5);
               inst.setViewport({ x: (w < 640 ? 24 : 56) - start.position.x * zoom, y: top - start.position.y * zoom, zoom });
             });
           }}

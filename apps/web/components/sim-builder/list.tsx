@@ -199,12 +199,15 @@ export function SimulationCard({ s }: { s: SimulationOut }) {
     mutationFn: () => api.delete(`/simulations/${s.id}`),
     onSuccess: () => {
       toast.success("Simulation archived");
-      // Drop the card immediately and forget its per-simulation queries (refetching them would 404).
-      for (const k of [sk.sessionsCount(s.id), sk.detail(s.id), sk.draft(s.id), sk.graph(s.id), sk.analytics(s.id)]) qc.removeQueries({ queryKey: k, exact: true });
+      // Drop the card immediately. Its per-simulation queries are forgotten only once the card has unmounted
+      // (removing an observed query refetches it, which would 404 for an archived simulation).
       qc.setQueriesData<Page<SimulationOut>>({ queryKey: ["simulations", "list"] }, (old) =>
         old && old.items.some((x) => x.id === s.id) ? { ...old, items: old.items.filter((x) => x.id !== s.id), total: Math.max(0, old.total - 1) } : old,
       );
-      qc.invalidateQueries({ queryKey: ["simulations", "list"] });
+      setTimeout(() => {
+        for (const k of [sk.sessionsCount(s.id), sk.detail(s.id), sk.draft(s.id), sk.graph(s.id), sk.analytics(s.id)]) qc.removeQueries({ queryKey: k, exact: true });
+        qc.invalidateQueries({ queryKey: ["simulations", "list"] });
+      }, 1000);
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
