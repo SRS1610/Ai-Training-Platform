@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const API_URL = (process.env.API_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -32,6 +33,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Self-contained server bundle (.next/standalone) for the production Docker image. Tracing from the
+  // monorepo root pulls in the workspace packages and lays the app out as apps/web/server.js.
+  output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, "../.."),
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ["@praxis/ui", "@praxis/types"],
